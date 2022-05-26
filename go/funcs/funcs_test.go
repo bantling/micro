@@ -25,7 +25,7 @@ func greaterThan10(i int) bool {
 }
 
 func TestAnd(t *testing.T) {
-	lt5_10 := And[int](lessThan5, lessThan10)
+	lt5_10 := And(lessThan5, lessThan10)
 	assert.True(t, lt5_10(3))
 	assert.False(t, lt5_10(5))
 	assert.False(t, lt5_10(7))
@@ -34,7 +34,7 @@ func TestAnd(t *testing.T) {
 }
 
 func TestOr(t *testing.T) {
-	lt5_gt10 := Or[int](lessThan5, greaterThan10)
+	lt5_gt10 := Or(lessThan5, greaterThan10)
 	assert.True(t, lt5_gt10(3))
 	assert.False(t, lt5_gt10(5))
 	assert.False(t, lt5_gt10(7))
@@ -43,7 +43,7 @@ func TestOr(t *testing.T) {
 }
 
 func TestNot(t *testing.T) {
-	nlt5 := Not[int](lessThan5)
+	nlt5 := Not(lessThan5)
 	assert.False(t, nlt5(3))
 	assert.True(t, nlt5(5))
 	assert.True(t, nlt5(7))
@@ -52,7 +52,7 @@ func TestNot(t *testing.T) {
 }
 
 func TestEqualTo(t *testing.T) {
-	eq5 := EqualTo[int](5)
+	eq5 := EqualTo(5)
 	assert.False(t, eq5(3))
 	assert.True(t, eq5(5))
 	assert.False(t, eq5(7))
@@ -61,7 +61,7 @@ func TestEqualTo(t *testing.T) {
 }
 
 func TestLessThan(t *testing.T) {
-	lt5 := LessThan[int](5)
+	lt5 := LessThan(5)
 	assert.True(t, lt5(3))
 	assert.False(t, lt5(5))
 	assert.False(t, lt5(7))
@@ -70,7 +70,7 @@ func TestLessThan(t *testing.T) {
 }
 
 func TestLessEqual(t *testing.T) {
-	lte5 := LessThanEqual[int](5)
+	lte5 := LessThanEqual(5)
 	assert.True(t, lte5(3))
 	assert.True(t, lte5(5))
 	assert.False(t, lte5(7))
@@ -99,7 +99,7 @@ func TestIsPositive(t *testing.T) {
 	assert.True(t, pos(3))
 }
 
-func TestIsNilable(t *testing.T) {
+func TestNillable(t *testing.T) {
 	var (
 		cn chan int
 		c  = make(chan int)
@@ -112,6 +112,7 @@ func TestIsNilable(t *testing.T) {
 		p  *int = &i
 		sn []int
 		s  []int = []int{}
+		a  any   = s
 	)
 	assert.True(t, Nillable(reflect.TypeOf(cn)))
 	assert.True(t, IsNil[chan int]()(cn))
@@ -138,6 +139,9 @@ func TestIsNilable(t *testing.T) {
 	assert.True(t, Nillable(reflect.TypeOf(s)))
 	assert.True(t, IsNonNil[[]int]()(s))
 
+	assert.True(t, Nillable(reflect.TypeOf(a)))
+	assert.True(t, IsNonNil[[]int]()(a.([]int)))
+
 	assert.False(t, Nillable(reflect.TypeOf(0)))
 	func() {
 		defer func() {
@@ -155,4 +159,98 @@ func TestIsNilable(t *testing.T) {
 		IsNonNil[int]()
 		assert.Fail(t, "int cannot be Nillable")
 	}()
+}
+
+func TestSupplier(t *testing.T) {
+	supplier := Supplier(5)
+	assert.Equal(t, 5, supplier())
+	assert.Equal(t, 5, supplier())
+
+	var called bool
+	supplier = CachingSupplier(func() int { called = true; return 7 })
+
+	assert.False(t, called)
+	assert.Equal(t, 7, supplier())
+	assert.True(t, called)
+
+	called = false
+	assert.False(t, called)
+	assert.Equal(t, 7, supplier())
+	assert.False(t, called)
+}
+
+func TestMust(t *testing.T) {
+	var e error
+	Must(e)
+
+	e = fmt.Errorf("bob")
+	func() {
+		defer func() {
+			assert.Equal(t, e, recover())
+		}()
+		Must(e)
+		assert.Fail(t, "Must die")
+	}()
+
+	e = nil
+	var i int
+	assert.Equal(t, i, MustValue(i, e))
+
+	e = fmt.Errorf("bob")
+	func() {
+		defer func() {
+			assert.Equal(t, e, recover())
+		}()
+		MustValue(i, e)
+		assert.Fail(t, "Must die")
+	}()
+}
+
+func TestTryTo(t *testing.T) {
+	var (
+		tryCalled    bool
+		panicValue   error
+		closerCalled bool
+		theError     = fmt.Errorf("The error")
+	)
+
+	TryTo(
+		func() { tryCalled = true },
+		func(err error) { panicValue = err },
+		func() error { closerCalled = true; return nil },
+	)
+	assert.True(t, tryCalled)
+	assert.Nil(t, panicValue)
+	assert.True(t, closerCalled)
+
+	tryCalled, panicValue, closerCalled = false, nil, false
+	TryTo(
+		func() { tryCalled = true; panic(theError) },
+		func(err error) { panicValue = err },
+	)
+	assert.True(t, tryCalled)
+	assert.Equal(t, theError, panicValue)
+	assert.False(t, closerCalled)
+
+	tryCalled, panicValue, closerCalled = false, nil, false
+	TryTo(
+		func() { tryCalled = true },
+		func(err error) { panicValue = err },
+		func() error { return theError },
+		func() error { closerCalled = true; return nil },
+	)
+	assert.True(t, tryCalled)
+	assert.Equal(t, theError, panicValue)
+	assert.False(t, closerCalled)
+
+	tryCalled, panicValue, closerCalled = false, nil, false
+	TryTo(
+		func() { tryCalled = true },
+		func(err error) { panicValue = err },
+		func() error { return nil },
+		func() error { closerCalled = true; return nil },
+	)
+	assert.True(t, tryCalled)
+	assert.Nil(t, panicValue)
+	assert.True(t, closerCalled)
 }
