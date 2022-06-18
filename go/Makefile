@@ -27,16 +27,13 @@ count      := 1
 # Pattern for which test(s) to run, default is all of them (no pattern)
 run        :=
 
-# Whether to use docker or podman, in case both are installed (1 = use docker, 0 = use podman)
-use_docker := 1
-
 #### Variables required for Makefile
+
+# The docker image name, in case we use docker
+DOCKER_IMAGE_NAME    := golang
 
 # The podman image name for latest golang, in case we use podman
 PODMAN_IMAGE_NAME    := docker.io/library/golang
-
-# The docker image name, in case we use docker
-DOCKER_IMAGE_NAME    := $(lastword $(subst /, ,$(PODMAN_IMAGE_NAME)))
 
 # The absolute path to this Makefile
 THIS_MAKEFILE_PATH   := $(abspath $(lastword $(MAKEFILE_LIST)))
@@ -50,16 +47,6 @@ DOCKER_PATH          := $(shell which docker 2> /dev/null || :)
 # Path to podman, if we have it
 PODMAN_PATH          := $(shell which podman 2> /dev/null || :)
 
-ifeq ($(use_docker), 1)
-CONTAINER_IMAGE_NAME := $(DOCKER_IMAGE_NAME)
-CONTAINER_CMD        := $(DOCKER_PATH)
-CONTAINER_RUN_CMD    := $(CONTAINER_CMD) run
-else
-CONTAINER_IMAGE_NAME := $(PODMAN_IMAGE_NAME)
-CONTAINER_CMD        := $(PODMAN_PATH)
-CONTAINER_RUN_CMD    := $(CONTAINER_CMD) run -u root
-endif
-
 # Make using host packages - the default way of building
 .PHONY: all
 all: tidy compile lint format test
@@ -67,29 +54,49 @@ all: tidy compile lint format test
 # Make using docker - the docker image uses all target
 .PHONY: docker
 docker: docker-check-image
-	$(CONTAINER_RUN_CMD) --rm -it -v $(THIS_MAKEFILE_DIR):/workdir $(CONTAINER_IMAGE_NAME) bash -c "cd /workdir; make count=$(count) run=$(run)"
+	docker run --rm -it -v $(THIS_MAKEFILE_DIR):/workdir $(DOCKER_IMAGE_NAME) make -C /workdir count=$(count) run=$(run)
 
 # Make using docker - as above, but with a second volume mount for persistent go module cache
 .PHONY: docker-cache
-docker-cache: docker-check-image docker-check-cache
-	$(CONTAINER_RUN_CMD) --rm -it -v $(THIS_MAKEFILE_DIR)/.cache:/go/pkg/mod -v $(THIS_MAKEFILE_DIR):/workdir $(CONTAINER_IMAGE_NAME) bash -c "cd /workdir; make count=$(count) run=$(run)"
+docker-cache: docker-check-image $(THIS_MAKEFILE_DIR)/.cache
+	docker run --rm -it -v $(THIS_MAKEFILE_DIR)/.cache:/go/pkg/mod -v $(THIS_MAKEFILE_DIR):/workdir $(DOCKER_IMAGE_NAME) make -C /workdir id="`id -u`" count=$(count) run=$(run)
 
 # Check if the required docker image has already been pulled, and pull it if not
 .PHONY: docker-check-image
 docker-check-image:
-	[ -n "$(CONTAINER_CMD)" ] || { echo "Neither docker nor podman are in the path"; exit 1; }; \
-	[ "`$(CONTAINER_CMD) images --format "{{.Repository}}" --filter "reference=$(CONTAINER_IMAGE_NAME)" | wc -l`" -eq 1 ] \
-	|| $(CONTAINER_CMD) pull $(CONTAINER_IMAGE_NAME)
+	[ -n "$(DOCKER_PATH)" ] || { echo "docker is not in the path"; exit 1; }; \
+	[ "`docker images --format "{{.Repository}}" --filter "reference=$(DOCKER_IMAGE_NAME)" | wc -l`" -eq 1 ] \
+	|| docker pull $(DOCKER_IMAGE_NAME)
+
+# Make using podman - the podman image uses all target
+.PHONY: podman
+podman: podman-check-image
+	podman run -u root --rm -it -v $(THIS_MAKEFILE_DIR):/workdir $(PODMAN_IMAGE_NAME) bash -c "cd /workdir; make count=$(count) run=$(run)"
+
+# Make using podman - as above, but with a second volume mount for persistent go module cache
+.PHONY: podman-cache
+podman-cache: podman-check-image $(THIS_MAKEFILE_DIR)/.cache
+	podman run --rm -it -v $(THIS_MAKEFILE_DIR)/.cache:/go/pkg/mod -v $(THIS_MAKEFILE_DIR):/workdir $(PODMAN_IMAGE_NAME) bash -c "echo $$HOME; cd /workdir; make count=$(count) run=$(run)"
+
+# Check if the required podman image has already been pulled, and pull it if not
+.PHONY: podman-check-image
+podman-check-image:
+	[ -n "$(PODMAN_PATH)" ] || { echo "podman is not in the path"; exit 1; }; \
+	[ "`podman images --format "{{.Repository}}" --filter "reference=$(PODMAN_IMAGE_NAME)" | wc -l`" -eq 1 ] \
+	|| podman pull $(PODMAN_IMAGE_NAME)
 
 # Create the persistent go mod cache dir if it does not exist 
-.PHONY: docker-check-cache
-docker-check-cache:
+$(THIS_MAKEFILE_DIR)/.cache:
 	mkdir -p $(THIS_MAKEFILE_DIR)/.cache
 
 # Download any missing go packages, update go.sum
 .PHONY: tidy
 tidy:
-	go mod tidy 
+	go mod tidy
+	if [ -d $(THIS_MAKEFILE_DIR)/.cache ]; then \
+		[ -z "${id}" ] || chown -R ${id} $(THIS_MAKEFILE_DIR)/.cache; \
+		chmod -R u+w $(THIS_MAKEFILE_DIR)/.cache; \
+	fi
 
 # Compile go code
 .PHONY: compile
@@ -117,12 +124,11 @@ test:
 .PHONY: vars
 .SILENT: vars
 vars:
-	printf "PODMAN_IMAGE_NAME =\n    $(PODMAN_IMAGE_NAME)\n"
 	printf "DOCKER_IMAGE_NAME =\n    $(DOCKER_IMAGE_NAME)\n"
+	printf "PODMAN_IMAGE_NAME =\n    $(PODMAN_IMAGE_NAME)\n"
 	printf "THIS_MAKEFILE_PATH =\n    $(THIS_MAKEFILE_PATH)\n"
 	printf "THIS_MAKEFILE_DIR =\n    $(THIS_MAKEFILE_DIR)\n"
 	printf "DOCKER_PATH =\n    $(DOCKER_PATH)\n"
 	printf "PODMAN_PATH =\n    $(PODMAN_PATH)\n"
-	printf "CONTAINER_IMAGE_NAME =\n    $(CONTAINER_IMAGE_NAME)\n"
-	printf "CONTAINER_CMD =\n    $(CONTAINER_CMD)\n"
-	printf "CONTAINER_RUN_CMD =\n    $(CONTAINER_RUN_CMD)\n"
+	printf "HOME =\n    $(HOME)\n"
+	printf "ID =\n    `id`\n"
