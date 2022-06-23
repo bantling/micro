@@ -8,6 +8,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestSliceIndex(t *testing.T) {
+	slc := []int{}
+	assert.Equal(t, 0, SliceIndex(slc, 0))
+	assert.Equal(t, 0, SliceIndex(slc, 1))
+	assert.Equal(t, 1, SliceIndex(slc, 0, 1))
+
+	slc = []int{1, 2}
+	assert.Equal(t, 1, SliceIndex(slc, 0))
+	assert.Equal(t, 2, SliceIndex(slc, 1))
+	assert.Equal(t, 0, SliceIndex(slc, 2))
+	assert.Equal(t, 3, SliceIndex(slc, 2, 3))
+}
+
+func TestMapValue(t *testing.T) {
+	mp := map[string]int{}
+	assert.Equal(t, 0, MapValue(mp, ""))
+	assert.Equal(t, 0, MapValue(mp, "a"))
+	assert.Equal(t, 3, MapValue(mp, "b", 3))
+
+	mp = map[string]int{"": 1, "a": 2}
+	assert.Equal(t, 1, MapValue(mp, ""))
+	assert.Equal(t, 2, MapValue(mp, "a"))
+	assert.Equal(t, 3, MapValue(mp, "b", 3))
+}
+
 func lessThan5(i int) bool {
 	return i < 5
 }
@@ -51,15 +76,6 @@ func TestNot(t *testing.T) {
 	assert.True(t, nlt5(12))
 }
 
-func TestEqualTo(t *testing.T) {
-	eq5 := EqualTo(5)
-	assert.False(t, eq5(3))
-	assert.True(t, eq5(5))
-	assert.False(t, eq5(7))
-	assert.False(t, eq5(10))
-	assert.False(t, eq5(12))
-}
-
 func TestLessThan(t *testing.T) {
 	lt5 := LessThan(5)
 	assert.True(t, lt5(3))
@@ -69,13 +85,40 @@ func TestLessThan(t *testing.T) {
 	assert.False(t, lt5(12))
 }
 
-func TestLessEqual(t *testing.T) {
+func TestLessThanEqual(t *testing.T) {
 	lte5 := LessThanEqual(5)
 	assert.True(t, lte5(3))
 	assert.True(t, lte5(5))
 	assert.False(t, lte5(7))
 	assert.False(t, lte5(10))
 	assert.False(t, lte5(12))
+}
+
+func TestEqual(t *testing.T) {
+	eq5 := Equal(5)
+	assert.False(t, eq5(3))
+	assert.True(t, eq5(5))
+	assert.False(t, eq5(7))
+	assert.False(t, eq5(10))
+	assert.False(t, eq5(12))
+}
+
+func TestGreaterThan(t *testing.T) {
+	gt5 := GreaterThan(5)
+	assert.False(t, gt5(3))
+	assert.False(t, gt5(5))
+	assert.True(t, gt5(7))
+	assert.True(t, gt5(10))
+	assert.True(t, gt5(12))
+}
+
+func TestGreaterThanEqual(t *testing.T) {
+	gte5 := GreaterThanEqual(5)
+	assert.False(t, gte5(3))
+	assert.True(t, gte5(5))
+	assert.True(t, gte5(7))
+	assert.True(t, gte5(10))
+	assert.True(t, gte5(12))
 }
 
 func TestIsNegative(t *testing.T) {
@@ -162,7 +205,7 @@ func TestNillable(t *testing.T) {
 }
 
 func TestSupplier(t *testing.T) {
-	supplier := Supplier(5)
+	supplier := SupplierOf(5)
 	assert.Equal(t, 5, supplier())
 	assert.Equal(t, 5, supplier())
 
@@ -177,6 +220,14 @@ func TestSupplier(t *testing.T) {
 	assert.False(t, called)
 	assert.Equal(t, 7, supplier())
 	assert.False(t, called)
+}
+
+func TestTernary(t *testing.T) {
+	assert.Equal(t, 1, Ternary(1 < 2, 1, 2))
+	assert.Equal(t, 1, TernaryResult(1 < 2, func() int { return 1 }, func() int { return 2 }))
+
+	assert.Equal(t, 2, Ternary(1 > 2, 1, 2))
+	assert.Equal(t, 2, TernaryResult(1 > 2, func() int { return 1 }, func() int { return 2 }))
 }
 
 func TestMust(t *testing.T) {
@@ -206,51 +257,57 @@ func TestMust(t *testing.T) {
 	}()
 }
 
+func TestIgnoreResult(t *testing.T) {
+	called := false
+	IgnoreResult(func() int { called = true; return 0 })()
+	assert.True(t, called)
+}
+
 func TestTryTo(t *testing.T) {
 	var (
-		tryCalled    bool
-		panicValue   error
-		closerCalled bool
-		theError     = fmt.Errorf("The error")
+		tryCalled     bool
+		panicValue    any
+		closersCalled = []int{0}
+		theError      = fmt.Errorf("The error")
 	)
 
 	TryTo(
 		func() { tryCalled = true },
-		func(err error) { panicValue = err },
-		func() error { closerCalled = true; return nil },
+		func(err any) { panicValue = err },
+		func() { closersCalled[0] = 1 },
 	)
 	assert.True(t, tryCalled)
 	assert.Nil(t, panicValue)
-	assert.True(t, closerCalled)
+	assert.Equal(t, 1, closersCalled[0])
 
-	tryCalled, panicValue, closerCalled = false, nil, false
+	tryCalled, panicValue, closersCalled = false, nil, []int{0}
 	TryTo(
 		func() { tryCalled = true; panic(theError) },
-		func(err error) { panicValue = err },
+		func(err any) { panicValue = err },
 	)
 	assert.True(t, tryCalled)
 	assert.Equal(t, theError, panicValue)
-	assert.False(t, closerCalled)
+	assert.Equal(t, 0, closersCalled[0])
 
-	tryCalled, panicValue, closerCalled = false, nil, false
+	tryCalled, panicValue, closersCalled = false, nil, []int{}
 	TryTo(
 		func() { tryCalled = true },
-		func(err error) { panicValue = err },
-		func() error { return theError },
-		func() error { closerCalled = true; return nil },
-	)
-	assert.True(t, tryCalled)
-	assert.Equal(t, theError, panicValue)
-	assert.False(t, closerCalled)
-
-	tryCalled, panicValue, closerCalled = false, nil, false
-	TryTo(
-		func() { tryCalled = true },
-		func(err error) { panicValue = err },
-		func() error { return nil },
-		func() error { closerCalled = true; return nil },
+		func(err any) { panicValue = err },
+		func() { closersCalled = append(closersCalled, 1) },
+		func() { closersCalled = append(closersCalled, 2) },
 	)
 	assert.True(t, tryCalled)
 	assert.Nil(t, panicValue)
-	assert.True(t, closerCalled)
+	assert.Equal(t, []int{2, 1}, closersCalled)
+
+	tryCalled, panicValue, closersCalled = false, nil, []int{}
+	TryTo(
+		func() { tryCalled = true; panic(theError) },
+		func(err any) { panicValue = err },
+		func() { closersCalled = append(closersCalled, 1) },
+		func() { closersCalled = append(closersCalled, 2) },
+	)
+	assert.True(t, tryCalled)
+	assert.Equal(t, theError, panicValue)
+	assert.Equal(t, []int{2, 1}, closersCalled)
 }

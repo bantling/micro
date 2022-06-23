@@ -11,7 +11,7 @@ type Float interface {
 	~float32 | ~float64
 }
 
-// Integer is equivalent to from golang.org/x/exp/constraints#Integer
+// Integer is equivalent to golang.org/x/exp/constraints#Integer
 type Integer interface {
 	SignedInteger | UnsignedInteger
 }

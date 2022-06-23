@@ -12,6 +12,49 @@ const (
 	notNilableMsg = "Type %s is not a nillable type"
 )
 
+// SliceIndex returns the first of the following given a slice, index, and optional default value:
+// 1. slice[index] if the slice is non-nil and length > index
+// 2. default value if provided
+// 3. zero value of slice element type
+func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
+	// Return index if it exists
+	idx := int(index)
+	if (slc != nil) && (len(slc) > idx) {
+		return slc[idx]
+	}
+
+	// Else return default if provided
+	if len(defawlt) > 0 {
+		return defawlt[0]
+	}
+
+	// Else return zero value
+	var zv T
+	return zv
+}
+
+// MapValue returns the first of the following:
+// 1. map[key] if the map is non-nil and the key exists in the map
+// 2. default if provided
+// 3. zero value of map value type
+func MapValue[K comparable, V any](mp map[K]V, key K, defawlt ...V) V {
+	// Return key value if it exists
+	if mp != nil {
+		if val, haveIt := mp[key]; haveIt {
+			return val
+		}
+	}
+
+	// Else return default if provided
+	if len(defawlt) > 0 {
+		return defawlt[0]
+	}
+
+	// Else return zero value of map value type
+	var zv V
+	return zv
+}
+
 // And converts any number of filter funcs (func(T) bool) into the conjunction of all the funcs.
 // Short-circuit logic will return false on the first function that returns false.
 // If no filters are provided, the result is a function that always returns true.
@@ -46,31 +89,45 @@ func Or[T any](filters ...func(T) bool) func(T) bool {
 	}
 }
 
-// Not (filter func) adapts a filter func(any) bool to the negation of the func.
+// Not (filter func) adapts a filter func (func(T) bool) to the negation of the func.
 func Not[T any](filter func(T) bool) func(T) bool {
 	return func(t T) bool {
 		return !filter(t)
 	}
 }
 
-// EqualTo returns a func(T) bool that returns true if it accepts a value that equals the given value
-func EqualTo[T comparable](val T) func(T) bool {
-	return func(t T) bool {
-		return t == val
-	}
-}
-
-// LessThan returns a func(T) bool that returns true if it accepts a value that is less than the given value
+// LessThan returns a filter func (func(T) bool) that returns true if it accepts a value that is less than the given value
 func LessThan[T constraint.Ordered](val T) func(T) bool {
 	return func(t T) bool {
 		return t < val
 	}
 }
 
-// LessThanEquals returns a func(T) bool that returns true if it accepts a value that is less than or equal to the given value
+// LessThanEqual returns a filter func (func(T) bool) that returns true if it accepts a value that is less than or equal to the given value
 func LessThanEqual[T constraint.Ordered](val T) func(T) bool {
 	return func(t T) bool {
 		return t <= val
+	}
+}
+
+// Equal returns a filter func (func(T) bool) that returns true if it accepts a value that equals the given value with ==
+func Equal[T comparable](val T) func(T) bool {
+	return func(t T) bool {
+		return t == val
+	}
+}
+
+// GreaterThan returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than the given value
+func GreaterThan[T constraint.Ordered](val T) func(T) bool {
+	return func(t T) bool {
+		return t > val
+	}
+}
+
+// GreaterThanEqual returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than or equal to the given value
+func GreaterThanEqual[T constraint.Ordered](val T) func(T) bool {
+	return func(t T) bool {
+		return t >= val
 	}
 }
 
@@ -119,9 +176,8 @@ func MustBeNillable(typ reflect.Type) {
 	}
 }
 
-// IsNil returns true if the value given is nil.
+// IsNil generates a func that returns true if the value given is nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
-// Nillable types are .
 func IsNil[T any]() func(T) bool {
 	var n T
 	MustBeNillable(reflect.TypeOf(n))
@@ -132,6 +188,7 @@ func IsNil[T any]() func(T) bool {
 }
 
 // IsNonNil returns a func(T) bool that returns true if it accepts a non-nil value.
+// A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
 func IsNonNil[T any]() func(T) bool {
 	var n T
 	MustBeNillable(reflect.TypeOf(n))
@@ -141,15 +198,15 @@ func IsNonNil[T any]() func(T) bool {
 	}
 }
 
-// Supplier returns a func() T that returns the given value
-func Supplier[T any](value T) func() T {
+// SupplierOf returns a func() T that returns the given value
+func SupplierOf[T any](value T) func() T {
 	return func() T {
 		return value
 	}
 }
 
 // CachingSupplier returns a func() T that caches the result of the given supplier on the first call.
-// Any subseqquent calls return the cached value, guaranteeing the provided supplier is invoked at mnost once.
+// Any subseqquent calls return the cached value, guaranteeing the provided supplier is invoked at most once.
 func CachingSupplier[T any](supplier func() T) func() T {
 	var (
 		isCached  bool
@@ -163,6 +220,24 @@ func CachingSupplier[T any](supplier func() T) func() T {
 
 		return cachedVal
 	}
+}
+
+// Ternary returns trueVal if expr is true, else it returns falseVal
+func Ternary[T any](expr bool, trueVal T, falseVal T) T {
+	if expr {
+		return trueVal
+	}
+
+	return falseVal
+}
+
+// TernaryResult returns trueVal() if expr is true, else it returns falseVal()
+func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
+	if expr {
+		return trueVal()
+	}
+
+	return falseVal()
 }
 
 // Must panics if the error is non-nil, else returns
@@ -181,10 +256,17 @@ func MustValue[T any](t T, err error) T {
 	return t
 }
 
+// IgnoreResult takes a func of no args that returns any type, and converts it to a func of no args and no return value.
+// Useful for TryTo function closers.
+func IgnoreResult[T any](fn func() T) func() {
+	return func() {
+		fn()
+	}
+}
+
 // TryTo executes tryFn, and if a panic occurs, it executes panicFn.
-// It is assumed that the panic throws an error, if it throws some other type, a type assertion will fail and another panic occurs.
-// If any closers are provided, they are deferred before the tryFn, to ensure they get closed even if a panic occurs.
-// If any closer returns a non-nil error, any remaining closers are not called, and the panicFn is called with the error.
+// If any closers are provided, they are deferred in the provided order before the tryFn, to ensure they get closed even if a panic occurs.
+// If any closer returns a non-nil error, any remaining closers are still called, as that is go built in behaviour.
 //
 // This function simplifies the process of "catching" panics over using reverse order code like the following
 // (common in unit tests that want to verify the type of object sent to panic):
@@ -199,24 +281,18 @@ func MustValue[T any](t T, err error) T {
 //   }
 //   ...
 // }
-func TryTo(tryFn func(), panicFn func(error), closers ...func() error) {
-	// Defer a single closer that wraps all closers in a loop before execuring code that may panic
+func TryTo(tryFn func(), panicFn func(any), closers ...func()) {
+	// Defer code that attempts to recover a value - first func deferred is called last, so this func is called after all provided closers
 	defer func() {
-		// Iterate all closers, if one fails, pass the error to panicFn and don't call any further closers
-		for _, closer := range closers {
-			if err := closer(); err != nil {
-				panicFn(err)
-				break
-			}
+		if val := recover(); val != nil {
+			panicFn(val)
 		}
 	}()
 
-	// Defer code that attempts to recover a value of type error if a panic occurs
-	defer func() {
-		if err, isa := recover().(error); isa {
-			panicFn(err)
-		}
-	}()
+	// Defer all closers in provided order, so they get called in reverse order as expected
+	for _, closerFn := range closers {
+		defer closerFn()
+	}
 
 	// Execute code that may panic, which is supposed to panic with a value of type error
 	tryFn()
