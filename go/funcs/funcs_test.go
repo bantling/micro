@@ -2,6 +2,7 @@ package funcs
 
 import (
 	"fmt"
+	"math/big"
 	"reflect"
 	"testing"
 
@@ -76,6 +77,14 @@ func TestNot(t *testing.T) {
 	assert.True(t, nlt5(12))
 }
 
+func TestTernary(t *testing.T) {
+	assert.Equal(t, 1, Ternary(1 < 2, 1, 2))
+	assert.Equal(t, 1, TernaryResult(1 < 2, func() int { return 1 }, func() int { return 2 }))
+
+	assert.Equal(t, 2, Ternary(1 > 2, 1, 2))
+	assert.Equal(t, 2, TernaryResult(1 > 2, func() int { return 1 }, func() int { return 2 }))
+}
+
 func TestLessThan(t *testing.T) {
 	lt5 := LessThan(5)
 	assert.True(t, lt5(3))
@@ -142,6 +151,36 @@ func TestIsPositive(t *testing.T) {
 	assert.True(t, pos(3))
 }
 
+func TestSort(t *testing.T) {
+	// Ordered
+	{
+		slc := []int{2, 3, 1}
+		SortOrdered(slc)
+		assert.Equal(t, []int{1, 2, 3}, slc)
+	}
+
+	// Complex
+	{
+		slc := []complex64{2, 3, 1}
+		SortComplex(slc)
+		assert.Equal(t, []complex64{1, 2, 3}, slc)
+	}
+
+	// Cmp
+	{
+		slc := []*big.Int{big.NewInt(2), big.NewInt(3), big.NewInt(1)}
+		SortCmp(slc)
+		assert.Equal(t, []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}, slc)
+	}
+
+	// By
+	{
+		slc := []int{2, 3, 1}
+		SortBy(slc, func(i, j int) bool { return j < i })
+		assert.Equal(t, []int{3, 2, 1}, slc)
+	}
+}
+
 func TestNillable(t *testing.T) {
 	var (
 		cn chan int
@@ -204,32 +243,6 @@ func TestNillable(t *testing.T) {
 	}()
 }
 
-func TestSupplier(t *testing.T) {
-	supplier := SupplierOf(5)
-	assert.Equal(t, 5, supplier())
-	assert.Equal(t, 5, supplier())
-
-	var called bool
-	supplier = CachingSupplier(func() int { called = true; return 7 })
-
-	assert.False(t, called)
-	assert.Equal(t, 7, supplier())
-	assert.True(t, called)
-
-	called = false
-	assert.False(t, called)
-	assert.Equal(t, 7, supplier())
-	assert.False(t, called)
-}
-
-func TestTernary(t *testing.T) {
-	assert.Equal(t, 1, Ternary(1 < 2, 1, 2))
-	assert.Equal(t, 1, TernaryResult(1 < 2, func() int { return 1 }, func() int { return 2 }))
-
-	assert.Equal(t, 2, Ternary(1 > 2, 1, 2))
-	assert.Equal(t, 2, TernaryResult(1 > 2, func() int { return 1 }, func() int { return 2 }))
-}
-
 func TestMust(t *testing.T) {
 	var e error
 	Must(e)
@@ -255,6 +268,24 @@ func TestMust(t *testing.T) {
 		MustValue(i, e)
 		assert.Fail(t, "Must die")
 	}()
+}
+
+func TestSupplier(t *testing.T) {
+	supplier := SupplierOf(5)
+	assert.Equal(t, 5, supplier())
+	assert.Equal(t, 5, supplier())
+
+	var called bool
+	supplier = CachingSupplier(func() int { called = true; return 7 })
+
+	assert.False(t, called)
+	assert.Equal(t, 7, supplier())
+	assert.True(t, called)
+
+	called = false
+	assert.False(t, called)
+	assert.Equal(t, 7, supplier())
+	assert.False(t, called)
 }
 
 func TestIgnoreResult(t *testing.T) {

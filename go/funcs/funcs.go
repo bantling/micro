@@ -3,14 +3,19 @@ package funcs
 
 import (
 	"fmt"
+	"math/cmplx"
 	"reflect"
+	"sort"
 
 	"github.com/bantling/micro/go/constraint"
 )
 
 const (
-	notNilableMsg = "Type %s is not a nillable type"
+	notNilableMsg     = "Type %s is not a nillable type"
+	unsortableTypeMsg = "The type %T is not a sortable type - it must implement constraint.Ordered, constraint.Complex, or constraint.Cmp. Provide a custom sorting function."
 )
+
+// ==== Element accessors
 
 // SliceIndex returns the first of the following given a slice, index, and optional default value:
 // 1. slice[index] if the slice is non-nil and length > index
@@ -55,6 +60,8 @@ func MapValue[K comparable, V any](mp map[K]V, key K, defawlt ...V) V {
 	return zv
 }
 
+// ==== Filters
+
 // And converts any number of filter funcs (func(T) bool) into the conjunction of all the funcs.
 // Short-circuit logic will return false on the first function that returns false.
 // If no filters are provided, the result is a function that always returns true.
@@ -95,6 +102,28 @@ func Not[T any](filter func(T) bool) func(T) bool {
 		return !filter(t)
 	}
 }
+
+// ==== Ternary
+
+// Ternary returns trueVal if expr is true, else it returns falseVal
+func Ternary[T any](expr bool, trueVal T, falseVal T) T {
+	if expr {
+		return trueVal
+	}
+
+	return falseVal
+}
+
+// TernaryResult returns trueVal() if expr is true, else it returns falseVal()
+func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
+	if expr {
+		return trueVal()
+	}
+
+	return falseVal()
+}
+
+// ==== Comparators
 
 // LessThan returns a filter func (func(T) bool) that returns true if it accepts a value that is less than the given value
 func LessThan[T constraint.Ordered](val T) func(T) bool {
@@ -152,6 +181,30 @@ func IsPositive[T constraint.Signed]() func(T) bool {
 	}
 }
 
+// ==== Sort
+
+// Sort sorts a slice of Ordered
+func SortOrdered[T constraint.Ordered](slc []T) {
+	sort.Slice(slc, func(i, j int) bool { return slc[i] < slc[j] })
+}
+
+// SortComplex sorts a slice of Complex
+func SortComplex[T constraint.Complex](slc []T) {
+	sort.Slice(slc, func(i, j int) bool { return cmplx.Abs(complex128(slc[i])) < cmplx.Abs(complex128(slc[j])) })
+}
+
+// SortCmp sorts a slice of Cmp
+func SortCmp[T constraint.Cmp[T]](slc []T) {
+	sort.Slice(slc, func(i, j int) bool { return slc[i].Cmp(slc[j]) < 0 })
+}
+
+// SortBy sorts a slice of any type with the provided comparator
+func SortBy[T any](slc []T, less func(T, T) bool) {
+	sort.Slice(slc, func(i, j int) bool { return less(slc[i], slc[j]) })
+}
+
+// ==== Nil
+
 // Nillable returns true if the given reflect.Type represents a chan, func, map, pointer, or slice.
 func Nillable(typ reflect.Type) bool {
 	nillable := true
@@ -198,6 +251,26 @@ func IsNonNil[T any]() func(T) bool {
 	}
 }
 
+// ==== Error
+
+// Must panics if the error is non-nil, else returns
+func Must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// MustValue panics if the error is non-nil, else returns the value of type T
+func MustValue[T any](t T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+
+	return t
+}
+
+// ==== Supplier
+
 // SupplierOf returns a func() T that returns the given value
 func SupplierOf[T any](value T) func() T {
 	return func() T {
@@ -220,40 +293,6 @@ func CachingSupplier[T any](supplier func() T) func() T {
 
 		return cachedVal
 	}
-}
-
-// Ternary returns trueVal if expr is true, else it returns falseVal
-func Ternary[T any](expr bool, trueVal T, falseVal T) T {
-	if expr {
-		return trueVal
-	}
-
-	return falseVal
-}
-
-// TernaryResult returns trueVal() if expr is true, else it returns falseVal()
-func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
-	if expr {
-		return trueVal()
-	}
-
-	return falseVal()
-}
-
-// Must panics if the error is non-nil, else returns
-func Must(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-// MustValue panics if the error is non-nil, else returns the value of type T
-func MustValue[T any](t T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-
-	return t
 }
 
 // IgnoreResult takes a func of no args that returns any type, and converts it to a func of no args and no return value.
