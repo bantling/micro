@@ -1,15 +1,34 @@
-// Package iter provides iterators
-// SPDX-License-Identifier: Apache-2.0
 package iter
 
+// SPDX-License-Identifier: Apache-2.0
+
 import (
+	"fmt"
 	"io"
 	"reflect"
+	"strings"
+	"unicode/utf8"
 )
 
-const (
-	READER_BUF_SIZE int = 4 * 1024
+// ==== Constants
+
+// Error constants
+var (
+	InvalidUTF8EncodingError = fmt.Errorf("Invalid UTF 8 encoding")
 )
+
+// Other constants
+const (
+	flattenSliceArgNotSliceMsg = "FlattenSlice argument must be a slice, not type %T"
+	flattenSliceArgNotTMsg     = "FlattenSlice argument must be slice of %T, not a slice of %T"
+)
+
+// Internal constants
+var (
+	zeroUTF8Buffer = []byte{0, 0, 0, 0}
+)
+
+// ==== Iterating function generators
 
 // SliceIterGen generates an iterating function for a slice of type T
 // First len(slc) calls to iterating function return (slc element, true)
@@ -91,10 +110,8 @@ func SingleValueIterGen[T any](value T) func() (T, bool) {
 // ReaderIterGen generates an iterating function that iterates all the bytes of an io.Reader
 func ReaderIterGen(src io.Reader) func() (byte, bool) {
 	var (
-		buf     = make([]byte, READER_BUF_SIZE)
-		bufSize int
-		pos     int
-		done    bool
+		done = src == nil
+		buf  = make([]byte, 1)
 	)
 
 	return func() (byte, bool) {
@@ -102,27 +119,163 @@ func ReaderIterGen(src io.Reader) func() (byte, bool) {
 			return 0, false
 		}
 
-		// Read next buffer of data
-		if pos == bufSize {
-			if bufSize, err := src.Read(buf); err != nil {
-				// Die on non-EOF error
-				if err != io.EOF {
-					panic(err)
-				}
-
-				// May get (bufSize > 0, EOF), where next call to src.Read will return (bufSize = 0, EOF)
-				if bufSize == 0 {
-					done = true
-					return 0, false
-				}
+		if _, err := src.Read(buf); err != nil {
+			if err != io.EOF {
+				panic(err)
 			}
 
-			pos = 0
+			return 0, false
 		}
 
-		// Must have at least one available byte in buffer
-		val := buf[pos]
-		pos++
-		return val, true
+		return buf[0], true
 	}
+}
+
+// ReaderAsRunesIterGen generates an iterating function that iterates all the UTF-8 runes of an io.Reader
+func ReaderAsRunesIterGen(src io.Reader) func() (rune, bool) {
+	// UTF-8 requires at most 4 bytes for a code point
+	var (
+		done   = src == nil
+		buf    = make([]byte, 4)
+		bufPos int
+	)
+
+	return func() (rune, bool) {
+		if done {
+			return 0, false
+		}
+
+		// Read next up to 4 bytes from reader into subslice of buffer, after any remaining bytes from last read
+		_, err := src.Read(buf[bufPos:])
+		if (err != nil) && (err != io.EOF) {
+			panic(err)
+		}
+
+		// No more to read if first buf pos is 0 and EOF
+		if done = (buf[0] == 0) && (err == io.EOF); done {
+			return 0, false
+		}
+
+		// Decode up to 4 bytes for next code point
+		r, rl := utf8.DecodeRune(buf)
+		if r == utf8.RuneError {
+			panic(InvalidUTF8EncodingError)
+		}
+
+		// Shift any remaining unused bytes back to the beginning of the buffer
+		copy(buf, buf[rl:])
+
+		// Next time read up to as many bytes as were shifted from source, overwriting remaining bytes
+		bufPos = 4 - rl
+
+		// Clear out the unused bytes at the end, in case we don't have enough bytes left to fill them
+		copy(buf[bufPos:], zeroUTF8Buffer)
+
+		return r, true
+	}
+}
+
+// ReaderAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of an io.Reader
+func ReaderAsLinesIterGen(src io.Reader) func() (string, bool) {
+	// Use ReaderAsRunesIterGen to read individual runes until a line is read
+	var (
+		runesIter = ReaderAsRunesIterGen(src)
+		str       strings.Builder
+		lastCR    bool
+	)
+
+	return func() (string, bool) {
+		str.Reset()
+
+		for {
+			codePoint, haveIt := runesIter()
+
+			if !haveIt {
+				if str.Len() > 0 {
+					return str.String(), true
+				}
+
+				return "", false
+			}
+
+			if codePoint == '\r' {
+				lastCR = true
+				return str.String(), true
+			}
+
+			if codePoint == '\n' {
+				if lastCR {
+					lastCR = false
+					continue
+				}
+
+				return str.String(), true
+			}
+
+			str.WriteRune(codePoint)
+		}
+	}
+}
+
+// ==== Supporting functions
+
+// FlattenSlice flattens a slice of any number of dimensions into a one dimensional slice.
+// The slice is received as type any, because there is no way to describe a slice of any number of dimensions using generics.
+// A result of this is that Go can never infer the type of T, so it always has to be explicitly provided (see unit tests).
+// If a nil value is passed, an empty slice is returned.
+// The slice passed must ultimately resolve to elements of type T once all slice dimensions are indexed.
+func FlattenSlice[T any](value any) []T {
+	rslc := []T{}
+
+	if value == nil {
+		return rslc
+	}
+
+	// Make a one dimensional slice to return
+	var (
+		rtyp = reflect.ValueOf(rslc).Type().Elem()
+		vslc = reflect.ValueOf(value)
+		vtyp = vslc.Type()
+	)
+
+	// Ensure value passed is really a slice
+	if vtyp.Kind() != reflect.Slice {
+		panic(fmt.Errorf(flattenSliceArgNotSliceMsg, value))
+	}
+
+	// Index all dimensions of value to get the element type
+	numDims := 0
+	for vtyp.Kind() == reflect.Slice {
+		vtyp = vtyp.Elem()
+		numDims++
+	}
+
+	// Ensure value element type is same as T
+	if rtyp != vtyp {
+		panic(fmt.Errorf(flattenSliceArgNotTMsg, rtyp, vtyp))
+	}
+
+	// If original value is already one dimenion return it by reference
+	if numDims == 1 {
+		return value.([]T)
+	}
+
+	// Recursively iterate all dimensions of the given slice, some dimensions might be empty
+	var f func(reflect.Value)
+	f = func(currentSlice reflect.Value) {
+		// Iterate current slice
+		for i, num := 0, currentSlice.Len(); i < num; i++ {
+			val := currentSlice.Index(i)
+
+			// Recurse sub-arrays/slices
+			if val.Kind() == reflect.Slice {
+				f(val)
+			} else {
+				rslc = append(rslc, val.Interface().(T))
+			}
+		}
+	}
+	f(vslc)
+
+	return rslc
 }
