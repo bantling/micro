@@ -12,7 +12,6 @@ import (
 var (
 	errNewIterNeedsIterator = fmt.Errorf("NewIter requires a non-nil iterating function")
 	errValueExpected        = fmt.Errorf("Value has to be called after Next")
-	errDone                 = fmt.Errorf("Next cannot be called again after returning false without calling Unread")
 	errNextExpected         = fmt.Errorf("Next has to be called before Value")
 )
 
@@ -134,14 +133,15 @@ func (it *Iter[T]) Next() bool {
 
 	// Check buffer before consulting iterating function in case items have been unread
 	if l := len(it.buffer); l > 0 {
-		it.value = it.buffer[l-1]
-		it.buffer = it.buffer[:l-1]
+		// Read items from buffer in order they were unread - eg unread(x), unread(y) returns x first, then y
+		it.value = it.buffer[0]
+		it.buffer = it.buffer[1:]
 		return true
 	}
 
-	// If the iterating func is nil, we already returned false on the previous call
+	// If the iterating func is nil, we must have exhausted the func, Unread was called, and the buffer also exhausted
 	if it.iterFn == nil {
-		panic(errDone)
+		return false
 	}
 
 	// Try to get next item from iterating function
@@ -174,4 +174,7 @@ func (it *Iter[T]) Value() T {
 // made to the iterating function
 func (it *Iter[T]) Unread(value T) {
 	it.buffer = append(it.buffer, value)
+	if it.iterFn == nil {
+		it.nextCalled = false
+	}
 }

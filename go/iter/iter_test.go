@@ -77,5 +77,35 @@ func TestOfReaderAsLines(t *testing.T) {
 }
 
 func TestConcat(t *testing.T) {
-	
+	it := Concat(Of(1), Of(2, 3))
+	assert.True(t, it.Next())
+	assert.Equal(t, 1, it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, 2, it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, 3, it.Value())
+	assert.False(t, it.Next())
+}
+
+func TestUnread(t *testing.T) {
+	// Unread without next returning false
+	it := OfEmpty[int]()
+	it.Unread(1)
+	assert.True(t, it.Next())
+	assert.Equal(t, 1, it.Value())
+
+	// Unread with next returning false
+	it.Unread(2)
+	assert.True(t, it.Next())
+	assert.Equal(t, 2, it.Value())
+	assert.False(t, it.Next())
+
+	// Unread two values to test order, with next returning false
+	it.Unread(3)
+	it.Unread(4)
+	assert.True(t, it.Next())
+	assert.Equal(t, 3, it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, 4, it.Value())
+	assert.False(t, it.Next())
 }
