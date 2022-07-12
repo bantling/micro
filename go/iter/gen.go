@@ -55,6 +55,11 @@ type KeyValue[K comparable, V any] struct {
 	Value V
 }
 
+// KVOf constructs a KeyValue so user does not have to enter generic type, Go can infer them
+func KVOf[K comparable, V any](key K, val V) KeyValue[K, V] {
+	return KeyValue[K, V]{key, val}
+}
+
 // MapIterGen generates an iterating function for a map[K]V
 // First len(m) calls to iterating function return (KeyValue[K, V]{m key, m value}, true)
 // All remaining calls return (KeyValue[K, V] zero value, false)

@@ -179,7 +179,7 @@ func (it *Iter[T]) Unread(value T) {
 	}
 }
 
-// NextValue combines Next and Value together in a single value.
+// NextValue combines Next and Value together in a single call.
 // If there is another value, then (next value, true) is returned, else (zero value, false) is returned.
 // NextValue may be called after Next has already returned false without a panic.
 func (it *Iter[T]) NextValue() (T, bool) {
@@ -189,4 +189,11 @@ func (it *Iter[T]) NextValue() (T, bool) {
 
 	var zv T
 	return zv, false
+}
+
+// MustValue combines Next and Value together in a single call.
+// If there is another value, then the next value is returned, else a panic occurs.
+func (it *Iter[T]) MustValue() T {
+	it.Next()
+	return it.Value()
 }

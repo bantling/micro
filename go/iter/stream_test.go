@@ -56,20 +56,43 @@ func TestReduceTo(t *testing.T) {
 	assert.False(t, it.Next())
 }
 
-func TestSetReduce(t *testing.T) {
-	it := SetReduce(func() func(*Iter[int]) (int, bool) {
-		return func(it *Iter[int]) (int, bool) {
-			if !it.Next() {
-				return 0, false
-			}
+func TestReduceExpandSlice(t *testing.T) {
+	it := ReduceToSlice(Of(1, 2))
+	assert.True(t, it.Next())
+	assert.Equal(t, []int{1, 2}, it.Value())
+	assert.False(t, it.Next())
 
-			res := it.Value()
-			if it.Next() {
-				res += it.Value()
-			}
+	it = ReduceToSlice(ExpandSlices(Of([]int{1, 2, 3}, nil, []int{}, []int{4, 5})))
+	assert.True(t, it.Next())
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, it.Value())
+	assert.False(t, it.Next())
+}
 
-			return res, true
+func TestReduceExpandMap(t *testing.T) {
+	it := ReduceToMap(Of(KVOf(1, "1"), KVOf(2, "2"), KVOf(3, "3")))
+	assert.True(t, it.Next())
+	assert.Equal(t, map[int]string{1: "1", 2: "2", 3: "3"}, it.Value())
+	assert.False(t, it.Next())
+
+	it = ReduceToMap(ExpandMaps(Of(map[int]string{1: "1", 2: "2"}, nil, map[int]string{}, map[int]string{3: "3"})))
+	assert.True(t, it.Next())
+	assert.Equal(t, map[int]string{1: "1", 2: "2", 3: "3"}, it.Value())
+	assert.False(t, it.Next())
+}
+
+func TestTransform(t *testing.T) {
+	it := Transform(func(it *Iter[int]) (int, bool) {
+		// Sum pairs of ints
+		if !it.Next() {
+			return 0, false
 		}
+
+		res := it.Value()
+		if it.Next() {
+			res += it.Value()
+		}
+
+		return res, true
 	})(Of(1, 2, 3, 4, 5))
 
 	assert.True(t, it.Next())
@@ -84,15 +107,13 @@ func TestSetReduce(t *testing.T) {
 // ==== Composition
 
 func TestCompose(t *testing.T) {
-	it := funcs.Compose3(
+	slc := funcs.Compose5(
 		Map(strconv.Itoa),
 		Map(func(s string) int { i, _ := strconv.Atoi(s); return i }),
 		Filter(func(val int) bool { return val&1 == 1 }),
+		ReduceToSlice[int],
+		First[[]int],
 	)(Of(1, 2, 3))
 
-	assert.True(t, it.Next())
-	assert.Equal(t, 1, it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 3, it.Value())
-	assert.False(t, it.Next())
+	assert.Equal(t, []int{1, 3}, slc)
 }
