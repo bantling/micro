@@ -107,6 +107,80 @@ func SingleValueIterGen[T any](value T) func() (T, bool) {
 	}
 }
 
+// InfiniteIterGen generates an iterative function based on an iterative function and zero or more initial values.
+// The initial values are handled as follows:
+// - zero initial values: the zero value of T is used as the seed value
+// - one initial values: the value given is used as the seed value
+// - multiple initial values: the first n-1 values are returned from the first n-1 calls to the generated function,
+//   and the last value is the seed value
+// The seed value is used as the argument to the first call of the given function.
+// The generated values are the first n-1 initialValues followed by the inifinite series
+// f(seed), f(f(seed)), f(f(f(seed))), ...
+func InfiniteIterGen[T any](iterative func(T) T, initialValues ...T) func() (T, bool) {
+	var (
+		lastIndex     = len(initialValues) - 1
+		literalValues []T
+		accumulator   T // start with zero value in case no seed provided
+	)
+
+	// Do we have any initial values?
+	if lastIndex >= 0 {
+		// literal values to return are all but the last initial value
+		literalValues = initialValues[:lastIndex]
+		// accumulator is last initial value, which is the seed for first call to iterative func
+		accumulator = initialValues[lastIndex]
+	}
+
+	return func() (result T, haveIt bool) {
+		// Inifinite series always have a value to return
+		haveIt = true
+
+		// Do we still have literal values left to return?
+		if l := len(literalValues); l > 0 {
+			// Return literal values in order provided
+			result = literalValues[0]
+
+			// Are there more literal values after this one?
+			if l > 1 {
+				// We have more literals, shorten slice to all but value we're returning
+				literalValues = literalValues[1:]
+			} else {
+				// No more literals, nullify slice so the memory can be freed
+				literalValues = nil
+			}
+
+			return
+		}
+
+		// No literal values left, execute iterative func with accumulator (could be seed value) to get next accumulator
+		accumulator = iterative(accumulator)
+
+		// Return next accumulator
+		result = accumulator
+		return
+	}
+}
+
+// FibonnaciIterGen generates an iterating function that iterates the Fibonacci series 1, 1, 2, 3, 5, 8, 13, ...
+func FibonnaciIterGen() func() (int, bool) {
+	// The value returned two calls ago (initially zero)
+	var prev2 int
+
+	return InfiniteIterGen(
+		// The function actually returns 1, 2, 3, 5, 8, 13, ... - it is missing the leading 1 value
+		// This is the easiest way to do the math correctly without futzing around with special initial cases
+		func(prev1 int) int {
+			// prev 1 is the value returned from the last call
+			next := prev2 + prev1
+			prev2 = prev1
+
+			return next
+		},
+		1, // This initial value provides the missing leading 1 value, it is returned without calling the above func
+		1, // The seed value for the first call to above func
+	)
+}
+
 // ReaderIterGen generates an iterating function that iterates all the bytes of an io.Reader
 func ReaderIterGen(src io.Reader) func() (byte, bool) {
 	var (

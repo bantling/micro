@@ -89,7 +89,8 @@ func OfReaderAsLines(src io.Reader) *Iter[string] {
 	return NewIter[string](ReaderAsLinesIterGen(src))
 }
 
-// Concat
+// Concatenate any number of Iter[T] into a single Iter[T] that iterates all the elements of each Iter[T], until the
+// last element of the last iterator has been returned.
 func Concat[T any](iters ...*Iter[T]) *Iter[T] {
 	var (
 		i    int
@@ -120,12 +121,11 @@ func Concat[T any](iters ...*Iter[T]) *Iter[T] {
 // ==== Methods
 
 // Next returns true if there is another item to be read by Value.
-// Panics if:
-// - Called more than once before calling Value
-// - Called again after returning false without calling Unread first
+// When Next returns false, Next can be called any number of times, it just continues to return false.
+// When Next returns true, a panic occurs if Next is called again before calling Value.
 func (it *Iter[T]) Next() bool {
-	// Die if Next called twice before Value
-	if it.nextCalled {
+	// Die if Next called twice before Value, unless prior Next call exhausted iter
+	if it.nextCalled && (it.iterFn != nil) {
 		panic(errValueExpected)
 	}
 
@@ -177,4 +177,16 @@ func (it *Iter[T]) Unread(value T) {
 	if it.iterFn == nil {
 		it.nextCalled = false
 	}
+}
+
+// NextValue combines Next and Value together in a single value.
+// If there is another value, then (next value, true) is returned, else (zero value, false) is returned.
+// NextValue may be called after Next has already returned false without a panic.
+func (it *Iter[T]) NextValue() (T, bool) {
+	if (it.iterFn != nil) && it.Next() {
+		return it.Value(), true
+	}
+
+	var zv T
+	return zv, false
 }

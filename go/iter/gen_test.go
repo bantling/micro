@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: Apache-2.0
-
 package iter
+
+// SPDX-License-Identifier: Apache-2.0
 
 import (
 	//	"bytes"
@@ -126,6 +126,97 @@ func TestMapIterGen(t *testing.T) {
 	kv, haveIt = iter()
 	assert.Zero(t, kv)
 	assert.False(t, haveIt)
+}
+
+func TestNoValueIterGen(t *testing.T) {
+	iter := NoValueIterGen[int]()
+
+	val, haveIt := iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+
+	val, haveIt = iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+}
+
+func TestSingleValueIterGen(t *testing.T) {
+	iter := SingleValueIterGen(1)
+
+	val, haveIt := iter()
+	assert.Equal(t, 1, val)
+	assert.True(t, haveIt)
+
+	val, haveIt = iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+
+	val, haveIt = iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+}
+
+func TestInfiniteIterGen(t *testing.T) {
+	// Func to return (seed + 1, seed + 2, seed + 3, ...
+	fn := func(prev int) int {
+		return prev + 1
+	}
+
+	// Generate {1,2,3, ...}, which does not require a seed value
+	iter := InfiniteIterGen(fn)
+
+	for _, e := range []int{1, 2, 3, 4, 5, 6, 7} {
+		v, h := iter()
+		assert.Equal(t, e, v)
+		assert.True(t, h)
+	}
+
+	// Generate {2,3,4, ...}, which requires a seed value of 1
+	iter = InfiniteIterGen(fn, 1)
+
+	for _, e := range []int{2, 3, 4, 5, 6, 7, 8} {
+		v, h := iter()
+		assert.Equal(t, e, v)
+		assert.True(t, h)
+	}
+
+	// Generate {100,1,2,3, ...}, which requires a literal value of 100 and a seed value of 0
+	iter = InfiniteIterGen(fn, 100, 0)
+
+	for _, e := range []int{100, 1, 2, 3, 4, 5, 6} {
+		v, h := iter()
+		assert.Equal(t, e, v)
+		assert.True(t, h)
+	}
+
+	// Generate {100,101,1,2,3, ...}, which requires a literal values of 100,101 and a seed value of 0
+	iter = InfiniteIterGen(fn, 100, 101, 0)
+
+	for _, e := range []int{100, 101, 1, 2, 3, 4, 5} {
+		v, h := iter()
+		assert.Equal(t, e, v)
+		assert.True(t, h)
+	}
+
+	// Generate {100,101,2,3,4, ...}, which requires a literal values of 100,101 and a seed value of 1
+	iter = InfiniteIterGen(fn, 100, 101, 1)
+
+	for _, e := range []int{100, 101, 2, 3, 4, 5, 6} {
+		v, h := iter()
+		assert.Equal(t, e, v)
+		assert.True(t, h)
+	}
+}
+
+func TestFibonnaciIterGen(t *testing.T) {
+	// Fibonnaci
+	iter := FibonnaciIterGen()
+
+	for _, e := range []int{1, 1, 2, 3, 5, 8, 13} {
+		v, h := iter()
+		assert.Equal(t, e, v)
+		assert.True(t, h)
+	}
 }
 
 func TestReaderIterGen(t *testing.T) {

@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
-
 package iter
+
+// SPDX-License-Identifier: Apache-2.0
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/bantling/micro/go/funcs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,18 +17,22 @@ func TestNewIter(t *testing.T) {
 	assert.True(t, it.Next())
 	assert.Equal(t, 2, it.Value())
 	assert.False(t, it.Next())
+	assert.False(t, it.Next())
 
 	it = Of(3)
 	assert.True(t, it.Next())
 	assert.Equal(t, 3, it.Value())
 	assert.False(t, it.Next())
+	assert.False(t, it.Next())
 
 	it = OfEmpty[int]()
+	assert.False(t, it.Next())
 	assert.False(t, it.Next())
 
 	it = OfOne(4)
 	assert.True(t, it.Next())
 	assert.Equal(t, 4, it.Value())
+	assert.False(t, it.Next())
 	assert.False(t, it.Next())
 }
 
@@ -108,4 +113,76 @@ func TestUnread(t *testing.T) {
 	assert.True(t, it.Next())
 	assert.Equal(t, 4, it.Value())
 	assert.False(t, it.Next())
+}
+
+func TestNextValue(t *testing.T) {
+	it := OfEmpty[int]()
+	val, haveIt := it.NextValue()
+	assert.False(t, haveIt)
+	assert.Equal(t, 0, val)
+
+	val, haveIt = it.NextValue()
+	assert.False(t, haveIt)
+	assert.Equal(t, 0, val)
+
+	it = Of(1)
+	val, haveIt = it.NextValue()
+	assert.True(t, haveIt)
+	assert.Equal(t, 1, val)
+
+	val, haveIt = it.NextValue()
+	assert.False(t, haveIt)
+	assert.Equal(t, 0, val)
+}
+
+func TestFailure(t *testing.T) {
+	// Nil iter func
+	funcs.TryTo(
+		func() {
+			NewIter[int](nil)
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, errNewIterNeedsIterator, err)
+		},
+	)
+
+	// Call Next twice without calling Value when there is a value to read
+	funcs.TryTo(
+		func() {
+			it := Of(1)
+			it.Next()
+			it.Next()
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, errValueExpected, err)
+		},
+	)
+
+	// Call Value before Next
+	funcs.TryTo(
+		func() {
+			it := Of(1)
+			it.Value()
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, errNextExpected, err)
+		},
+	)
+
+	// Call Value twice
+	funcs.TryTo(
+		func() {
+			it := Of(1)
+			it.Next()
+			it.Value()
+			it.Value()
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, errNextExpected, err)
+		},
+	)
 }

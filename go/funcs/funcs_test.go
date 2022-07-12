@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
-
 package funcs
+
+// SPDX-License-Identifier: Apache-2.0
 
 import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -77,6 +78,147 @@ func TestNot(t *testing.T) {
 	assert.True(t, nlt5(7))
 	assert.True(t, nlt5(10))
 	assert.True(t, nlt5(12))
+}
+
+func TestCompose(t *testing.T) {
+	var (
+		fn1 = func(i int) int { return i + 2 }
+		fn2 = func(i int) int { return i * 3 }
+		fn3 = func(i int) int { return i - 4 }
+	)
+
+	fn := Compose(fn1)
+	assert.Equal(t, 3, fn(1))
+
+	fn = Compose(fn1, fn2)
+	assert.Equal(t, 9, fn(1))
+
+	fn = Compose(fn1, fn2, fn3)
+	assert.Equal(t, 5, fn(1))
+
+	fn = Compose(fn, fn)
+	assert.Equal(t, 17, fn(1))
+}
+
+func stringToInt(t string) int {
+	return MustValue(strconv.Atoi(t))
+}
+
+func TestCompose2(t *testing.T) {
+	fn := Compose2(
+		strconv.Itoa,
+		stringToInt,
+	)
+
+	assert.Equal(t, 1, fn(1))
+}
+
+func TestCompose3(t *testing.T) {
+	fn := Compose3(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+	)
+
+	assert.Equal(t, "1", fn(1))
+}
+
+func TestCompose4(t *testing.T) {
+	fn := Compose4(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+	)
+
+	assert.Equal(t, 1, fn(1))
+}
+
+func TestCompose5(t *testing.T) {
+	fn := Compose5(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+	)
+
+	assert.Equal(t, "1", fn(1))
+}
+
+func TestCompose6(t *testing.T) {
+	fn := Compose6(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+	)
+
+	assert.Equal(t, 1, fn(1))
+}
+
+func TestCompose7(t *testing.T) {
+	fn := Compose7(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+	)
+
+	assert.Equal(t, "1", fn(1))
+}
+
+func TestCompose8(t *testing.T) {
+	fn := Compose8(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+	)
+
+	assert.Equal(t, 1, fn(1))
+}
+
+func TestCompose9(t *testing.T) {
+	fn := Compose9(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+	)
+
+	assert.Equal(t, "1", fn(1))
+}
+
+func TestCompose10(t *testing.T) {
+	fn := Compose10(
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+		strconv.Itoa,
+		stringToInt,
+	)
+
+	assert.Equal(t, 1, fn(1))
 }
 
 func TestTernary(t *testing.T) {

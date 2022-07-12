@@ -1,6 +1,6 @@
-// Package funcs is useful Go functions
-// SPDX-License-Identifier: Apache-2.0
 package funcs
+
+// SPDX-License-Identifier: Apache-2.0
 
 import (
 	"fmt"
@@ -101,6 +101,148 @@ func Or[T any](filters ...func(T) bool) func(T) bool {
 func Not[T any](filter func(T) bool) func(T) bool {
 	return func(t T) bool {
 		return !filter(t)
+	}
+}
+
+// ==== Composition
+
+// Compose composes one or more funcs that accept the and return the same type into a new function that returns
+// f_n(f_n-1( ... (f_1(f_0(x))))). Eg, if three funcs f_0, f_1, f_2 are provided in that order, the resulting
+// function returns f_2(f_1(f_0(x))).
+func Compose[T any](f0 func(T) T, fns ...func(T) T) func(T) T {
+	return func(t T) T {
+		res := f0(t)
+		for _, fn := range fns {
+			res = fn(res)
+		}
+
+		return res
+	}
+}
+
+// Compose2 composes two funcs into a new func that transforms (p -> q -> r)
+func Compose2[P, Q, R any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+) func(P) R {
+	return func(p P) R {
+		return f1(f0(p))
+	}
+}
+
+// Compose3 composes three funcs into a new func that transforms (p -> ... -> s)
+func Compose3[P, Q, R, S any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+) func(P) S {
+	return func(p P) S {
+		return f2(f1(f0(p)))
+	}
+}
+
+// Compose4 composes four funcs into a new func that transforms (p -> ... -> t)
+func Compose4[P, Q, R, S, T any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+) func(P) T {
+	return func(p P) T {
+		return f3(f2(f1(f0(p))))
+	}
+}
+
+// Compose5 composes five funcs into a new func that transforms (p -> ... -> u)
+func Compose5[P, Q, R, S, T, U any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+	f4 func(T) U,
+) func(P) U {
+	return func(p P) U {
+		return f4(f3(f2(f1(f0(p)))))
+	}
+}
+
+// Compose6 composes six funcs into a new func that transforms (p -> ... -> v)
+func Compose6[P, Q, R, S, T, U, V any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+	f4 func(T) U,
+	f5 func(U) V,
+) func(P) V {
+	return func(p P) V {
+		return f5(f4(f3(f2(f1(f0(p))))))
+	}
+}
+
+// Compose7 composes seven funcs into a new func that transforms (p -> ... -> w)
+func Compose7[P, Q, R, S, T, U, V, W any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+	f4 func(T) U,
+	f5 func(U) V,
+	f6 func(V) W,
+) func(P) W {
+	return func(p P) W {
+		return f6(f5(f4(f3(f2(f1(f0(p)))))))
+	}
+}
+
+// Compose8 composes eight funcs into a new func that transforms (p -> ... -> x)
+func Compose8[P, Q, R, S, T, U, V, W, X any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+	f4 func(T) U,
+	f5 func(U) V,
+	f6 func(V) W,
+	f7 func(W) X,
+) func(P) X {
+	return func(p P) X {
+		return f7(f6(f5(f4(f3(f2(f1(f0(p))))))))
+	}
+}
+
+// Compose9 composes nine funcs into a new func that transforms (p -> ... -> y)
+func Compose9[P, Q, R, S, T, U, V, W, X, Y any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+	f4 func(T) U,
+	f5 func(U) V,
+	f6 func(V) W,
+	f7 func(W) X,
+	f8 func(X) Y,
+) func(P) Y {
+	return func(p P) Y {
+		return f8(f7(f6(f5(f4(f3(f2(f1(f0(p)))))))))
+	}
+}
+
+// Compose10 composes ten funcs into a new func that transforms (p -> ... -> z)
+func Compose10[P, Q, R, S, T, U, V, W, X, Y, Z any](
+	f0 func(P) Q,
+	f1 func(Q) R,
+	f2 func(R) S,
+	f3 func(S) T,
+	f4 func(T) U,
+	f5 func(U) V,
+	f6 func(V) W,
+	f7 func(W) X,
+	f8 func(X) Y,
+	f9 func(Y) Z,
+) func(P) Z {
+	return func(p P) Z {
+		return f9(f8(f7(f6(f5(f4(f3(f2(f1(f0(p))))))))))
 	}
 }
 
