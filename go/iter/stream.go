@@ -8,15 +8,15 @@ import (
 
 // ==== Functions that provide the foundation for all other functions
 
-// MustValue combines Next and Value together in a single call.
+// First combines Next and Value together in a single call.
 // If there is another value, then the next value is returned, else a panic occurs.
-// First is not a method so it can be used as the last funciton in a composition of Iter functions
+// First is not a method so it can be used in a composition.
 func First[T any](it *Iter[T]) T {
 	it.Next()
 	return it.Value()
 }
 
-// Map constructs an new Iter[U] from an Iter[T] and a func that transforms a T to a U.
+// Map constructs a new Iter[U] from an Iter[T] and a func that transforms a T to a U.
 func Map[T, U any](mapper func(T) U) func(*Iter[T]) *Iter[U] {
 	return func(it *Iter[T]) *Iter[U] {
 		return NewIter(func() (U, bool) {
@@ -115,6 +115,7 @@ func Reduce[T any](
 
 // ReduceTo is similar to Reduce, except that:
 // - The result does not have to be the same type
+// - If no identity value is given, the zero value is used
 func ReduceTo[T, U any](
 	reducer func(U, T) U,
 	identity ...U,
@@ -172,6 +173,7 @@ func ReduceTo[T, U any](
 
 // ReduceToSlice reduces an Iter[T] into a Iter[[]T] that contains a single element if type []T.
 // Eg, an Iter[int] of 1,2,3,4,5 becomes an Iter[[]int] of [1,2,3,4,5].
+// An empty Iter is reduced to a zero length slice.
 func ReduceToSlice[T any](it *Iter[T]) *Iter[[]T] {
 	var done bool
 
@@ -180,20 +182,20 @@ func ReduceToSlice[T any](it *Iter[T]) *Iter[[]T] {
 			return nil, false
 		}
 
-		var slc []T
+		done = true
+
+		slc := []T{}
 		for it.Next() {
 			slc = append(slc, it.Value())
 		}
-
-		done = true
 
 		return slc, true
 	})
 }
 
 // ExpandSlices is the opposite of ReduceToSlice: an Iter[[]int] of [1,2,3,4,5] becomes an Iter[int] of 1,2,3,4,5.
-// If the source Iter contains multiple slices, they are combined together into one set of data (skipping nils),
-// so that an Iter[[]int] of [1,2,3], nil, [], [4,5] also becomes an Iter[int] of 1,2,3,4,5.
+// If the source Iter contains multiple slices, they are combined together into one set of data (skipping nil and empty
+// slices), so that an Iter[[]int] of [1,2,3], nil, [], [4,5] also becomes an Iter[int] of 1,2,3,4,5.
 func ExpandSlices[T any](it *Iter[[]T]) *Iter[T] {
 	var (
 		slc []T
@@ -231,6 +233,7 @@ func ExpandSlices[T any](it *Iter[[]T]) *Iter[T] {
 // Eg, an Iter[KeyValue[int]string] of {1: "1"}, {2: "2"} becomes an Iter[map[int]string] of {1: "1", 2: "2"}.
 // If multiple KeyValue objects in the Iter have the same key, the last such object in iteration order determines the
 // value for the key in the resulting map.
+// An empty Iter is reduced to an empty map.
 func ReduceToMap[K comparable, V any](it *Iter[KeyValue[K, V]]) *Iter[map[K]V] {
 	var done bool
 
@@ -239,13 +242,13 @@ func ReduceToMap[K comparable, V any](it *Iter[KeyValue[K, V]]) *Iter[map[K]V] {
 			return nil, false
 		}
 
+		done = true
+
 		m := map[K]V{}
 		for it.Next() {
 			kv := it.Value()
 			m[kv.Key] = kv.Value
 		}
-
-		done = true
 
 		return m, true
 	})
@@ -309,3 +312,7 @@ func Transform[T, U any](
 		})
 	}
 }
+
+// ==== Functions based on foundational functions
+
+func AllMatch[T any] 
