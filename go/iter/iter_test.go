@@ -34,6 +34,15 @@ func TestNewIter(t *testing.T) {
 	assert.Equal(t, 4, it.Value())
 	assert.False(t, it.Next())
 	assert.False(t, it.Next())
+
+	it = NewIter(FibonnaciIterGen())
+	assert.Equal(t, 1, it.Must())
+	assert.Equal(t, 1, it.Must())
+	assert.Equal(t, 2, it.Must())
+	assert.Equal(t, 3, it.Must())
+	assert.Equal(t, 5, it.Must())
+	assert.Equal(t, 8, it.Must())
+	assert.Equal(t, 13, it.Must())
 }
 
 func TestOfMap(t *testing.T) {

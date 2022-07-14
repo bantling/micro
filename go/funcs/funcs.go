@@ -451,6 +451,8 @@ func CachingSupplier[T any](supplier func() T) func() T {
 	}
 }
 
+// ==== IgnoreResult
+
 // IgnoreResult takes a func of no args that returns any type, and converts it to a func of no args and no return value.
 // Useful for TryTo function closers.
 func IgnoreResult[T any](fn func() T) func() {
@@ -458,6 +460,8 @@ func IgnoreResult[T any](fn func() T) func() {
 		fn()
 	}
 }
+
+// ==== TryTo
 
 // TryTo executes tryFn, and if a panic occurs, it executes panicFn.
 // If any closers are provided, they are deferred in the provided order before the tryFn, to ensure they get closed even if a panic occurs.
