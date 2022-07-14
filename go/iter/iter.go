@@ -13,6 +13,7 @@ var (
 	errNewIterNeedsIterator = fmt.Errorf("NewIter requires a non-nil iterating function")
 	errValueExpected        = fmt.Errorf("Value has to be called after Next")
 	errNextExpected         = fmt.Errorf("Next has to be called before Value")
+	errNoMoreValues         = fmt.Errorf("Value cannot be called after Next returns false")
 )
 
 // ==== Types
@@ -33,6 +34,7 @@ type Iter[T any] struct {
 	buffer     []T
 	iterFn     func() (T, bool)
 	nextCalled bool
+	haveValue  bool
 	value      T
 }
 
@@ -124,6 +126,9 @@ func Concat[T any](iters ...*Iter[T]) *Iter[T] {
 // When Next returns false, Next can be called any number of times, it just continues to return false.
 // When Next returns true, a panic occurs if Next is called again before calling Value.
 func (it *Iter[T]) Next() bool {
+	// Assume no value until we know differently
+	it.haveValue = false
+
 	// Die if Next called twice before Value, unless prior Next call exhausted iter
 	if it.nextCalled && (it.iterFn != nil) {
 		panic(errValueExpected)
@@ -134,6 +139,7 @@ func (it *Iter[T]) Next() bool {
 	// Check buffer before consulting iterating function in case items have been unread
 	if l := len(it.buffer); l > 0 {
 		// Read items from buffer in order they were unread - eg unread(x), unread(y) returns x first, then y
+		it.haveValue = true
 		it.value = it.buffer[0]
 		it.buffer = it.buffer[1:]
 		return true
@@ -147,6 +153,7 @@ func (it *Iter[T]) Next() bool {
 	// Try to get next item from iterating function
 	if value, haveIt := it.iterFn(); haveIt {
 		// If we have it, keep the value for call to Value() and return true
+		it.haveValue = true
 		it.value = value
 		return true
 	}
@@ -164,7 +171,13 @@ func (it *Iter[T]) Value() T {
 		panic(errNextExpected)
 	}
 
+	if !it.haveValue {
+		// Die if next indicated no more values exist
+		panic(errNoMoreValues)
+	}
+
 	it.nextCalled = false
+	it.haveValue = false
 
 	// Return value
 	return it.value
@@ -191,9 +204,9 @@ func (it *Iter[T]) NextValue() (T, bool) {
 	return zv, false
 }
 
-// MustValue combines Next and Value together in a single call.
+// Must combines Next and Value together in a single call.
 // If there is another value, then the next value is returned, else a panic occurs.
-func (it *Iter[T]) MustValue() T {
+func (it *Iter[T]) Must() T {
 	it.Next()
 	return it.Value()
 }

@@ -295,6 +295,28 @@ func TestIsPositive(t *testing.T) {
 	assert.True(t, pos(3))
 }
 
+func TestReverse(t *testing.T) {
+	slc := []int{}
+	Reverse(slc)
+	assert.Equal(t, []int{}, slc)
+
+	slc = []int{1}
+	Reverse(slc)
+	assert.Equal(t, []int{1}, slc)
+
+	slc = []int{1, 2}
+	Reverse(slc)
+	assert.Equal(t, []int{2, 1}, slc)
+
+	slc = []int{1, 2, 3}
+	Reverse(slc)
+	assert.Equal(t, []int{3, 2, 1}, slc)
+
+	slc = []int{1, 2, 3, 4}
+	Reverse(slc)
+	assert.Equal(t, []int{4, 3, 2, 1}, slc)
+}
+
 func TestSort(t *testing.T) {
 	// Ordered
 	{

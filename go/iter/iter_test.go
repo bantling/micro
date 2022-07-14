@@ -105,7 +105,7 @@ func TestUnread(t *testing.T) {
 	assert.Equal(t, 2, it.Value())
 	assert.False(t, it.Next())
 
-	// Unread two values to test order, with next returning false
+	// Unread two values to test order, after next returns false
 	it.Unread(3)
 	it.Unread(4)
 	assert.True(t, it.Next())
@@ -133,6 +133,22 @@ func TestNextValue(t *testing.T) {
 	val, haveIt = it.NextValue()
 	assert.False(t, haveIt)
 	assert.Equal(t, 0, val)
+}
+
+func TestMust(t *testing.T) {
+	funcs.TryTo(
+		func() {
+			OfEmpty[int]().Must()
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, errNoMoreValues, err)
+		},
+	)
+
+	it := Of(1)
+	assert.Equal(t, 1, it.Must())
+	assert.False(t, it.Next())
 }
 
 func TestFailure(t *testing.T) {

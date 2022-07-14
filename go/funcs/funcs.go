@@ -324,6 +324,19 @@ func IsPositive[T constraint.Signed]() func(T) bool {
 	}
 }
 
+// ==== Reverse
+
+// Reverse reverses the elements of a slice, so that [1,2,3] becomes [3,2,1].
+func Reverse[T any](slc []T) {
+	l := len(slc)
+	for i := 0; i < l/2; i++ {
+		j := l - 1 - i
+		tmp := slc[i]
+		slc[i] = slc[j]
+		slc[j] = tmp
+	}
+}
+
 // ==== Sort
 
 // Sort sorts a slice of Ordered
