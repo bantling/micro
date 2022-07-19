@@ -3,6 +3,7 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -63,8 +64,17 @@ func TestReduceToBool(t *testing.T) {
 }
 
 func TestReduceExpandSlice(t *testing.T) {
+	// Reduce into a new generated slice
 	it := ReduceToSlice(Of(1, 2))
 	assert.Equal(t, []int{1, 2}, it.Must())
+	assert.False(t, it.Next())
+
+	// Reduce into an existing slice
+	slc := make([]int, 2)
+	it = ReduceIntoSlice(slc)(Of(1, 2))
+	cmp := it.Must()
+	assert.Equal(t, []int{1, 2}, cmp)
+	assert.Equal(t, fmt.Sprintf("%p", slc), fmt.Sprintf("%p", cmp))
 	assert.False(t, it.Next())
 
 	it = ReduceToSlice(ExpandSlices(Of([]int{1, 2, 3}, nil, []int{}, []int{4, 5})))
@@ -358,16 +368,52 @@ func TestSort(t *testing.T) {
 	}
 }
 
+func TestParallel(t *testing.T) {
+	var (
+		infoThreads = PInfo{5, Threads}
+		infoItems   = PInfo{5, Items}
+
+		intFn       = Map(func(i int) int { return i * 2 })
+		pIntSqrt    = Parallel(intFn)
+		pIntThreads = Parallel(intFn, infoThreads)
+		pIntItems   = Parallel(intFn, infoItems)
+
+		uintFn       = Map(func(i int) uint { return uint(i * 2) })
+		pUintSqrt    = Parallel(uintFn)
+		pUintThreads = Parallel(uintFn, infoThreads)
+		pUintItems   = Parallel(uintFn, infoItems)
+	)
+	for _, i := range []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100, 103} {
+		inInt, outInt, outUint := make([]int, i), make([]int, i), make([]uint, i)
+		for j := 1; j <= i; j++ {
+			inInt[j-1] = j
+			outInt[j-1] = j * 2
+			outUint[j-1] = uint(j * 2)
+		}
+
+		// Same type, modify slice in place
+		assert.Equal(t, outInt, First(ReduceToSlice(pIntSqrt(Of(inInt...)))))
+		assert.Equal(t, outInt, First(ReduceToSlice(pIntThreads(Of(inInt...)))))
+		assert.Equal(t, outInt, First(ReduceToSlice(pIntItems(Of(inInt...)))))
+
+		// Different type, generate a new slice
+		assert.Equal(t, outUint, First(ReduceToSlice(pUintSqrt(Of(inInt...)))))
+		assert.Equal(t, outUint, First(ReduceToSlice(pUintThreads(Of(inInt...)))))
+		assert.Equal(t, outUint, First(ReduceToSlice(pUintItems(Of(inInt...)))))
+	}
+}
+
 // ==== Composition
 
 func TestCompose(t *testing.T) {
-	slc := funcs.Compose5(
+	fn := funcs.Compose5(
 		Map(strconv.Itoa),
 		Map(func(s string) int { i, _ := strconv.Atoi(s); return i }),
 		Filter(func(val int) bool { return val&1 == 1 }),
 		ReduceToSlice[int],
 		First[[]int],
-	)(Of(1, 2, 3))
+	)
 
-	assert.Equal(t, []int{1, 3}, slc)
+	assert.Equal(t, []int{1, 3}, fn(Of(1, 2, 3)))
+	assert.Equal(t, []int{1, 3}, fn(Of(1, 2, 3)))
 }

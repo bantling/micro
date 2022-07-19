@@ -4,7 +4,10 @@ package iter
 
 import (
 	"fmt"
+	"math"
+	"math/bits"
 	"reflect"
+	"sync"
 
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/funcs"
@@ -13,6 +16,20 @@ import (
 var (
 	errSkipLimitValueCannotBeNegative = fmt.Errorf("The Skip or Limit value cannot be negative")
 )
+
+// PUnit indicates how to interpret a parallel quantity
+type PUnit bool
+
+const (
+	Threads PUnit = false // NumThreads indicates the quantity is the number of threads
+	Items   PUnit = true  // NumItems indicates the quantity is the number of items each thread processes
+)
+
+// PInfo includes the number of items and a unit
+type PInfo struct {
+	N int
+	PUnit
+}
 
 // ==== Functions that provide the foundation for all other functions
 
@@ -243,6 +260,35 @@ func ReduceToSlice[T any](it *Iter[T]) *Iter[[]T] {
 
 		return slc, true
 	})
+}
+
+// ReduceIntoSlice is the same as ReduceToSlice, except that:
+// - It accepts a target slice to append results to
+// - It generates a transform
+//
+// The generated transform panics if the target slice length is not at least as many elements as the source iter
+func ReduceIntoSlice[T any](slc []T) func(*Iter[T]) *Iter[[]T] {
+	return func(it *Iter[T]) *Iter[[]T] {
+		var (
+			done bool
+			i    int
+		)
+
+		return NewIter(func() ([]T, bool) {
+			if done {
+				return nil, false
+			}
+
+			done = true
+
+			for it.Next() {
+				slc[i] = it.Value()
+				i++
+			}
+
+			return slc, true
+		})
+	}
 }
 
 // ExpandSlices is the opposite of ReduceToSlice: an Iter[[]int] of [1,2,3,4,5] becomes an Iter[int] of 1,2,3,4,5.
@@ -587,5 +633,138 @@ func SortBy[T any](less func(T, T) bool) func(*Iter[T]) *Iter[T] {
 		funcs.SortBy(slc, less)
 
 		return Of(slc...)
+	}
+}
+
+// ==== Parallel
+
+// Parallel collects all the items of the source iter into a []T and divvies them up into buckets, then uses a set of
+// threads, one per bucket, to process the items using the given set of transforms. If the optional PInfo is provided,
+// The number N is interpreted in one of two ways, depending on the PUnit:
+//
+// Threads: N is the number of threads, the bucket size for each thread is number of items / N, with remainder r
+//          distributed across first r threads. If number of items <= N, a single thread is used.
+// Items:   N is the bucket size, the number of threads is number of items / N, with remainder r handled by an
+//          additional thread. If number of items <= N, a single thread is used.
+//
+// If no PInfo is provided, the number of threads is the square root of the number of items, so that each thread has the
+// same number of items - except for the last thread, which may have slightly less.
+//
+// If the input has no items, an empty Iter is returned.
+// If the input has one item, the transforms are performed in the same thread.
+// If the input has two or more items, the above algorithm is used to perform transforms in two or more threads.
+//
+// If types T and U are the same, then a single slice is allocated to contain the input and modified in place to produce
+// the output. Otherwise, two slices are allocated, one for input and one for output.
+func Parallel[T, U any](transforms func(*Iter[T]) *Iter[U], info ...PInfo) func(*Iter[T]) *Iter[U] {
+	return func(source *Iter[T]) *Iter[U] {
+		var (
+			// Collect all items from source iterator into a slice
+			input = First(ReduceToSlice(source))
+			// Get number of items fromm source
+			numItems = uint(len(input))
+		)
+
+		switch numItems {
+		case 0:
+			// If the source is empty, nothing to do, just return an empty Iter
+			return OfEmpty[U]()
+		case 1:
+			// If the source has 1 element, don't bother with a separate thread, just return the result
+			return transforms(OfOne(input[0]))
+		}
+
+		// Determine the slice ranges of each thread
+		var sliceRanges [][]uint
+
+		if len(info) == 0 {
+			// Use square root when no PInfo given
+			bucketSize := uint(math.Round(math.Sqrt(float64(numItems))))
+			numThreads, remainder := bits.Div(0, numItems, bucketSize)
+
+			// Algorithm has int sqrt number of threads + additional thread if remainder > 0
+			for i, start, end := uint(0), uint(0), uint(0); i < numThreads; i++ {
+				end = start + bucketSize
+				sliceRanges = append(sliceRanges, []uint{start, end})
+
+				start = end
+			}
+
+			if remainder > uint(0) {
+				sliceRanges = append(sliceRanges, []uint{numItems - remainder, numItems})
+			}
+		} else {
+			inf := info[0]
+			if inf.PUnit == Threads {
+				// User specified number of threads, calculate bucket size
+				// Number of threads cannot exceed number of items
+				numThreads := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
+				bucketSize, remainder := bits.Div(0, numItems, numThreads)
+
+				// Algorithm has number of threads given where first remainder threads have 1 additional item
+				for start, end := uint(0), uint(0); start < numItems; start = end {
+					end = start + bucketSize
+					if remainder > 0 {
+						end++
+						remainder--
+					}
+					sliceRanges = append(sliceRanges, []uint{start, end})
+				}
+			} else {
+				// User specified bucket size, calculate number of threads
+				// Bucket size cannot exceed number of items
+				bucketSize := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
+				numThreads, remainder := bits.Div(0, numItems, bucketSize)
+
+				// Algorithm has bucket size given where remainder is an additional thread
+				for i, start, end := uint(0), uint(0), uint(0); i < numThreads; i++ {
+					end = start + bucketSize
+					sliceRanges = append(sliceRanges, []uint{start, end})
+
+					start = end
+				}
+
+				if remainder > uint(0) {
+					sliceRanges = append(sliceRanges, []uint{numItems - remainder, numItems})
+				}
+			}
+		}
+
+		// Determine a slice to use for the output
+		var (
+			zt     T
+			zu     U
+			output []U
+		)
+		if reflect.TypeOf(zt) == reflect.TypeOf(zu) {
+			// T and U aare the same type, modify input slice in place
+			output = any(input).([]U)
+		} else {
+			// Create a separate output slice
+			output = make([]U, numItems)
+		}
+
+		// Create a WaitGroup that can wait for all threads to complete
+		var wg sync.WaitGroup
+
+		// The function to execute in each thread, accepting source and target subslices
+		threadFn := func(in []T, out []U) {
+			// Decrement number of threads remaining once transforms are complete
+			defer wg.Done()
+
+			// Perform transforms and copy to output
+			First(ReduceIntoSlice(out)(transforms(Of(in...))))
+		}
+
+		// Create the threads, passing a subslice of input to each thread for processing
+		for _, sliceRange := range sliceRanges {
+			wg.Add(1)
+			go threadFn(input[sliceRange[0]:sliceRange[1]], output[sliceRange[0]:sliceRange[1]])
+		}
+
+		// Wait for threads to complete
+		wg.Wait()
+
+		return Of(output...)
 	}
 }

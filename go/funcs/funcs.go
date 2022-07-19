@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	notNilableMsg     = "Type %s is not a nillable type"
-	unsortableTypeMsg = "The type %T is not a sortable type - it must implement constraint.Ordered, constraint.Complex, or constraint.Cmp. Provide a custom sorting function."
+	notNilableMsg              = "Type %s is not a nillable type"
+	unsortableTypeMsg          = "The type %T is not a sortable type - it must implement constraint.Ordered, constraint.Complex, or constraint.Cmp. Provide a custom sorting function."
+	flattenSliceArgNotSliceMsg = "FlattenSlice argument must be a slice, not type %T"
+	flattenSliceArgNotTMsg     = "FlattenSlice argument must be slice of %T, not a slice of %T"
 )
 
 // ==== Element accessors
@@ -322,6 +324,75 @@ func IsPositive[T constraint.Signed]() func(T) bool {
 	return func(t T) bool {
 		return t > 0
 	}
+}
+
+// === Flatten
+
+// FlattenSlice flattens a slice of any number of dimensions into a one dimensional slice.
+// The slice is received as type any, because there is no way to describe a slice of any number of dimensions using
+// generics. A result of this is that Go can never infer the type of T, so it always has to be explicitly
+// provided (see unit tests).
+//
+// If a nil value is passed, an empty slice is returned.
+//
+// Panics if:
+// - the value passed is not a slice
+// - the slice passed does not ultimately resolve to elements of type T once all slice dimensions are indexed
+func FlattenSlice[T any](value any) []T {
+	rslc := []T{}
+
+	// Return empty slice is value is nil
+	if value == nil {
+		return rslc
+	}
+
+	// Make a one dimensional slice to return
+	var (
+		rtyp = reflect.ValueOf(rslc).Type().Elem()
+		vslc = reflect.ValueOf(value)
+		vtyp = vslc.Type()
+	)
+
+	// Ensure value passed is really a slice
+	if vtyp.Kind() != reflect.Slice {
+		panic(fmt.Errorf(flattenSliceArgNotSliceMsg, value))
+	}
+
+	// Index all dimensions of value to get the element type
+	numDims := 0
+	for vtyp.Kind() == reflect.Slice {
+		vtyp = vtyp.Elem()
+		numDims++
+	}
+
+	// Ensure value element type is same as T
+	if rtyp != vtyp {
+		panic(fmt.Errorf(flattenSliceArgNotTMsg, rtyp, vtyp))
+	}
+
+	// If original value is already one dimenion return it by reference
+	if numDims == 1 {
+		return value.([]T)
+	}
+
+	// Recursively iterate all dimensions of the given slice, some dimensions might be empty
+	var f func(reflect.Value)
+	f = func(currentSlice reflect.Value) {
+		// Iterate current slice
+		for i, num := 0, currentSlice.Len(); i < num; i++ {
+			val := currentSlice.Index(i)
+
+			// Recurse sub-arrays/slices
+			if val.Kind() == reflect.Slice {
+				f(val)
+			} else {
+				rslc = append(rslc, val.Interface().(T))
+			}
+		}
+	}
+	f(vslc)
+
+	return rslc
 }
 
 // ==== Reverse

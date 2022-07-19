@@ -295,6 +295,40 @@ func TestIsPositive(t *testing.T) {
 	assert.True(t, pos(3))
 }
 
+func TestFlattenSlice(t *testing.T) {
+	assert.Equal(t, []int{}, FlattenSlice[int](nil))
+
+	// Check that one dimensional slice is returned as (same address)
+	oneDim := []int{}
+	assert.Equal(t, fmt.Sprintf("%p", oneDim), fmt.Sprintf("%p", FlattenSlice[int](oneDim)))
+
+	assert.Equal(t, []int{1, 2, 3, 4}, FlattenSlice[int]([][]int{{1, 2}, {3, 4}}))
+
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, FlattenSlice[int]([][][]int{{{1, 2}, {3, 4}}, {{5}}, {{6}}}))
+
+	// Die if a value that is not a slice is passed
+	TryTo(
+		func() {
+			FlattenSlice[int](0)
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, fmt.Errorf(flattenSliceArgNotSliceMsg, 0), err)
+		},
+	)
+
+	// Die if expecting a []int but passed a []string
+	TryTo(
+		func() {
+			FlattenSlice[int]([]string{})
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, fmt.Errorf(flattenSliceArgNotTMsg, reflect.TypeOf(0), reflect.TypeOf("")), err)
+		},
+	)
+}
+
 func TestReverse(t *testing.T) {
 	slc := []int{}
 	Reverse(slc)
