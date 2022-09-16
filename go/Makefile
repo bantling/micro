@@ -56,16 +56,16 @@ PODMAN_GO_CACHE_BUILD := $(GO_CACHE_ROOT)/podman/build
 
 ### Targets
 
-# Make using host packages - the default way of building (user: host, docker, podman)
+# Make using host packages - the default way of building (host, docker, podman)
 .PHONY: all
 all: vars tidy compile lint format test
 
-# Make using docker - the docker image uses all target (user: host)
+# Make using docker - the docker image uses all target (host)
 .PHONY: docker
 docker: docker-check-image
 	docker run --rm -it -v $(THIS_MAKEFILE_DIR):/workdir $(DOCKER_IMAGE_NAME) make count=$(count) run=$(run) -C /workdir
 
-# Make using docker - as above, but with a additional volume mounts for persistent go module and go build caches (user: host)
+# Make using docker - as above, but with a additional volume mounts for persistent go module and go build caches (host)
 .PHONY: docker-cache
 docker-cache: docker-check-image $(DOCKER_GO_CACHE_PKG) $(DOCKER_GO_CACHE_BUILD)
 	docker run --rm -it -v $(DOCKER_GO_CACHE_PKG):/go/pkg -v $(DOCKER_GO_CACHE_BUILD):/root/.cache -v $(THIS_MAKEFILE_DIR):/workdir $(DOCKER_IMAGE_NAME) make uid="`id -u`" gid="`id -g`" count=$(count) run=$(run) -C /workdir
@@ -74,19 +74,19 @@ docker-cache: docker-check-image $(DOCKER_GO_CACHE_PKG) $(DOCKER_GO_CACHE_BUILD)
 .PHONY: docker-check-image
 docker-check-image:
 	[ -n "$(DOCKER_PATH)" ] || { echo "docker is not in the path"; exit 1; }; \
-	[ "`docker images --format "{{.Repository}}" --filter "reference=$(DOCKER_IMAGE_NAME)" | wc -l`" -eq 1 ] \
+	[ "`docker images --format "{{.Repository}}" --filter "reference=$(DOCKER_IMAGE_NAME)" | wc -l`" -ge 1 ] \
 	|| docker pull $(DOCKER_IMAGE_NAME)
 
 # Create directories needed for go module and go build caches (host)
 $(DOCKER_GO_CACHE_PKG) $(DOCKER_GO_CACHE_BUILD):
 	mkdir -p $@
 
-# Make using podman - the podman image uses all target (user: host)
+# Make using podman - the podman image uses all target (host)
 .PHONY: podman
 podman: podman-check-image
 	podman run -u root --rm -it -v $(THIS_MAKEFILE_DIR):/workdir $(PODMAN_IMAGE_NAME) make count=$(count) run=$(run) -C /workdir
 
-# Make using podman - as above, but with a additional volume mounts for persistent go module and go build caches (user: host)
+# Make using podman - as above, but with a additional volume mounts for persistent go module and go build caches (host)
 .PHONY: podman-cache
 podman-cache: podman-check-image $(PODMAN_GO_CACHE_PKG) $(PODMAN_GO_CACHE_BUILD)
 	podman run -u root --rm -it -v $(PODMAN_GO_CACHE_PKG):/go/pkg/mod -v $(PODMAN_GO_CACHE_BUILD):/root/.cache -v $(THIS_MAKEFILE_DIR):/workdir $(PODMAN_IMAGE_NAME) make count=$(count) run=$(run) -C /workdir
@@ -95,7 +95,7 @@ podman-cache: podman-check-image $(PODMAN_GO_CACHE_PKG) $(PODMAN_GO_CACHE_BUILD)
 .PHONY: podman-check-image
 podman-check-image:
 	[ -n "$(PODMAN_PATH)" ] || { echo "podman is not in the path"; exit 1; }; \
-	[ "`podman images --format "{{.Repository}}" --filter "reference=$(PODMAN_IMAGE_NAME)" | wc -l`" -eq 1 ] \
+	[ "`podman images --format "{{.Repository}}" --filter "reference=$(PODMAN_IMAGE_NAME)" | wc -l`" -ge 1 ] \
 	|| podman pull $(PODMAN_IMAGE_NAME)
 
 # Create directories needed for go module and go build caches (host)
@@ -128,11 +128,16 @@ format:
 
 # Test go code (host, docker, podman)
 # May pass count=N to run tests n times
+# May pass run=TestX to run only TestX
 .PHONY: test
 test:
 	testOpt="-count=$${count:-1}"; \
-	[ -n "$(run)" ] && testOpt="$$testOpt -run $(run)"; \
-	go test -v $$testOpt ./...
+	[ -z "$(run)" ] || testOpt="$$testOpt -run $(run)"; \
+	go test -coverprofile=coverage.html -v $$testOpt ./...
+
+.PHONY: coverage (host)
+coverage:
+	go tool cover -html=coverage.html
 
 # Display all vars (host, docker, podman)
 .PHONY: vars
@@ -158,4 +163,3 @@ vars:
 .PHONY: clean
 clean:
 	rm -rf "$(GO_CACHE_ROOT)"
-

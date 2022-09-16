@@ -540,17 +540,18 @@ func IgnoreResult[T any](fn func() T) func() {
 //
 // This function simplifies the process of "catching" panics over using reverse order code like the following
 // (common in unit tests that want to verify the type of object sent to panic):
-// func DoSomeStuff() {
-//   ...
-//   func() {
-//     defer zero or more things that have to be closed before we try to recover from any panic
-//     defer func() {
-//       // Some code that uses recover() to try and deal with a panic
-//     }()
-//     // Some code that may panic, which is handled by above code
-//   }
-//   ...
-// }
+//
+//	func DoSomeStuff() {
+//	  ...
+//	  func() {
+//	    defer zero or more things that have to be closed before we try to recover from any panic
+//	    defer func() {
+//	      // Some code that uses recover() to try and deal with a panic
+//	    }()
+//	    // Some code that may panic, which is handled by above code
+//	  }
+//	  ...
+//	}
 func TryTo(tryFn func(), panicFn func(any), closers ...func()) {
 	// Defer code that attempts to recover a value - first func deferred is called last, so this func is called after all provided closers
 	defer func() {

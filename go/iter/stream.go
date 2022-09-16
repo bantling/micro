@@ -80,7 +80,8 @@ func Filter[T any](filter func(T) bool) func(*Iter[T]) *Iter[T] {
 // - 1 elements: the element
 // - multiple elements: reducer(reducer(reducer(first, second), third), ...)
 //
-//  If the optional identity IS provided:
+//	If the optional identity IS provided:
+//
 // - 0 elements: identity
 // - 1 elements: reducer(identity, the element)
 // - multiple elements: reducer(reducer(reducer(identity, first), second), ...)
@@ -643,9 +644,12 @@ func SortBy[T any](less func(T, T) bool) func(*Iter[T]) *Iter[T] {
 // The number N is interpreted in one of two ways, depending on the PUnit:
 //
 // Threads: N is the number of threads, the bucket size for each thread is number of items / N, with remainder r
-//          distributed across first r threads. If number of items <= N, a single thread is used.
+//
+//	distributed across first r threads. If number of items <= N, a single thread is used.
+//
 // Items:   N is the bucket size, the number of threads is number of items / N, with remainder r handled by an
-//          additional thread. If number of items <= N, a single thread is used.
+//
+//	additional thread. If number of items <= N, a single thread is used.
 //
 // If no PInfo is provided, the number of threads is the square root of the number of items, so that each thread has the
 // same number of items - except for the last thread, which may have slightly less.

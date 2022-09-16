@@ -108,10 +108,11 @@ func SingleValueIterGen[T any](value T) func() (T, bool) {
 
 // InfiniteIterGen generates an iterative function based on an iterative function and zero or more initial values.
 // The initial values are handled as follows:
-// - zero initial values: the zero value of T is used as the seed value
-// - one initial values: the value given is used as the seed value
-// - multiple initial values: the first n-1 values are returned from the first n-1 calls to the generated function,
-//   and the last value is the seed value
+//   - zero initial values: the zero value of T is used as the seed value
+//   - one initial values: the value given is used as the seed value
+//   - multiple initial values: the first n-1 values are returned from the first n-1 calls to the generated function,
+//     and the last value is the seed value
+//
 // The seed value is used as the argument to the first call of the given function.
 // The generated values are the first n-1 initialValues followed by the inifinite series
 // f(seed), f(f(seed)), f(f(f(seed))), ...
