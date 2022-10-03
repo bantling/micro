@@ -104,6 +104,7 @@ func Reduce[T any](
 			if len(identity) == 0 {
 				// No identity
 				if !it.Next() {
+
 					// 0 elements = Empty set
 					return zv, false
 				} else {
@@ -665,7 +666,7 @@ func Parallel[T, U any](transforms func(*Iter[T]) *Iter[U], info ...PInfo) func(
 		var (
 			// Collect all items from source iterator into a slice
 			input = First(ReduceToSlice(source))
-			// Get number of items fromm source
+			// Get number of items from source
 			numItems = uint(len(input))
 		)
 
@@ -741,7 +742,7 @@ func Parallel[T, U any](transforms func(*Iter[T]) *Iter[U], info ...PInfo) func(
 			output []U
 		)
 		if reflect.TypeOf(zt) == reflect.TypeOf(zu) {
-			// T and U aare the same type, modify input slice in place
+			// T and U are the same type, modify input slice in place
 			output = any(input).([]U)
 		} else {
 			// Create a separate output slice

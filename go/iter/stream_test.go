@@ -28,26 +28,49 @@ func TestFilter(t *testing.T) {
 }
 
 func TestReduce(t *testing.T) {
+	// Reeducer func
+	fn := func(i, j int) int { return i + j }
+
 	// No identity => sum(1, 2, 3) = 6
-	it := Reduce(func(i, j int) int { return i + j })(Of(1, 2, 3))
+	it := Reduce(fn)(Of(1, 2, 3))
 	assert.Equal(t, 6, it.Must())
 	assert.False(t, it.Next())
 
 	// Identity = 4 => sum(4, 1, 2, 3) = 10
-	it = Reduce(func(i, j int) int { return i + j }, 4)(Of(1, 2, 3))
+	it = Reduce(fn, 4)(Of(1, 2, 3))
 	assert.Equal(t, 10, it.Must())
+	assert.False(t, it.Next())
+
+	// Empty set, no identity
+	it = Reduce(fn)(OfEmpty[int]())
+	assert.False(t, it.Next())
+
+	// Empty set, identity = 4
+	it = Reduce(fn, 4)(OfEmpty[int]())
+	assert.Equal(t, 4, it.Must())
 	assert.False(t, it.Next())
 }
 
 func TestReduceTo(t *testing.T) {
 	// No identity => concat(1, 2, 3) = "123"
-	it := ReduceTo(func(i string, j int) string { return i + strconv.Itoa(j) })(Of(1, 2, 3))
+	fn := func(i string, j int) string { return i + strconv.Itoa(j) }
+	it := ReduceTo(fn)(Of(1, 2, 3))
 	assert.Equal(t, "123", it.Must())
 	assert.False(t, it.Next())
 
 	// Identity = "4" => concat(4, 1, 2, 3) = "4123"
-	it = ReduceTo(func(i string, j int) string { return i + strconv.Itoa(j) }, "4")(Of(1, 2, 3))
+	it = ReduceTo(fn, "4")(Of(1, 2, 3))
 	assert.Equal(t, "4123", it.Must())
+	assert.False(t, it.Next())
+
+	// Empty set, no identity
+	it = ReduceTo(fn)(OfEmpty[int]())
+	assert.Equal(t, "", it.Must())
+	assert.False(t, it.Next())
+
+	// Empty set, identity = "4"
+	it = ReduceTo(fn, "4")(OfEmpty[int]())
+	assert.Equal(t, "4", it.Must())
 	assert.False(t, it.Next())
 }
 

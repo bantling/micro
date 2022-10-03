@@ -108,7 +108,7 @@ func Not[T any](filter func(T) bool) func(T) bool {
 
 // ==== Composition
 
-// Compose composes one or more funcs that accept the and return the same type into a new function that returns
+// Compose composes one or more funcs that accept and return the same type into a new function that returns
 // f_n(f_n-1( ... (f_1(f_0(x))))). Eg, if three funcs f_0, f_1, f_2 are provided in that order, the resulting
 // function returns f_2(f_1(f_0(x))).
 func Compose[T any](f0 func(T) T, fns ...func(T) T) func(T) T {
@@ -326,12 +326,65 @@ func IsPositive[T constraint.Signed]() func(T) bool {
 	}
 }
 
+// MinOrdered returns the maximum value of two ordered types
+func MinOrdered[T constraint.Ordered](val1, val2 T) T {
+	if val1 > val2 {
+		return val2
+	}
+
+	return val1
+}
+
+// MinComplex returns the minimum value of two complex types
+func MinComplex[T constraint.Complex](val1, val2 T) T {
+	if cmplx.Abs(complex128(val1)) > cmplx.Abs(complex128(val2)) {
+		return val2
+	}
+
+	return val1
+}
+
+// MinCmp returns the minimum value of two comparable types
+func MinCmp[T constraint.Cmp[T]](val1, val2 T) T {
+	if val1.Cmp(val2) > 0 {
+		return val2
+	}
+
+	return val1
+}
+
+// MaxOrdered returns the maximum value of two ordered types
+func MaxOrdered[T constraint.Ordered](val1, val2 T) T {
+	if val1 < val2 {
+		return val2
+	}
+
+	return val1
+}
+
+// MaxComplex returns the maximum value of two complex types
+func MaxComplex[T constraint.Complex](val1, val2 T) T {
+	if cmplx.Abs(complex128(val1)) < cmplx.Abs(complex128(val2)) {
+		return val2
+	}
+
+	return val1
+}
+
+// MaxCmp returns the maximum value of two comparable types
+func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
+	if val1.Cmp(val2) < 0 {
+		return val2
+	}
+
+	return val1
+}
+
 // === Flatten
 
 // FlattenSlice flattens a slice of any number of dimensions into a one dimensional slice.
-// The slice is received as type any, because there is no way to describe a slice of any number of dimensions using
-// generics. A result of this is that Go can never infer the type of T, so it always has to be explicitly
-// provided (see unit tests).
+// The slice is received as type any, because there is no way to describe a slice of any number of dimensions
+// using generics.
 //
 // If a nil value is passed, an empty slice is returned.
 //
@@ -341,7 +394,7 @@ func IsPositive[T constraint.Signed]() func(T) bool {
 func FlattenSlice[T any](value any) []T {
 	rslc := []T{}
 
-	// Return empty slice is value is nil
+	// Return empty slice if value is nil
 	if value == nil {
 		return rslc
 	}
@@ -456,7 +509,7 @@ func MustBeNillable(typ reflect.Type) {
 	}
 }
 
-// IsNil generates a func that returns true if the value given is nil.
+// IsNil generates a func(T) bool that returns true if the value given is nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
 func IsNil[T any]() func(T) bool {
 	var n T
@@ -467,7 +520,7 @@ func IsNil[T any]() func(T) bool {
 	}
 }
 
-// IsNonNil returns a func(T) bool that returns true if it accepts a non-nil value.
+// IsNonNil generates a func(T) bool that returns true if the value given is non-nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
 func IsNonNil[T any]() func(T) bool {
 	var n T
@@ -498,14 +551,14 @@ func MustValue[T any](t T, err error) T {
 
 // ==== Supplier
 
-// SupplierOf returns a func() T that returns the given value
+// SupplierOf generates a func() T that returns the given value
 func SupplierOf[T any](value T) func() T {
 	return func() T {
 		return value
 	}
 }
 
-// CachingSupplier returns a func() T that caches the result of the given supplier on the first call.
+// CachingSupplier generates a func() T that caches the result of the given supplier on the first call.
 // Any subseqquent calls return the cached value, guaranteeing the provided supplier is invoked at most once.
 func CachingSupplier[T any](supplier func() T) func() T {
 	var (
@@ -524,7 +577,7 @@ func CachingSupplier[T any](supplier func() T) func() T {
 
 // ==== IgnoreResult
 
-// IgnoreResult takes a func of no args that returns any type, and converts it to a func of no args and no return value.
+// IgnoreResult takes a func of no args that returns any type, and generates a func of no args and no return value.
 // Useful for TryTo function closers.
 func IgnoreResult[T any](fn func() T) func() {
 	return func() {
@@ -565,6 +618,6 @@ func TryTo(tryFn func(), panicFn func(any), closers ...func()) {
 		defer closerFn()
 	}
 
-	// Execute code that may panic, which is supposed to panic with a value of type error
+	// Execute code that may panic
 	tryFn()
 }

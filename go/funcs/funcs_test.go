@@ -295,10 +295,86 @@ func TestIsPositive(t *testing.T) {
 	assert.True(t, pos(3))
 }
 
+type cmp int
+
+func (t cmp) Cmp(o cmp) int {
+	if t < o {
+		return -1
+	}
+
+	if t == o {
+		return 0
+	}
+
+	return 1
+}
+
+func TestMinMax(t *testing.T) {
+	// Ordered = int
+	func() {
+		i, j := 1, 2
+		assert.Equal(t, i, MinOrdered(i, j))
+		assert.Equal(t, j, MaxOrdered(i, j))
+
+		i, j = 1, 1
+		assert.Equal(t, i, MinOrdered(i, j))
+		assert.Equal(t, j, MaxOrdered(i, j))
+
+		i, j = 2, 1
+		assert.Equal(t, j, MinOrdered(i, j))
+		assert.Equal(t, i, MaxOrdered(i, j))
+	}()
+
+	// Ordered = string
+	func() {
+		i, j := "1", "2"
+		assert.Equal(t, i, MinOrdered(i, j))
+		assert.Equal(t, j, MaxOrdered(i, j))
+
+		i, j = "1", "1"
+		assert.Equal(t, i, MinOrdered(i, j))
+		assert.Equal(t, j, MaxOrdered(i, j))
+
+		i, j = "2", "1"
+		assert.Equal(t, j, MinOrdered(i, j))
+		assert.Equal(t, i, MaxOrdered(i, j))
+	}()
+
+	// Complex
+	func() {
+		i, j := 1+2i, 2+3i
+		assert.Equal(t, i, MinComplex(i, j))
+		assert.Equal(t, j, MaxComplex(i, j))
+
+		i, j = 1+2i, 1+2i
+		assert.Equal(t, i, MinComplex(i, j))
+		assert.Equal(t, j, MaxComplex(i, j))
+
+		i, j = 2+3i, 1+2i
+		assert.Equal(t, j, MinComplex(i, j))
+		assert.Equal(t, i, MaxComplex(i, j))
+	}()
+
+	// Cmp
+	func() {
+		i, j := cmp(1), cmp(2)
+		assert.Equal(t, i, MinCmp(i, j))
+		assert.Equal(t, j, MaxCmp(i, j))
+
+		i, j = cmp(1), cmp(1)
+		assert.Equal(t, i, MinCmp(i, j))
+		assert.Equal(t, j, MaxCmp(i, j))
+
+		i, j = cmp(2), cmp(1)
+		assert.Equal(t, j, MinCmp(i, j))
+		assert.Equal(t, i, MaxCmp(i, j))
+	}()
+}
+
 func TestFlattenSlice(t *testing.T) {
 	assert.Equal(t, []int{}, FlattenSlice[int](nil))
 
-	// Check that one dimensional slice is returned as (same address)
+	// Check that one dimensional slice is returned as is (same address)
 	oneDim := []int{}
 	assert.Equal(t, fmt.Sprintf("%p", oneDim), fmt.Sprintf("%p", FlattenSlice[int](oneDim)))
 
@@ -425,22 +501,16 @@ func TestNillable(t *testing.T) {
 	assert.True(t, IsNonNil[[]int]()(a.([]int)))
 
 	assert.False(t, Nillable(reflect.TypeOf(0)))
-	func() {
-		defer func() {
-			assert.Equal(t, fmt.Errorf(notNilableMsg, "int"), recover())
-		}()
 
-		IsNil[int]()
-		assert.Fail(t, "int cannot be Nillable")
-	}()
-	func() {
-		defer func() {
-			assert.Equal(t, fmt.Errorf(notNilableMsg, "int"), recover())
-		}()
+	TryTo(
+		func() { IsNil[int]() },
+		func(err any) { assert.Equal(t, fmt.Errorf(notNilableMsg, "int"), err) },
+	)
 
-		IsNonNil[int]()
-		assert.Fail(t, "int cannot be Nillable")
-	}()
+	TryTo(
+		func() { IsNonNil[int]() },
+		func(err any) { assert.Equal(t, fmt.Errorf(notNilableMsg, "int"), err) },
+	)
 }
 
 func TestMust(t *testing.T) {
@@ -448,26 +518,20 @@ func TestMust(t *testing.T) {
 	Must(e)
 
 	e = fmt.Errorf("bob")
-	func() {
-		defer func() {
-			assert.Equal(t, e, recover())
-		}()
-		Must(e)
-		assert.Fail(t, "Must die")
-	}()
+	TryTo(
+		func() { Must(e) },
+		func(err any) { assert.Equal(t, e, err) },
+	)
 
 	e = nil
 	var i int
 	assert.Equal(t, i, MustValue(i, e))
 
 	e = fmt.Errorf("bob")
-	func() {
-		defer func() {
-			assert.Equal(t, e, recover())
-		}()
-		MustValue(i, e)
-		assert.Fail(t, "Must die")
-	}()
+	TryTo(
+		func() { MustValue(i, e) },
+		func(err any) { assert.Equal(t, e, err) },
+	)
 }
 
 func TestSupplier(t *testing.T) {

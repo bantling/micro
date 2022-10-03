@@ -3,11 +3,14 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -256,6 +259,21 @@ func TestReaderIterGen(t *testing.T) {
 	val, haveIt = iter()
 	assert.Zero(t, val)
 	assert.False(t, haveIt)
+
+	// non-eof error occurs after one byte
+
+	err := fmt.Errorf("An error")
+	src = util.NewErrorReader([]byte("a"), err)
+	iter = ReaderIterGen(src)
+
+	val, haveIt = iter()
+	assert.Equal(t, byte('a'), val)
+	assert.True(t, haveIt)
+
+	funcs.TryTo(
+		func() { iter() },
+		func(e any) { assert.Equal(t, err, e) },
+	)
 }
 
 func TestReaderAsRunesIterGen(t *testing.T) {
@@ -314,25 +332,60 @@ func TestReaderAsRunesIterGen(t *testing.T) {
 
 	for _, input := range inputs {
 		var (
-			iterFunc = ReaderAsRunesIterGen(strings.NewReader(input))
-			val      rune
-			haveIt   bool
+			iter   = ReaderAsRunesIterGen(strings.NewReader(input))
+			val    rune
+			haveIt bool
 		)
 
 		for _, char := range []rune(input) {
-			val, haveIt = iterFunc()
+			val, haveIt = iter()
 			assert.Equal(t, char, val)
 			assert.True(t, haveIt)
 		}
 
-		val, haveIt = iterFunc()
+		val, haveIt = iter()
 		assert.Equal(t, rune(0), val)
 		assert.False(t, haveIt)
 
-		val, haveIt = iterFunc()
+		val, haveIt = iter()
 		assert.Equal(t, rune(0), val)
 		assert.False(t, haveIt)
 	}
+
+	// non-eof error occurs after one byte
+
+	err := fmt.Errorf("An eerror")
+	src = util.NewErrorReader([]byte("a"), err)
+	iter = ReaderAsRunesIterGen(src)
+
+	val, haveIt = iter()
+	assert.Equal(t, 'a', val)
+	assert.True(t, haveIt)
+
+	funcs.TryTo(
+		func() {
+			iter()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, err, e) },
+	)
+
+	// utf8 decoding error occurs after one byte
+
+	src = strings.NewReader("a\x80")
+	iter = ReaderAsRunesIterGen(src)
+
+	val, haveIt = iter()
+	assert.Equal(t, 'a', val)
+	assert.True(t, haveIt)
+
+	funcs.TryTo(
+		func() {
+			iter()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, InvalidUTF8EncodingError, e) },
+	)
 }
 
 func TestReaderAsLinesIterGen(t *testing.T) {

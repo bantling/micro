@@ -40,5 +40,8 @@ type Complex interface {
 
 // Cmp is a companion interface for Ordered
 type Cmp[T any] interface {
+	// Returns <0 if this value < argument
+	//          0 if this value = argument
+	//         >0 if this value > argument
 	Cmp(T) int
 }
