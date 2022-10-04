@@ -35,10 +35,8 @@ type PInfo struct {
 
 // First combines Next and Value together in a single call.
 // If there is another value, then the next value is returned, else a panic occurs.
-// First is not a method so it can be used in a composition.
 func First[T any](it *Iter[T]) T {
-	it.Next()
-	return it.Value()
+	return it.Must()
 }
 
 // Map constructs a new Iter[U] from an Iter[T] and a func that transforms a T to a U.
@@ -542,9 +540,8 @@ func Count[T any]() func(*Iter[T]) *Iter[int] {
 // Distinct reduces Iter[T] to an Iter[T] with distinct values.
 // Distinct is a stateful transform that has to track unique values across iterator Next and Value calls.
 //
-// Distinct uses Generator internally to ensure what whenever a new Iter is encountered, a new install state of an empty
-// set of values is generated. This allows a composition to be stored in a variable and reused across data
-// sets correctly.
+// Distinct uses Generator internally to ensure what whenever a new Iter is encountered, a new state of an empty set of
+// values is generated. This allows a composition to be stored in a variable and reused across data sets correctly.
 //
 // If you want Distinct to have one state across multiple Iters, use Concat to create a single Iter that traverses them.
 func Distinct[T comparable]() func(*Iter[T]) *Iter[T] {

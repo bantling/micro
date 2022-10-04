@@ -305,21 +305,21 @@ func GreaterThanEqual[T constraint.Ordered](val T) func(T) bool {
 	}
 }
 
-// IsNegative returns a func(T) bool that returns true if it accepts a negative value.
+// IsNegative returns a filter func (func(T) bool) that returns true if it accepts a negative value.
 func IsNegative[T constraint.Signed]() func(T) bool {
 	return func(t T) bool {
 		return t < 0
 	}
 }
 
-// IsNonNegative returns a func(T) bool that returns true if it accepts a non-negative value.
+// IsNonNegative returns a filter func (func(T) bool) that returns true if it accepts a non-negative value.
 func IsNonNegative[T constraint.Signed]() func(T) bool {
 	return func(t T) bool {
 		return t >= 0
 	}
 }
 
-// IsPositive returns a func(T) bool that returns true if it accepts a positive value.
+// IsPositive returns a filter func (func(T) bool) that returns true if it accepts a positive value.
 func IsPositive[T constraint.Signed]() func(T) bool {
 	return func(t T) bool {
 		return t > 0
@@ -509,7 +509,7 @@ func MustBeNillable(typ reflect.Type) {
 	}
 }
 
-// IsNil generates a func(T) bool that returns true if the value given is nil.
+// IsNil generates a filter func (func(T) bool) that returns true if the value given is nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
 func IsNil[T any]() func(T) bool {
 	var n T
@@ -520,7 +520,7 @@ func IsNil[T any]() func(T) bool {
 	}
 }
 
-// IsNonNil generates a func(T) bool that returns true if the value given is non-nil.
+// IsNonNil generates a filter func (func(T) bool) that returns true if the value given is non-nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
 func IsNonNil[T any]() func(T) bool {
 	var n T
