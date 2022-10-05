@@ -179,3 +179,39 @@ func TestDefaultVisitor(t *testing.T) {
 	val = NullValue
 	assert.Nil(t, val.Visit(DefaultVisitor))
 }
+
+func TestConversionVisitor(t *testing.T) {
+	// Object {}
+	var (
+		visitor = ConversionVisitor(nil, nil, nil)
+		val     = JSONValue{typ: Object, value: map[string]JSONValue{}}
+	)
+	assert.Equal(t, map[string]any{}, val.Visit(visitor))
+
+	// Object {"foo": "bar"}
+	str := JSONValue{typ: String, value: "bar"}
+	val = JSONValue{typ: Object, value: map[string]JSONValue{"foo": str}}
+	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(visitor))
+
+	// Array []
+	val = JSONValue{typ: Array, value: []JSONValue{}}
+	assert.Equal(t, []any{}, val.Visit(visitor))
+
+	// Array ["bar"]
+	val = JSONValue{typ: Array, value: []JSONValue{str}}
+	assert.Equal(t, []any{"bar"}, val.Visit(visitor))
+
+	// String "bar"
+	assert.Equal(t, "bar", str.Visit(visitor))
+
+	// Number 0
+	val = JSONValue{typ: Number, value: big.NewFloat(0)}
+	assert.Equal(t, big.NewFloat(0), val.Visit(visitor))
+
+	// Boolean true
+	val = JSONValue{typ: Boolean, value: true}
+	assert.Equal(t, true, val.Visit(visitor))
+
+	// Null
+	assert.Nil(t, NullValue.Visit(visitor))
+}
