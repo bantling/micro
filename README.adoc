@@ -94,6 +94,7 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 
 == TODO
 
+* Change pointers to values wherever possible
 * Streaming json parser that can parse JSON docs as they are read. In the case of an array, as each element is parsed,
   an action is taken on that element before the next element is read.
 * Auto convert each JSON object into Go structs and vice-versa

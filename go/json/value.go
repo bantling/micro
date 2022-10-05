@@ -38,9 +38,11 @@ type JSONValue struct {
 	value any
 }
 
-// Constant value for a Null
+// Constant values for a true, false, and Null
 var (
-	NullValue = JSONValue{typ: Null, value: nil}
+	TrueValue  = JSONValue{typ: Boolean, value: true}
+	FalseValue = JSONValue{typ: Boolean, value: false}
+	NullValue  = JSONValue{typ: Null, value: nil}
 )
 
 // Type returns the type of value this JSONValue contains
@@ -184,7 +186,7 @@ func ConversionVisitor(
 	conversionVisitorFn = func(jv JSONValue) any {
 		switch jv.typ {
 		case Object:
-			fallthrough
+			return jv.Visit(conversionVisitorFn)
 		case Array:
 			return jv.Visit(conversionVisitorFn)
 		case String:
@@ -222,12 +224,7 @@ func (jv JSONValue) ToMap(visitor ...func(JSONValue) any) map[string]any {
 		panic(ErrNotObject)
 	}
 
-	visitorFunc := DefaultVisitor
-	if len(visitor) > 0 {
-		visitorFunc = visitor[0]
-	}
-
-	return jv.Visit(visitorFunc).(map[string]any)
+	return jv.Visit(funcs.SliceIndex(visitor, 0, DefaultVisitor)).(map[string]any)
 }
 
 // ToSlice returns a []any representation of a JSONValue.
