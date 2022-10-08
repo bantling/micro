@@ -8,12 +8,13 @@ import (
 
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/util"
 )
 
 // Error constants
 var (
-	ErrInvalidGoValueMsg       = "A value of type %T is not a valid type to convert to a JSONValue. Acceptable types are map[string]any, []any, string, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, big.Int, *big.Int, big.Float, *big.Float, NumberString, bool, and nil"
-	ErrInvalidGoNumberValueMsg = "A value of type %T is not a valid type to convert to a JSON Number. Acceptable types are int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, big.Int, *big.Int, big.Float, *big.Float, and NumberString"
+	ErrInvalidGoValueMsg       = "A value of type %T is not a valid type to convert to a JSONValue. Acceptable types are map[string]any, []any, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, NumberString, bool, and nil"
+	ErrInvalidGoNumberValueMsg = "A value of type %T is not a valid type to convert to a JSON Number. Acceptable types are int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, and NumberString"
 	ErrNotObject               = fmt.Errorf("The JSONValue is not an object")
 	ErrNotArray                = fmt.Errorf("The JSONValue is not an array")
 	ErrNotString               = fmt.Errorf("The JSONValue is not a string")
@@ -54,7 +55,9 @@ var (
 // fromNumberInternal converts any kind of number into a JSONValue
 // returns zero value if the given value is not any recognized numeric type
 func fromNumberInternal(n any) JSONValue {
-	if v, isa := n.(int8); isa {
+	if v, isa := n.(int); isa {
+		return FromSignedInt(v)
+	} else if v, isa := n.(int8); isa {
 		return FromSignedInt(v)
 	} else if v, isa := n.(int16); isa {
 		return FromSignedInt(v)
@@ -62,6 +65,8 @@ func fromNumberInternal(n any) JSONValue {
 		return FromSignedInt(v)
 	} else if v, isa := n.(int64); isa {
 		return FromSignedInt(v)
+	} else if v, isa := n.(uint); isa {
+		return FromUnsignedInt(v)
 	} else if v, isa := n.(uint8); isa {
 		return FromUnsignedInt(v)
 	} else if v, isa := n.(uint16); isa {
@@ -74,14 +79,10 @@ func fromNumberInternal(n any) JSONValue {
 		return FromFloat(v)
 	} else if v, isa := n.(float64); isa {
 		return FromFloat(v)
-	} else if v, isa := n.(big.Int); isa {
-		return FromBigInt(v)
 	} else if v, isa := n.(*big.Int); isa {
-		return FromBigIntPtr(v)
-	} else if v, isa := n.(big.Float); isa {
-		return FromBigFloat(v)
+		return FromBigInt(v)
 	} else if v, isa := n.(*big.Float); isa {
-		return FromBigFloatPtr(v)
+		return FromBigFloat(v)
 	} else if v, isa := n.(NumberString); isa {
 		return FromNumberString(v)
 	}
@@ -94,7 +95,7 @@ func fromNumberInternal(n any) JSONValue {
 // Object: map[string]any
 // Array: []any
 // String: string
-// Number: int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, big.Int, *big.Int, big.Float, *big.Float, or NumberString
+// Number: int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, or NumberString
 // Boolean: bool
 // Null: nil
 //
@@ -150,52 +151,32 @@ func FromString(s string) JSONValue {
 
 // FromSignedInt converts any kind of signed int into a JSONValue
 func FromSignedInt[T constraint.SignedInteger](n T) JSONValue {
-	var jv big.Float
-	jv.SetInt64(int64(n))
-	return JSONValue{typ: Number, value: jv}
+	return JSONValue{typ: Number, value: util.IntToBigFloat(n)}
 }
 
 // FromUnsignedInt converts any kind of unsigned int into a JSONValue
 func FromUnsignedInt[T constraint.UnsignedInteger](n T) JSONValue {
-	var jv big.Float
-	jv.SetUint64(uint64(n))
-	return JSONValue{typ: Number, value: jv}
+	return JSONValue{typ: Number, value: util.UintToBigFloat(n)}
 }
 
 // FromFloat converts any kind of float into a JSONValue
 func FromFloat[T constraint.Float](n T) JSONValue {
-	return JSONValue{typ: Number, value: *big.NewFloat(float64(n))}
+	return JSONValue{typ: Number, value: util.FloatToBigFloat(n)}
 }
 
-// FromBigInt converts a big.Int into a JSONValue
-func FromBigInt(n big.Int) JSONValue {
-	jv := big.NewFloat(0)
-	_, _, err := jv.Parse(n.String(), 10)
-	funcs.Must(err)
-	return JSONValue{typ: Number, value: *jv}
+// FromBigInt converts a *big.Int into a JSONValue
+func FromBigInt(n *big.Int) JSONValue {
+	return JSONValue{typ: Number, value: util.BigIntToBigFloat(n)}
 }
 
-// FromBigIntPtr converts a *big.Int into a JSONValue
-func FromBigIntPtr(n *big.Int) JSONValue {
-	return FromBigInt(*n)
-}
-
-// FromBigFloat converts a big.Float into a JSONValue
-func FromBigFloat(n big.Float) JSONValue {
+// FromBigFloat converts a *big.Float into a JSONValue
+func FromBigFloat(n *big.Float) JSONValue {
 	return JSONValue{typ: Number, value: n}
-}
-
-// FromBigFloatPtr converts a big.Float into a JSONValue
-func FromBigFloatPtr(n *big.Float) JSONValue {
-	return JSONValue{typ: Number, value: *n}
 }
 
 // FromNumberString converts a NumberString into a JSONValue
 func FromNumberString(n NumberString) JSONValue {
-	jv := big.NewFloat(0)
-	_, _, err := jv.Parse(string(n), 10)
-	funcs.Must(err)
-	return JSONValue{typ: Number, value: *jv}
+	return JSONValue{typ: Number, value: util.StringToBigFloat(string(n))}
 }
 
 // FromNumber converts any kind of number into a JSONValue
@@ -244,7 +225,7 @@ func (jv JSONValue) AsString() string {
 	case String:
 		return jv.value.(string)
 	case Number:
-		f := jv.value.(big.Float)
+		f := jv.value.(*big.Float)
 		return f.String()
 	case Boolean:
 		return fmt.Sprintf("%t", jv.value.(bool))
@@ -253,17 +234,27 @@ func (jv JSONValue) AsString() string {
 	panic(ErrNotStringable)
 }
 
-// AsNumber returns a number representation of a JSONValue.
-// Panics if the JSONValue is not a number.
-func (jv JSONValue) AsNumber() big.Float {
+// AsBigInt returns a *big.Int representation of a JSONValue.
+// Panics if the JSONValue is not a number, or the value of it cannot be represented as an int (eg, has decimal digits).
+func (jv JSONValue) AsBigInt() *big.Int {
 	if jv.typ != Number {
 		panic(ErrNotNumber)
 	}
 
-	return jv.value.(big.Float)
+	return util.BigFloatToBigInt(jv.value.(*big.Float))
 }
 
-// AsBoolean returns a boolean representation of a JSONValue.
+// AsNumber returns a *big.Float representation of a JSONValue.
+// Panics if the JSONValue is not a number.
+func (jv JSONValue) AsBigFloat() *big.Float {
+	if jv.typ != Number {
+		panic(ErrNotNumber)
+	}
+
+	return jv.value.(*big.Float)
+}
+
+// AsBoolean returns a bool representation of a JSONValue.
 // Panics if the JSONValue is not a boolean.
 func (jv JSONValue) AsBoolean() bool {
 	if jv.typ != Boolean {
@@ -326,7 +317,7 @@ func DefaultVisitor(jv JSONValue) any {
 		return jv.Visit(DefaultVisitor)
 	}
 
-	// Must be String, Number, Boolean, or Null, which is already string, big.Float, bool, or nil
+	// Must be String, Number, Boolean, or Null, which is already string, *big.Float, bool, or nil
 	return jv.value
 }
 
@@ -338,15 +329,15 @@ func DefaultVisitor(jv JSONValue) any {
 // Boolean: boolConv(bool)
 // Null: nil
 //
-// If any of the conversion funcs are nil, then no conversion is performed, resulting in string, big.Float, or bool
+// If any of the conversion funcs are nil, then no conversion is performed, resulting in string, *big.Float, or bool
 func ConversionVisitor(
 	stringConv func(string) any,
-	numberConv func(big.Float) any,
+	numberConv func(*big.Float) any,
 	boolConv func(bool) any,
 ) func(JSONValue) any {
 	var (
 		stringConvFn        = funcs.Ternary(stringConv != nil, stringConv, func(val string) any { return val })
-		numberConvFn        = funcs.Ternary(numberConv != nil, numberConv, func(val big.Float) any { return val })
+		numberConvFn        = funcs.Ternary(numberConv != nil, numberConv, func(val *big.Float) any { return val })
 		boolConvFn          = funcs.Ternary(boolConv != nil, boolConv, func(val bool) any { return val })
 		conversionVisitorFn func(JSONValue) any
 	)
@@ -360,7 +351,7 @@ func ConversionVisitor(
 		case String:
 			return stringConvFn(jv.value.(string))
 		case Number:
-			return numberConvFn(jv.value.(big.Float))
+			return numberConvFn(jv.value.(*big.Float))
 		case Boolean:
 			return boolConvFn(jv.value.(bool))
 		}
@@ -373,15 +364,13 @@ func ConversionVisitor(
 }
 
 // NumberToInt64Conversion is a ConversionVisitor numberConv func that converts Number to int64, typed as any.
-func NumberToInt64Conversion(val big.Float) any {
-	i64, _ := val.Int64()
-	return i64
+func NumberToInt64Conversion(val *big.Float) any {
+	return util.BigFloatToInt64(val)
 }
 
 // NumberToFloat64Conversion is a ConversionVisitor numberConv func that converts Number to float64, typed as any.
-func NumberToFloat64Conversion(val big.Float) any {
-	f64, _ := val.Float64()
-	return f64
+func NumberToFloat64Conversion(val *big.Float) any {
+	return util.BigFloatToFloat64(val)
 }
 
 // ToMap returns a map[string]any representation of a JSONValue.
@@ -414,7 +403,7 @@ func (jv JSONValue) ToInt() int64 {
 		panic(ErrNotNumber)
 	}
 
-	f := jv.value.(big.Float)
+	f := jv.value.(*big.Float)
 	res, _ := f.Int64()
 	return res
 }
@@ -426,7 +415,7 @@ func (jv JSONValue) ToFloat() float64 {
 		panic(ErrNotNumber)
 	}
 
-	f := jv.value.(big.Float)
+	f := jv.value.(*big.Float)
 	res, _ := f.Float64()
 	return res
 }

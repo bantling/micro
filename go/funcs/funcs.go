@@ -585,6 +585,20 @@ func IgnoreResult[T any](fn func() T) func() {
 	}
 }
 
+// ==== FirstValue
+
+// FirstValue2 takes two values and returns only the first one.
+// Useful for functions that return two results and you only care about the first one
+func FirstValue2[T, U any](t T, u U) T {
+	return t
+}
+
+// FirstValue3 takes three values and returns only the first one.
+// Useful for functions that return three results and you only care about the first one
+func FirstValue3[T, U, V any](t T, u U, v V) T {
+	return t
+}
+
 // ==== TryTo
 
 // TryTo executes tryFn, and if a panic occurs, it executes panicFn.

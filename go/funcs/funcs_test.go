@@ -558,6 +558,14 @@ func TestIgnoreResult(t *testing.T) {
 	assert.True(t, called)
 }
 
+func TestFirstValue2(t *testing.T) {
+	assert.Equal(t, 1, FirstValue2(1, 2))
+}
+
+func TestFirstValue3(t *testing.T) {
+	assert.Equal(t, 1, FirstValue3(1, 2, 3))
+}
+
 func TestTryTo(t *testing.T) {
 	var (
 		tryCalled     bool
