@@ -12,6 +12,139 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ==== ToString
+
+func TestIntToString(t *testing.T) {
+	assert.Equal(t, IntToString(int8(1)), "1")
+	assert.Equal(t, IntToString(int16(2)), "2")
+	assert.Equal(t, IntToString(int32(3)), "3")
+	assert.Equal(t, IntToString(int64(4)), "4")
+	assert.Equal(t, IntToString(int(5)), "5")
+}
+
+func TestUintToString(t *testing.T) {
+	assert.Equal(t, UintToString(uint8(1)), "1")
+	assert.Equal(t, UintToString(uint16(2)), "2")
+	assert.Equal(t, UintToString(uint32(3)), "3")
+	assert.Equal(t, UintToString(uint64(4)), "4")
+	assert.Equal(t, UintToString(uint(5)), "5")
+}
+
+func TestBigIntToString(t *testing.T) {
+	assert.Equal(t, "1234", BigIntToString(big.NewInt(1234)))
+}
+
+func TestBigFloatToString(t *testing.T) {
+	assert.Equal(t, "1234.5678", BigFloatToString(big.NewFloat(1234.5678)))
+}
+
+func TestBigRatToString(t *testing.T) {
+	assert.Equal(t, "5/4", BigRatToString(big.NewRat(125, 100)))
+}
+
+// ==== int to uint, uint to int, float64 to float32
+
+func TestNumBits(t *testing.T) {
+	assert.Equal(t, 8, NumBits(int8(0)))
+	assert.Equal(t, 8, NumBits(uint8(0)))
+
+	assert.Equal(t, 16, NumBits(int16(0)))
+	assert.Equal(t, 16, NumBits(uint16(0)))
+
+	assert.Equal(t, 32, NumBits(int32(0)))
+	assert.Equal(t, 32, NumBits(uint32(0)))
+
+	assert.Equal(t, 64, NumBits(int64(0)))
+	assert.Equal(t, 64, NumBits(uint64(0)))
+
+	assert.Equal(t, 32, NumBits(float32(0)))
+	assert.Equal(t, 64, NumBits(float64(0)))
+}
+
+func TestIntToUint(t *testing.T) {
+	{
+		var u uint
+		IntToUint(1, &u)
+		assert.Equal(t, uint(1), u)
+	}
+
+	{
+		var i = math.MaxUint16
+		var u uint16
+		IntToUint(i, &u)
+		assert.Equal(t, uint16(math.MaxUint16), u)
+	}
+
+	funcs.TryTo(
+		func() {
+			var u uint8
+			IntToUint(-1, &u)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, -1, "-1", "uint8"), e)
+		},
+	)
+
+	funcs.TryTo(
+		func() {
+			var i = math.MaxUint16
+			var u uint8
+			IntToUint(i, &u)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, math.MaxUint16, fmt.Sprintf("%d", math.MaxUint16), "uint8"), e)
+		},
+	)
+}
+
+func TestUintToInt(t *testing.T) {
+	{
+		var i int
+		UintToInt(uint(1), &i)
+		assert.Equal(t, 1, i)
+	}
+
+	{
+		var u uint64 = math.MaxInt16
+		var i int
+		UintToInt(u, &i)
+		assert.Equal(t, math.MaxInt16, i)
+	}
+
+	funcs.TryTo(
+		func() {
+			var u uint16 = math.MaxInt16
+			var i int8
+			UintToInt(u, &i)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, uint16(0), fmt.Sprintf("%d", math.MaxInt16), "int8"), e)
+		},
+	)
+}
+
+func TestFloat64ToFloat32(t *testing.T) {
+	assert.Equal(t, float32(1), Float64ToFloat32(1))
+	assert.Equal(t, float32(math.SmallestNonzeroFloat32), Float64ToFloat32(math.SmallestNonzeroFloat32))
+	assert.Equal(t, float32(math.MaxFloat32), Float64ToFloat32(math.MaxFloat32))
+	assert.Equal(t, float32(math.Inf(-1)), Float64ToFloat32(math.Inf(-1)))
+	assert.Equal(t, float32(math.Inf(1)), Float64ToFloat32(math.Inf(1)))
+
+	f64 := float64(math.SmallestNonzeroFloat32) - 1
+	funcs.TryTo(
+		func() {
+			Float64ToFloat32(f64)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, f64, fmt.Sprintf("%f", f64), "float32"), e)
+		},
+	)
+}
+
 // ==== ToInt64
 
 func TestBigIntToInt64(t *testing.T) {
@@ -40,6 +173,28 @@ func TestBigFloatToInt64(t *testing.T) {
 		},
 		func(e any) {
 			assert.Equal(t, fmt.Errorf(errMsg, big.NewFloat(0), "1.25", "int64"), e)
+		},
+	)
+
+	negInf := big.NewFloat(0).Quo(big.NewFloat(-1), big.NewFloat(0))
+	funcs.TryTo(
+		func() {
+			BigFloatToInt64(negInf)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, negInf, negInf.String(), "int64"), e)
+		},
+	)
+
+	posInf := big.NewFloat(0).Quo(big.NewFloat(1), big.NewFloat(0))
+	funcs.TryTo(
+		func() {
+			BigFloatToInt64(posInf)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, posInf, posInf.String(), "int64"), e)
 		},
 	)
 }

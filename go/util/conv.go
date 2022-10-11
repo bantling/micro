@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"reflect"
 	"strconv"
 
 	"github.com/bantling/micro/go/constraint"
@@ -13,29 +14,103 @@ import (
 )
 
 var (
-	errMsg   = "The %T value of %s cannot be converted to a %s"
-	log2Of10 = math.Log2(10)
+	errMsg       = "The %T value of %s cannot be converted to a %s"
+	log2Of10     = math.Log2(10)
+	maxIntValues = map[int]int{
+		8:  math.MaxInt8,
+		16: math.MaxInt16,
+		32: math.MaxInt32,
+		64: math.MaxInt64,
+	}
+	maxUintValues = map[int]uint{
+		8:  math.MaxUint8,
+		16: math.MaxUint16,
+		32: math.MaxUint32,
+		64: math.MaxUint64,
+	}
 )
 
-// Start by convert each type to string
+// ToString
 
-// For each type convert from:
-// int
-// uint
-// float
-// bigint
-// bigfloat
-// bigrat
-// string
+// IntToStrinng converts any signed int type into a string
+func IntToString[T constraint.SignedInteger](val T) string {
+	return strconv.FormatInt(int64(val), 10)
+}
+
+// UintToStrinng converts any unsigned int type into a string
+func UintToString[T constraint.UnsignedInteger](val T) string {
+	return strconv.FormatUint(uint64(val), 10)
+}
+
+// FloatToStrinng converts any float type into a string
+func FloatToString[T constraint.Float](val T) string {
+	_, is32 := any(val).(float32)
+	return strconv.FormatFloat(float64(val), 'f', -1, funcs.Ternary(is32, 32, 64))
+}
+
+// BigIntToString converts a *big.Int to a string
+func BigIntToString(val *big.Int) string {
+	return val.String()
+}
+
+// BigFloatToString converts a *big.Float to a string
+func BigFloatToString(val *big.Float) string {
+	return val.String()
+}
+
+// BigRatToString converts a *big.Float to a string
+func BigRatToString(val *big.Rat) string {
+	return val.String()
+}
+
+// ==== int to uint, uint to int, float64 to float32
+
+// NumBits provides the number of bits of any integer or float type
+func NumBits[T constraint.Signed](val T) int {
+	return int(reflect.ValueOf(val).Type().Size() * 8)
+}
+
+// IntToUint converts any signed integer type into any unsigned integer type
+// Panics if the signed int < 0, or the signed int size > unsigned int size and signed value > max unsigned value
+func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I, uval *U) {
+	var (
+		intSize  = NumBits(ival)
+		uintSize = NumBits(*uval)
+	)
+
+	if (ival < 0) || ((intSize > uintSize) && (ival > I(maxUintValues[uintSize]))) {
+		panic(fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), fmt.Sprintf("%T", *uval)))
+	}
+
+	*uval = U(ival)
+}
+
+// UintToInt converts any unsigned integer type into any signed integer type
+// Panics if the unsigned size >= signed size and unsigned value > the signed max value
+func UintToInt[U constraint.UnsignedInteger, I constraint.SignedInteger](uval U, ival *I) {
+	var (
+		uintSize = NumBits(uval)
+		intSize  = NumBits(*ival)
+	)
+
+	if (uintSize >= intSize) && (uval > U(maxIntValues[intSize])) {
+		panic(fmt.Errorf(errMsg, uval, fmt.Sprintf("%d", uval), fmt.Sprintf("%T", *ival)))
+	}
+
+	*ival = I(uval)
+}
+
+// Float64ToFloat32 converts a float64 to a float32
+// Panics if the float64 is outside the range of a float32
+func Float64ToFloat32(val float64) float32 {
+	if (!math.IsInf(val, 0)) && ((val < math.SmallestNonzeroFloat32) || (val > math.MaxFloat32)) {
+		panic(fmt.Errorf(errMsg, val, fmt.Sprintf("%f", val), "float32"))
+	}
+
+	return float32(val)
+}
 
 // ==== ToInt64
-
-// func UintToInt64[T constraint.Unsigned](val T) int64 {
-//   u := uint64(val)
-//   if u > math.MaxInt64 {
-//     panic(fmt.Errorf(errMsg, val, ))
-//   }
-// }
 
 // BigIntToInt64 converts a *big.Int to an int64
 // Panics if the *big.Int cannot be represented as an int64
