@@ -183,7 +183,7 @@ func FromNumberString(n NumberString) JSONValue {
 func FromNumber(n any) JSONValue {
 	jv := fromNumberInternal(n)
 	if jv.value == nil {
-		panic(fmt.Errorf(ErrInvalidGoNumberValueMsg))
+		panic(fmt.Errorf(ErrInvalidGoNumberValueMsg, n))
 	}
 	return jv
 }

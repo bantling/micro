@@ -14,15 +14,21 @@ import (
 )
 
 var (
-	errMsg       = "The %T value of %s cannot be converted to a %s"
-	log2Of10     = math.Log2(10)
-	maxIntValues = map[int]int{
+	errMsg      = "The %T value of %s cannot be converted to a %s"
+	log2Of10    = math.Log2(10)
+	minIntValue = map[int]int{
+		8:  math.MinInt8,
+		16: math.MinInt16,
+		32: math.MinInt32,
+		64: math.MinInt64,
+	}
+	maxIntValue = map[int]int{
 		8:  math.MaxInt8,
 		16: math.MaxInt16,
 		32: math.MaxInt32,
 		64: math.MaxInt64,
 	}
-	maxUintValues = map[int]uint{
+	maxUintValue = map[int]uint{
 		8:  math.MaxUint8,
 		16: math.MaxUint16,
 		32: math.MaxUint32,
@@ -63,22 +69,37 @@ func BigRatToString(val *big.Rat) string {
 	return val.String()
 }
 
-// ==== int to uint, uint to int, float64 to float32
+// ==== int/uint to int/uint, float to int, float64 to float32
 
 // NumBits provides the number of bits of any integer or float type
 func NumBits[T constraint.Signed](val T) int {
 	return int(reflect.ValueOf(val).Type().Size() * 8)
 }
 
+// IntToInt converts any signed integer type into any signed integer type
+// Panics if the source value cannot be represented by the target type
+func IntToInt[S constraint.SignedInteger, T constraint.SignedInteger](sval S, tval *T) {
+	var (
+		srcSize = NumBits(sval)
+		tgtSize = NumBits(*tval)
+	)
+
+	if (srcSize > tgtSize) && ((sval < S(minIntValue[tgtSize])) || (sval > S(maxIntValue[tgtSize]))) {
+		panic(fmt.Errorf(errMsg, sval, fmt.Sprintf("%d", sval), fmt.Sprintf("%T", *tval)))
+	}
+
+	*tval = T(sval)
+}
+
 // IntToUint converts any signed integer type into any unsigned integer type
-// Panics if the signed int < 0, or the signed int size > unsigned int size and signed value > max unsigned value
+// Panics if the signed int cannot be represented by the unsigned type
 func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I, uval *U) {
 	var (
 		intSize  = NumBits(ival)
 		uintSize = NumBits(*uval)
 	)
 
-	if (ival < 0) || ((intSize > uintSize) && (ival > I(maxUintValues[uintSize]))) {
+	if (ival < 0) || ((intSize > uintSize) && (ival > I(maxUintValue[uintSize]))) {
 		panic(fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), fmt.Sprintf("%T", *uval)))
 	}
 
@@ -86,18 +107,55 @@ func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I,
 }
 
 // UintToInt converts any unsigned integer type into any signed integer type
-// Panics if the unsigned size >= signed size and unsigned value > the signed max value
+// Panics if the unsigned int cannot be represented by the signed type
 func UintToInt[U constraint.UnsignedInteger, I constraint.SignedInteger](uval U, ival *I) {
 	var (
 		uintSize = NumBits(uval)
 		intSize  = NumBits(*ival)
 	)
 
-	if (uintSize >= intSize) && (uval > U(maxIntValues[intSize])) {
+	if (uintSize >= intSize) && (uval > U(maxIntValue[intSize])) {
 		panic(fmt.Errorf(errMsg, uval, fmt.Sprintf("%d", uval), fmt.Sprintf("%T", *ival)))
 	}
 
 	*ival = I(uval)
+}
+
+// UintToUint converts any unsigned integer type into any unsigned integer type
+// Panics if the source value cannot be represented by the target type
+func UintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](sval S, tval *T) {
+	var (
+		srcSize = NumBits(sval)
+		tgtSize = NumBits(*tval)
+	)
+
+	if (srcSize > tgtSize) && (sval > S(maxUintValue[tgtSize])) {
+		panic(fmt.Errorf(errMsg, sval, fmt.Sprintf("%d", sval), fmt.Sprintf("%T", *tval)))
+	}
+
+	*tval = T(sval)
+}
+
+// FloatToInt converts and float type to any signed int type
+// Panics if the float value cannot be represented by the int type
+func FloatToInt[F constraint.Float, I constraint.SignedInteger](fval F, ival *I) {
+	funcs.TryTo(
+		func() { IntToInt(BigRatToInt64(FloatToBigRat(fval)), ival) },
+		func(_ any) {
+			panic(fmt.Errorf(errMsg, fval, fmt.Sprintf("%f", fval), reflect.TypeOf(*ival).Name()))
+		},
+	)
+}
+
+// FloatToUint converts and float type to any unsigned int type
+// Panics if the float value cannot be represented by the unsigned int type
+func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](fval F, ival *I) {
+	funcs.TryTo(
+		func() { UintToUint(BigRatToUint64(FloatToBigRat(fval)), ival) },
+		func(_ any) {
+			panic(fmt.Errorf(errMsg, fval, fmt.Sprintf("%f", fval), reflect.TypeOf(*ival).Name()))
+		},
+	)
 }
 
 // Float64ToFloat32 converts a float64 to a float32
@@ -112,7 +170,7 @@ func Float64ToFloat32(val float64) float32 {
 
 // ==== ToInt64
 
-// BigIntToInt64 converts a *big.Int to an int64
+// BigIntToInt converts a *big.Int to a signed integer
 // Panics if the *big.Int cannot be represented as an int64
 func BigIntToInt64(val *big.Int) int64 {
 	if !val.IsInt64() {
@@ -385,10 +443,7 @@ func BigIntToBigFloat(val *big.Int) *big.Float {
 func BigRatToBigFloat(val *big.Rat) *big.Float {
 	// Use numerator to calculate the precision, shd be accurate since denominator is basically the exponent
 	prec := int(math.Ceil(math.Max(float64(53), float64(len(val.Num().String()))*log2Of10)))
-	res, _, err := big.ParseFloat(val.FloatString(prec), 10, uint(prec), big.ToNearestEven)
-	if err != nil {
-		panic(fmt.Errorf(errMsg, val, val, "*big.Float"))
-	}
+	res, _, _ := big.ParseFloat(val.FloatString(prec), 10, uint(prec), big.ToNearestEven)
 
 	// Set accuracy to exact
 	res.SetMode(res.Mode())
@@ -439,6 +494,14 @@ func FloatToBigRat[T constraint.Float](val T) *big.Rat {
 func BigIntToBigRat(val *big.Int) *big.Rat {
 	r := big.NewRat(1, 1)
 	r.SetFrac(val, big.NewInt(1))
+
+	return r
+}
+
+// BigFloatToBigRat converts a *big.Float into a *big.Rat
+func BigFloatToBigRat(val *big.Float) *big.Rat {
+	r := big.NewRat(1, 1)
+	r.SetString(BigFloatToString(val))
 
 	return r
 }

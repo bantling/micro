@@ -3,6 +3,7 @@ package json
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -105,6 +106,12 @@ func TestFromValue(t *testing.T) {
 
 	// Null
 	assertNull(t, FromValue(nil))
+
+	// Error
+	funcs.TryTo(
+		func() { FromValue((1 + 2i)) },
+		func(e any) { assert.Equal(t, fmt.Errorf(ErrInvalidGoValueMsg, (1+2i)), e) },
+	)
 }
 
 func TestFromMap(t *testing.T) {
@@ -179,6 +186,11 @@ func TestFromNumber(t *testing.T) {
 	// Number - NumberString
 	// FromNumber accepts type any, so explicit conversion required
 	assertNumber(t, big.NewFloat(4.25), FromNumber(NumberString("4.25")))
+
+	funcs.TryTo(
+		func() { FromNumber((1 + 2i)) },
+		func(e any) { assert.Equal(t, fmt.Errorf(ErrInvalidGoNumberValueMsg, (1+2i)), e) },
+	)
 }
 
 func TestFromBool(t *testing.T) {
