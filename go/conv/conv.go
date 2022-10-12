@@ -1,4 +1,4 @@
-package util
+package conv
 
 // SPDX-License-Identifier: Apache-2.0
 
@@ -64,9 +64,20 @@ func BigFloatToString(val *big.Float) string {
 	return val.String()
 }
 
-// BigRatToString converts a *big.Float to a string
+// BigRatToString converts a *big.Rat to a string.
+// The string will be a ratio like 5/4, if it is int it will be a ratio like 5/1.
 func BigRatToString(val *big.Rat) string {
 	return val.String()
+}
+
+// BigRatToNormalizedString converts a *big.Rat to a string.
+// The string will be formatted like an integer if the ratio is an int, else formatted like a float if it is not an int.
+func BigRatToNormalizedString(val *big.Rat) string {
+	if val.IsInt() {
+		return val.Num().String()
+	}
+
+	return BigRatToBigFloat(val).String()
 }
 
 // ==== int/uint to int/uint, float to int, float64 to float32

@@ -599,6 +599,14 @@ func FirstValue3[T, U, V any](t T, u U, v V) T {
 	return t
 }
 
+// ==== Passthrough
+
+// Passthrough is a generic func that returns the argument passed as is.
+// Useful in some cases of generics.
+func Passthrough[T any](t T) T {
+	return t
+}
+
 // ==== TryTo
 
 // TryTo executes tryFn, and if a panic occurs, it executes panicFn.

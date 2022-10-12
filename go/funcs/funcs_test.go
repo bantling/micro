@@ -566,6 +566,10 @@ func TestFirstValue3(t *testing.T) {
 	assert.Equal(t, 1, FirstValue3(1, 2, 3))
 }
 
+func TestPassthrough(t *testing.T) {
+	assert.Equal(t, 1, Passthrough(1))
+}
+
 func TestTryTo(t *testing.T) {
 	var (
 		tryCalled     bool

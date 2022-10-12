@@ -9,91 +9,47 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 
 * constraint
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
+* conv
+** converts between numeric types, panicking if any loss of precision would occur
 * funcs
-** defines various generally useful funcs
-** SliceIndex index a slice or return a default value
-** MapValue index a map or return a default value
-** And composes any number of filter funcs into a single conjunction filter func
-** Or composes any number of filter funcs into a single disjunction filter func
-** Not negates a single filter func
-** Compose composes any number of funcs that accept and return the same type
-** Compose2 .. Compose10 composes from 2 to 10 funcs that accept and return different types
-** Ternary takes a bool, true value, and false value, and returns the true or false value depending on the bool
-** TernaryResult is like Ternary, but takes true and false funcs of no args that return the desired value
-** LessThan, LessThanEqual, Equal, GreaterThan, GreaterThanEqual generate filter funcs that perform the appropriate
-   comparison against a supplied value
-** IsNegative, IsNonNegative, IsPositive generate a filter func that makes the appropriate test of the value
-** MinOrdered, MinComplex, MinCmp accept a pair of values and returns the lesser value
-** MaxOrdered, MaxComplex, MaxCmp accept a pair of values and returns the greater value
-** FlattenSlice flattens a slice of any number of dimensions into a one dimensional slice
-** Reverse reverses the elements of a slice
-** SortOrdered, SortComplex, SortCmp, SortBy sort slices
-** Nillable determines if a reflect.Type represents a nillable type
-** MustBeNillable panics if a reflect.Type does not represent a nillable type
-** IsNil, IsNonNil generate filter funcs that test if a value is nil
-** Must and MustValue panic if an error is non-nil
-** SupplierOf and CachingSupplier generates funcs of no arg that return a constant value
-** IgnoreResult converts a func that returns a value into one that doesn't (see TryTo)
-** TryTo is a replacement for hard to write idiomatic go code that acts like a try/catch block.
-   TryTo accepts a func for a try block, a func for a catch block (only invoked if try block panics), and any number of
+** slices:
+*** access elements safely
+*** flatten multiple dimensions into one
+*** reverse elements
+*** sort elements
+** maps: access keys safely
+** filter - func(T) bool:
+*** compose with and, or, not
+*** generate filters for comparisons (<, <=, ==, >=, >)
+*** generate filters for is negative, is non-negative, is positive, is nil, is non nil
+** compose any number of funcs that accept and receive same type
+** compose up to 10 funcs that accept and return different types
+** ternary - take a bool, true value or supplier, false value or supplier, and return true or false value
+** min/max
+** nil handling
+** supplier generators
+** generate a func that ignores result of another func
+** TryTo is a replacement for hard to write idiomatic go code that acts like a Java try/catch/finally block:
+   Accepts a func for a try block, a func for a catch block (only invoked if try block panics), and any number of
    closer funcs that close resources regardless of whether the try func panics.
 * iter
 ** defines Iter type that can iterate anything
 ** based on iterating funcs, a func of no args that returns (value, bool), where the value is only relevant if the bool
-   is true. These funcs are used in the constructors of Iter to iterate various types:
-*** NewIter iterates the values returned by an iterating func
-*** Of(T...) iterates a provided list of values
-*** OfEmpty[T] returns an empty iterator
-*** OfOne returns an iterator of a single value
-*** OfMap returns an iterator of a map
-*** OfReader returns an iterator of the bytes of an io.Reader
-*** OfReaderAsRunes returns an iterator of the runes of an io.Reader
-*** OfReaderAsLines returns an iterator of the lines of an io.Reader
-*** Concat concatenates any number of iterators into one
-** Next returns true if a next value exists
-** Value returns value discovered by previous call to Next. Next and Value must be interleaved.
-** Unread places a value into a buffer to be read before further values are read from iterator
-** NextValue combines Next and Value into a single call that never panics
-** Must combines Next and Value into a single call that panics if there are no more values left
-** Provides streaming functionality (similar to that of Java 8 streams) that is based on Iter.
+   is true
+** A number of constructors are provided for hard-coded values, slices, maps, io.reader, concat multiple iters
+** Next, value, unread, and Must funcs to retrieve values
+** Provides streaming functionality (similar to that of Java 8 streams).
     Most functions accept ands return an Iter, providing some kind of transform.
-*** First returns next value in Iter, panics if no value is available
-*** Map transforms an Iter[T] to an Iter[U]
-*** Filter transforms an Iter[T] into an Iter[T] that filters out elements that do not pass a filter func
-*** Reduce transforms an Iter[T] info an Iter[T] that only has one element
-*** ReduceTo transforms an Iter[T] info an Iter[U] that only has one element
-*** ReduceToBool transforms an Iter[T] into an Iter[bool] that only has one element, possibly using short circuit logic
-*** ReduceToSlice transforms an Iter[T] into an Iter[[]T] that only has one element
-*** ReduceIntoSlice is like ReduceToSlice, except a target slice is provided that must have a length great enough to
-    hold all the source values
-*** ExpandSlices transforms an Iter[[]T] into Iter[T] by iterating each source slice
-*** ReduceToMap transforms an Iter[KeyValue[K, V]] into an Iter[map[K]V] by combining KeyValue instances into a map
-*** ExpandMaps transforms an Iter[map[K]V] into an Iter[KeyValue[K, V]] by iterating each map
-*** Skip transforms an Iter into a new Iter that skips first n elements
-*** Limit transforms an Iter into a new Iter that returns only the first n elements
-*** Peek transforms an Iter into a new Iter that executes a side effect for every element
-*** Generator receives a generator (a no arg func that returns a transform func of Iter[T] to Iter[U]), and whenever
-    the source Iter[T] changes, it generates a new transform  by calling the generator. It allows a stateful transform
-    to begin with a new initial state for each Iter[T] it is applied to. The purpose is to allow the creation of a
-    stateful processing pipeline once up front, and apply it to many data sets, but ensure each data set is
-    transformed correctly.
-*** Transform is for arbitrary transforms of Iter[T] to Iter[U] based on a transformer func that can reduce or expand
-    the number of elements iterated
-*** AllMatch reduces an Iter[T] to an Iter[bool] of one element that is true if all T pass a filter func
-*** AnyMatch reduces an Iter[T] to an Iter[bool] of one element that is true if at least one T passes a filter func
-*** NoneMatch reduces an Iter[T] to an Iter[bool] of one element that is true if no T passes a filter func
-*** Count reduces an Iter[T] to an Iter[int] of one element that is a count of all T values
-*** Distinct reduces an Iter[T] to an Iter[T] that is a unique subset of T values
-*** Duplicate reduces an Iter[T] to an Iter[T] that is a subset of T values that occur at least twice
-*** Reverse transforms an Iter[T] into an Iter[T] that iterates in reverse order
-*** SortOrdered, SortComplex, SortCmp, and SortBy transform an Iter[T] into an Iter[T] that iterates in sorted order
-*** Parallel takes a set of transforms represented as an Iter[T] to an Iter[U], and executes the transforms in parallel,
-    where each go routines operates on a subset of T -> U.
+*** funcs for first, map, filter, reduce, expand, skip, limit, peek, generate infinite series, all match, any match,
+   none match, count, distinct, duplicate, reverse, sort, and parallel
+*** control over how and when parallel execution occurs, default algorithm provided
 * util
-** Provides ErrorReader to return a specified error after reading a specified set of bytes, useful for unit tests.
+** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
 
 == TODO
 
+* JSON builder to more easily build values
+* Rename json.JSONValue to just json.Value
 * Range types
 * Split out creation of slice indexes for parallel into func([]T)[][]int
 * Change pointers to values wherever possible

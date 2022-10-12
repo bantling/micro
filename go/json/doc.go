@@ -1,4 +1,4 @@
-// Package json is a streaming json parser
+// Package json is a representation of a JSON object
 //
 // SPDX-License-Identifier: Apache-2.0
 package json

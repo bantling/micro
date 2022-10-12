@@ -1,4 +1,4 @@
-package util
+package conv
 
 // SPDX-License-Identifier: Apache-2.0
 
@@ -47,6 +47,11 @@ func TestBigFloatToString(t *testing.T) {
 
 func TestBigRatToString(t *testing.T) {
 	assert.Equal(t, "5/4", BigRatToString(big.NewRat(125, 100)))
+}
+
+func TestBigRatToNormalizedString(t *testing.T) {
+	assert.Equal(t, "1234", BigRatToNormalizedString(big.NewRat(1234, 1)))
+	assert.Equal(t, "1.25", BigRatToNormalizedString(big.NewRat(125, 100)))
 }
 
 // ==== int/uint to int/uint, float to int, float64 to float32

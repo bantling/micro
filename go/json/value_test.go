@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +24,7 @@ func assertString(t *testing.T, e string, a JSONValue) {
 	assert.Equal(t, JSONValue{typ: String, value: e}, a)
 }
 
-func assertNumber(t *testing.T, e *big.Float, a JSONValue) {
+func assertNumber(t *testing.T, e *big.Rat, a JSONValue) {
 	assert.Equal(t, JSONValue{typ: Number, value: e}, a)
 }
 
@@ -37,26 +37,27 @@ func assertNull(t *testing.T, a JSONValue) {
 }
 
 func TestFromNumberInternal(t *testing.T) {
-	assertNumber(t, util.IntToBigFloat(1), fromNumberInternal(int(1)))
-	assertNumber(t, util.IntToBigFloat(2), fromNumberInternal(int8(2)))
-	assertNumber(t, util.IntToBigFloat(3), fromNumberInternal(int16(3)))
-	assertNumber(t, util.IntToBigFloat(4), fromNumberInternal(int32(4)))
-	assertNumber(t, util.IntToBigFloat(5), fromNumberInternal(int64(5)))
+	assertNumber(t, conv.IntToBigRat(1), fromNumberInternal(int(1)))
+	assertNumber(t, conv.IntToBigRat(2), fromNumberInternal(int8(2)))
+	assertNumber(t, conv.IntToBigRat(3), fromNumberInternal(int16(3)))
+	assertNumber(t, conv.IntToBigRat(4), fromNumberInternal(int32(4)))
+	assertNumber(t, conv.IntToBigRat(5), fromNumberInternal(int64(5)))
 
-	assertNumber(t, util.UintToBigFloat(uint64(1)), fromNumberInternal(uint(1)))
-	assertNumber(t, util.UintToBigFloat(uint64(2)), fromNumberInternal(uint8(2)))
-	assertNumber(t, util.UintToBigFloat(uint64(3)), fromNumberInternal(uint16(3)))
-	assertNumber(t, util.UintToBigFloat(uint64(4)), fromNumberInternal(uint32(4)))
-	assertNumber(t, util.UintToBigFloat(uint64(5)), fromNumberInternal(uint64(5)))
+	assertNumber(t, conv.UintToBigRat(uint64(1)), fromNumberInternal(uint(1)))
+	assertNumber(t, conv.UintToBigRat(uint64(2)), fromNumberInternal(uint8(2)))
+	assertNumber(t, conv.UintToBigRat(uint64(3)), fromNumberInternal(uint16(3)))
+	assertNumber(t, conv.UintToBigRat(uint64(4)), fromNumberInternal(uint32(4)))
+	assertNumber(t, conv.UintToBigRat(uint64(5)), fromNumberInternal(uint64(5)))
 
-	assertNumber(t, util.FloatToBigFloat(1.25), fromNumberInternal(float32(1.25)))
-	assertNumber(t, util.FloatToBigFloat(2.5), fromNumberInternal(float64(2.5)))
+	assertNumber(t, conv.FloatToBigRat(1.25), fromNumberInternal(float32(1.25)))
+	assertNumber(t, conv.FloatToBigRat(2.5), fromNumberInternal(float64(2.5)))
 
-	assertNumber(t, big.NewFloat(3.0), fromNumberInternal(util.IntToBigInt(3)))
-	assertNumber(t, big.NewFloat(3.75), fromNumberInternal(util.FloatToBigFloat(3.75)))
+	assertNumber(t, conv.IntToBigRat(3), fromNumberInternal(conv.IntToBigInt(3)))
+	assertNumber(t, conv.FloatToBigRat(3.75), fromNumberInternal(conv.FloatToBigFloat(3.75)))
+	assertNumber(t, conv.FloatToBigRat(4.25), fromNumberInternal(conv.FloatToBigRat(4.25)))
 
 	// fromNumberInternal accepts type any, so explicit conversion required
-	assertNumber(t, util.FloatToBigFloat(4.25), fromNumberInternal(NumberString("4.25")))
+	assertNumber(t, conv.FloatToBigRat(5.75), fromNumberInternal(NumberString("5.75")))
 
 	// Any other type results in invalid zero value
 	assert.Equal(t, JSONValue{}, fromNumberInternal(""))
@@ -64,39 +65,40 @@ func TestFromNumberInternal(t *testing.T) {
 
 func TestFromValue(t *testing.T) {
 	// Object
-	assertObject(t, map[string]JSONValue{"foo": {typ: String, value: "bar"}}, FromValue(map[string]any{"foo": "bar"}))
+	assertObject(t, map[string]JSONValue{"foo": FromString("bar")}, FromValue(map[string]any{"foo": "bar"}))
 
 	// Array
-	assertArray(t, []JSONValue{{typ: String, value: "bar"}}, FromValue([]any{"bar"}))
+	assertArray(t, []JSONValue{FromString("bar")}, FromValue([]any{"bar"}))
 
 	// String
 	assertString(t, "bar", FromValue("bar"))
 
 	// Number - int
-	assertNumber(t, util.IntToBigFloat(1), FromValue(int(1)))
-	assertNumber(t, util.IntToBigFloat(2), FromValue(int8(2)))
-	assertNumber(t, util.IntToBigFloat(3), FromValue(int16(3)))
-	assertNumber(t, util.IntToBigFloat(4), FromValue(int32(4)))
-	assertNumber(t, util.IntToBigFloat(5), FromValue(int64(5)))
+	assertNumber(t, conv.IntToBigRat(1), FromValue(int(1)))
+	assertNumber(t, conv.IntToBigRat(2), FromValue(int8(2)))
+	assertNumber(t, conv.IntToBigRat(3), FromValue(int16(3)))
+	assertNumber(t, conv.IntToBigRat(4), FromValue(int32(4)))
+	assertNumber(t, conv.IntToBigRat(5), FromValue(int64(5)))
 
 	// Number - uint
-	assertNumber(t, util.IntToBigFloat(1), FromValue(uint(1)))
-	assertNumber(t, util.IntToBigFloat(2), FromValue(uint8(2)))
-	assertNumber(t, util.IntToBigFloat(3), FromValue(uint16(3)))
-	assertNumber(t, util.IntToBigFloat(4), FromValue(uint32(4)))
-	assertNumber(t, util.IntToBigFloat(5), FromValue(uint64(5)))
+	assertNumber(t, conv.IntToBigRat(1), FromValue(uint(1)))
+	assertNumber(t, conv.IntToBigRat(2), FromValue(uint8(2)))
+	assertNumber(t, conv.IntToBigRat(3), FromValue(uint16(3)))
+	assertNumber(t, conv.IntToBigRat(4), FromValue(uint32(4)))
+	assertNumber(t, conv.IntToBigRat(5), FromValue(uint64(5)))
 
 	// Number - float
-	assertNumber(t, util.FloatToBigFloat(1.25), FromValue(float32(1.25)))
-	assertNumber(t, util.FloatToBigFloat(2.5), FromValue(float64(2.5)))
+	assertNumber(t, conv.FloatToBigRat(1.25), FromValue(float32(1.25)))
+	assertNumber(t, conv.FloatToBigRat(2.5), FromValue(float64(2.5)))
 
-	// Number - *big.Int, *big.Float
-	assertNumber(t, big.NewFloat(3.0), FromValue(util.IntToBigInt(3)))
-	assertNumber(t, big.NewFloat(3.75), FromValue(util.FloatToBigFloat(3.75)))
+	// Number - *big.Int, *big.Float, *big.Rat
+	assertNumber(t, conv.FloatToBigRat(3.0), FromValue(conv.IntToBigInt(3)))
+	assertNumber(t, conv.FloatToBigRat(3.75), FromValue(conv.FloatToBigFloat(3.75)))
+	assertNumber(t, conv.FloatToBigRat(4.25), FromValue(conv.FloatToBigRat(4.25)))
 
 	// Number - NumberString
 	// fromValue accepts type any, so explicit conversion required
-	assertNumber(t, big.NewFloat(4.25), FromValue(NumberString("4.25")))
+	assertNumber(t, conv.FloatToBigRat(5.75), FromValue(NumberString("5.75")))
 
 	// Boolean - true
 	assertBoolean(t, true, FromValue(true))
@@ -127,65 +129,70 @@ func TestFromString(t *testing.T) {
 }
 
 func TestFromSignedInt(t *testing.T) {
-	assertNumber(t, util.IntToBigFloat(1), FromSignedInt(int(1)))
-	assertNumber(t, util.IntToBigFloat(2), FromSignedInt(int8(2)))
-	assertNumber(t, util.IntToBigFloat(3), FromSignedInt(int16(3)))
-	assertNumber(t, util.IntToBigFloat(4), FromSignedInt(int32(4)))
-	assertNumber(t, util.IntToBigFloat(5), FromSignedInt(int64(5)))
+	assertNumber(t, conv.IntToBigRat(1), FromSignedInt(int(1)))
+	assertNumber(t, conv.IntToBigRat(2), FromSignedInt(int8(2)))
+	assertNumber(t, conv.IntToBigRat(3), FromSignedInt(int16(3)))
+	assertNumber(t, conv.IntToBigRat(4), FromSignedInt(int32(4)))
+	assertNumber(t, conv.IntToBigRat(5), FromSignedInt(int64(5)))
 }
 
 func TestFromUnsignedInt(t *testing.T) {
-	assertNumber(t, util.IntToBigFloat(1), FromUnsignedInt(uint(1)))
-	assertNumber(t, util.IntToBigFloat(2), FromUnsignedInt(uint8(2)))
-	assertNumber(t, util.IntToBigFloat(3), FromUnsignedInt(uint16(3)))
-	assertNumber(t, util.IntToBigFloat(4), FromUnsignedInt(uint32(4)))
-	assertNumber(t, util.IntToBigFloat(5), FromUnsignedInt(uint64(5)))
+	assertNumber(t, conv.IntToBigRat(1), FromUnsignedInt(uint(1)))
+	assertNumber(t, conv.IntToBigRat(2), FromUnsignedInt(uint8(2)))
+	assertNumber(t, conv.IntToBigRat(3), FromUnsignedInt(uint16(3)))
+	assertNumber(t, conv.IntToBigRat(4), FromUnsignedInt(uint32(4)))
+	assertNumber(t, conv.IntToBigRat(5), FromUnsignedInt(uint64(5)))
 }
 
 func TestFromFloat(t *testing.T) {
-	assertNumber(t, util.FloatToBigFloat(1.25), FromFloat(float32(1.25)))
-	assertNumber(t, util.FloatToBigFloat(2.5), FromFloat(float64(2.5)))
+	assertNumber(t, conv.FloatToBigRat(1.25), FromFloat(float32(1.25)))
+	assertNumber(t, conv.FloatToBigRat(2.5), FromFloat(float64(2.5)))
 }
 
 func TestFromBigInt(t *testing.T) {
-	assertNumber(t, util.IntToBigFloat(3), FromBigInt(util.IntToBigInt(3)))
+	assertNumber(t, conv.IntToBigRat(3), FromBigInt(conv.IntToBigInt(3)))
 }
 
 func TestFromBigFloat(t *testing.T) {
-	assertNumber(t, util.FloatToBigFloat(3.75), FromBigFloat(util.FloatToBigFloat(3.75)))
+	assertNumber(t, conv.FloatToBigRat(3.75), FromBigFloat(conv.FloatToBigFloat(3.75)))
+}
+
+func TestFromBigRat(t *testing.T) {
+	assertNumber(t, conv.FloatToBigRat(4.25), FromBigFloat(conv.FloatToBigFloat(4.25)))
 }
 
 func TestFromNumberString(t *testing.T) {
 	// fromNumberString accepts type NumberString, so implicit conversion allowed
-	assertNumber(t, util.FloatToBigFloat(4.25), FromNumberString("4.25"))
+	assertNumber(t, conv.FloatToBigRat(5.75), FromNumberString("5.75"))
 }
 
 func TestFromNumber(t *testing.T) {
 	// Number - int
-	assertNumber(t, util.IntToBigFloat(1), FromNumber(int(1)))
-	assertNumber(t, util.IntToBigFloat(2), FromNumber(int8(2)))
-	assertNumber(t, util.IntToBigFloat(3), FromNumber(int16(3)))
-	assertNumber(t, util.IntToBigFloat(4), FromNumber(int32(4)))
-	assertNumber(t, util.IntToBigFloat(5), FromNumber(int64(5)))
+	assertNumber(t, conv.IntToBigRat(1), FromNumber(int(1)))
+	assertNumber(t, conv.IntToBigRat(2), FromNumber(int8(2)))
+	assertNumber(t, conv.IntToBigRat(3), FromNumber(int16(3)))
+	assertNumber(t, conv.IntToBigRat(4), FromNumber(int32(4)))
+	assertNumber(t, conv.IntToBigRat(5), FromNumber(int64(5)))
 
 	// Number - uint
-	assertNumber(t, util.IntToBigFloat(1), FromNumber(uint(1)))
-	assertNumber(t, util.IntToBigFloat(2), FromNumber(uint8(2)))
-	assertNumber(t, util.IntToBigFloat(3), FromNumber(uint16(3)))
-	assertNumber(t, util.IntToBigFloat(4), FromNumber(uint32(4)))
-	assertNumber(t, util.IntToBigFloat(5), FromNumber(uint64(5)))
+	assertNumber(t, conv.IntToBigRat(1), FromNumber(uint(1)))
+	assertNumber(t, conv.IntToBigRat(2), FromNumber(uint8(2)))
+	assertNumber(t, conv.IntToBigRat(3), FromNumber(uint16(3)))
+	assertNumber(t, conv.IntToBigRat(4), FromNumber(uint32(4)))
+	assertNumber(t, conv.IntToBigRat(5), FromNumber(uint64(5)))
 
 	// Number - float
-	assertNumber(t, util.FloatToBigFloat(1.25), FromNumber(float32(1.25)))
-	assertNumber(t, util.FloatToBigFloat(2.5), FromNumber(float64(2.5)))
+	assertNumber(t, conv.FloatToBigRat(1.25), FromNumber(float32(1.25)))
+	assertNumber(t, conv.FloatToBigRat(2.5), FromNumber(float64(2.5)))
 
-	// Number - *big.Int, *big.Float
-	assertNumber(t, big.NewFloat(3.0), FromNumber(util.IntToBigInt(3)))
-	assertNumber(t, big.NewFloat(3.75), FromNumber(util.FloatToBigFloat(3.75)))
+	// Number - *big.Int, *big.Float, *big.Rat
+	assertNumber(t, conv.IntToBigRat(3), FromNumber(conv.IntToBigInt(3)))
+	assertNumber(t, conv.FloatToBigRat(3.75), FromNumber(conv.FloatToBigFloat(3.75)))
+	assertNumber(t, conv.FloatToBigRat(4.25), FromNumber(conv.FloatToBigRat(4.25)))
 
 	// Number - NumberString
 	// FromNumber accepts type any, so explicit conversion required
-	assertNumber(t, big.NewFloat(4.25), FromNumber(NumberString("4.25")))
+	assertNumber(t, conv.FloatToBigRat(5.75), FromNumber(NumberString("5.75")))
 
 	funcs.TryTo(
 		func() { FromNumber((1 + 2i)) },
@@ -253,28 +260,13 @@ func TestAsString(t *testing.T) {
 	)
 }
 
-func TestAsBigInt(t *testing.T) {
+func TestAsBigRat(t *testing.T) {
 	val := FromNumber(1)
-	assert.Equal(t, big.NewInt(1), val.AsBigInt())
+	assert.Equal(t, conv.IntToBigRat(1), val.AsBigRat())
 
 	funcs.TryTo(
 		func() {
-			NullValue.AsBigInt()
-			assert.Fail(t, "Must die")
-		},
-		func(e any) {
-			assert.Equal(t, ErrNotNumber, e)
-		},
-	)
-}
-
-func TestAsBigFloat(t *testing.T) {
-	val := FromNumber(1)
-	assert.Equal(t, val.value, val.AsBigFloat())
-
-	funcs.TryTo(
-		func() {
-			NullValue.AsBigFloat()
+			NullValue.AsBigRat()
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
@@ -327,76 +319,76 @@ func TestVisit(t *testing.T) {
 	assert.Equal(t, str, str.Visit(noconv))
 
 	// Number 0
-	val = JSONValue{typ: Number, value: big.NewFloat(0)}
+	val = JSONValue{typ: Number, value: conv.IntToBigRat(0)}
 	assert.Equal(t, val, val.Visit(noconv))
 
 	// Boolean true
 	assert.Equal(t, TrueValue, TrueValue.Visit(noconv))
 
 	// Null
-	val = NullValue
-	assert.Equal(t, val, val.Visit(noconv))
+	assert.Equal(t, NullValue, NullValue.Visit(noconv))
 }
 
 func TestDefaultVisitor(t *testing.T) {
 	// Object {}
 	val := JSONValue{typ: Object, value: map[string]JSONValue{}}
-	assert.Equal(t, map[string]any{}, val.Visit(DefaultVisitor))
+	assert.Equal(t, map[string]any{}, val.Visit(DefaultVisitorFunc))
 
 	// Object {"foo": "bar"}
 	str := JSONValue{typ: String, value: "bar"}
 	val = JSONValue{typ: Object, value: map[string]JSONValue{"foo": str}}
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(DefaultVisitor))
+	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(DefaultVisitorFunc))
 
 	// Object {"foo": {"bar": "baz"}}
 	baz := JSONValue{typ: String, value: "baz"}
 	val = JSONValue{typ: Object, value: map[string]JSONValue{
 		"foo": {typ: Object, value: map[string]JSONValue{"bar": baz}}},
 	}
-	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "baz"}}, val.Visit(DefaultVisitor))
+	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "baz"}}, val.Visit(DefaultVisitorFunc))
 
 	// Array []
 	val = JSONValue{typ: Array, value: []JSONValue{}}
-	assert.Equal(t, []any{}, val.Visit(DefaultVisitor))
+	assert.Equal(t, []any{}, val.Visit(DefaultVisitorFunc))
 
 	// Array ["bar"]
 	val = JSONValue{typ: Array, value: []JSONValue{str}}
-	assert.Equal(t, []any{"bar"}, val.Visit(DefaultVisitor))
+	assert.Equal(t, []any{"bar"}, val.Visit(DefaultVisitorFunc))
 
 	// Array [ Array ["bar"] ]
 	val = JSONValue{typ: Array, value: []JSONValue{{typ: Array, value: []JSONValue{str}}}}
-	assert.Equal(t, []any{[]any{"bar"}}, val.Visit(DefaultVisitor))
+	assert.Equal(t, []any{[]any{"bar"}}, val.Visit(DefaultVisitorFunc))
 
 	// String "bar"
-	assert.Equal(t, "bar", str.Visit(DefaultVisitor))
+	assert.Equal(t, "bar", str.Visit(DefaultVisitorFunc))
 
 	// Number 0
-	val = JSONValue{typ: Number, value: big.NewFloat(0)}
-	assert.Equal(t, big.NewFloat(0), val.Visit(DefaultVisitor))
+	val = JSONValue{typ: Number, value: conv.IntToBigRat(0)}
+	assert.Equal(t, conv.IntToBigRat(0), val.Visit(DefaultVisitorFunc))
 
 	// Boolean true
-	assert.Equal(t, true, TrueValue.Visit(DefaultVisitor))
+	assert.Equal(t, true, TrueValue.Visit(DefaultVisitorFunc))
 
 	// Null
-	val = NullValue
-	assert.Nil(t, val.Visit(DefaultVisitor))
+	assert.Nil(t, NullValue.Visit(DefaultVisitorFunc))
 }
 
 func TestConversionVisitor(t *testing.T) {
 	// Object {}
 	var (
-		defaultVisitor = ConversionVisitor(nil, nil, nil)
+		defaultVisitor = DefaultConversionVisitor
 		customVisitor  = ConversionVisitor(
-			func(str string) any { return str + str },
-			func(num *big.Float) any { res := big.NewFloat(0); res.Add(num, num); return res },
-			func(b bool) any { return !b },
+			func(str string) string { return str + str },
+			func(num *big.Rat) *big.Rat { res := big.NewRat(0, 1); res.Add(num, num); return res },
+			func(b bool) bool { return !b },
 		)
-		intVisitor   = ConversionVisitor(nil, NumberToInt64Conversion, nil)
-		floatVisitor = ConversionVisitor(nil, NumberToFloat64Conversion, nil)
+		intVisitor   = ConversionVisitor(funcs.Passthrough[string], conv.BigRatToInt64, funcs.Passthrough[bool])
+		floatVisitor = ConversionVisitor(funcs.Passthrough[string], conv.BigRatToFloat64, funcs.Passthrough[bool])
 		val          = JSONValue{typ: Object, value: map[string]JSONValue{}}
 	)
 	assert.Equal(t, map[string]any{}, val.Visit(defaultVisitor))
 	assert.Equal(t, map[string]any{}, val.Visit(customVisitor))
+	assert.Equal(t, map[string]any{}, val.Visit(intVisitor))
+	assert.Equal(t, map[string]any{}, val.Visit(floatVisitor))
 
 	// Object {"foo": "bar"}
 	str := JSONValue{typ: String, value: "bar"}
@@ -444,9 +436,9 @@ func TestConversionVisitor(t *testing.T) {
 	assert.Equal(t, "bar", str.Visit(floatVisitor))
 
 	// Number 5
-	val = JSONValue{typ: Number, value: big.NewFloat(5)}
-	assert.Equal(t, big.NewFloat(5), val.Visit(defaultVisitor))
-	assert.Equal(t, big.NewFloat(10), val.Visit(customVisitor))
+	val = JSONValue{typ: Number, value: big.NewRat(5, 1)}
+	assert.Equal(t, big.NewRat(5, 1), val.Visit(defaultVisitor))
+	assert.Equal(t, big.NewRat(10, 1), val.Visit(customVisitor))
 	assert.Equal(t, int64(5), val.Visit(intVisitor))
 	assert.Equal(t, float64(5), val.Visit(floatVisitor))
 
@@ -458,6 +450,7 @@ func TestConversionVisitor(t *testing.T) {
 
 	// Null
 	assert.Nil(t, NullValue.Visit(defaultVisitor))
+	assert.Nil(t, NullValue.Visit(customVisitor))
 	assert.Nil(t, NullValue.Visit(intVisitor))
 	assert.Nil(t, NullValue.Visit(floatVisitor))
 }
@@ -465,14 +458,14 @@ func TestConversionVisitor(t *testing.T) {
 func TestToMap(t *testing.T) {
 	// Object {}
 	var (
-		defaultVisitor = ConversionVisitor(nil, nil, nil)
+		defaultVisitor = DefaultConversionVisitor
 		customVisitor  = ConversionVisitor(
-			func(str string) any { return str + str },
-			func(num *big.Float) any { res := big.NewFloat(0); res.Add(num, num); return res },
-			func(b bool) any { return !b },
+			func(str string) string { return str + str },
+			func(num *big.Rat) *big.Rat { res := big.NewRat(0, 1); res.Add(num, num); return res },
+			func(b bool) bool { return !b },
 		)
-		intVisitor   = ConversionVisitor(nil, NumberToInt64Conversion, nil)
-		floatVisitor = ConversionVisitor(nil, NumberToFloat64Conversion, nil)
+		intVisitor   = ConversionVisitor(funcs.Passthrough[string], conv.BigRatToInt64, funcs.Passthrough[bool])
+		floatVisitor = ConversionVisitor(funcs.Passthrough[string], conv.BigRatToFloat64, funcs.Passthrough[bool])
 		val          = JSONValue{typ: Object, value: map[string]JSONValue{}}
 	)
 	assert.Equal(t, map[string]any{}, val.ToMap())
@@ -489,11 +482,11 @@ func TestToMap(t *testing.T) {
 	assert.Equal(t, map[string]any{"foo": "bar"}, val.ToMap(floatVisitor))
 
 	// Object {"foo": 5}
-	num := JSONValue{typ: Number, value: big.NewFloat(5)}
+	num := JSONValue{typ: Number, value: big.NewRat(5, 1)}
 	val = JSONValue{typ: Object, value: map[string]JSONValue{"foo": num}}
-	assert.Equal(t, map[string]any{"foo": big.NewFloat(5)}, val.ToMap())
-	assert.Equal(t, map[string]any{"foo": big.NewFloat(5)}, val.ToMap(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": big.NewFloat(10)}, val.ToMap(customVisitor))
+	assert.Equal(t, map[string]any{"foo": big.NewRat(5, 1)}, val.ToMap())
+	assert.Equal(t, map[string]any{"foo": big.NewRat(5, 1)}, val.ToMap(defaultVisitor))
+	assert.Equal(t, map[string]any{"foo": big.NewRat(10, 1)}, val.ToMap(customVisitor))
 	assert.Equal(t, map[string]any{"foo": int64(5)}, val.ToMap(intVisitor))
 	assert.Equal(t, map[string]any{"foo": 5.0}, val.ToMap(floatVisitor))
 
@@ -528,14 +521,14 @@ func TestToMap(t *testing.T) {
 func TestToSlice(t *testing.T) {
 	// Array []
 	var (
-		defaultVisitor = ConversionVisitor(nil, nil, nil)
+		defaultVisitor = DefaultConversionVisitor
 		customVisitor  = ConversionVisitor(
-			func(str string) any { return str + str },
-			func(num *big.Float) any { res := big.NewFloat(0); res.Add(num, num); return res },
-			func(b bool) any { return !b },
+			func(str string) string { return str + str },
+			func(num *big.Rat) *big.Rat { res := big.NewRat(0, 1); res.Add(num, num); return res },
+			func(b bool) bool { return !b },
 		)
-		intVisitor   = ConversionVisitor(nil, NumberToInt64Conversion, nil)
-		floatVisitor = ConversionVisitor(nil, NumberToFloat64Conversion, nil)
+		intVisitor   = ConversionVisitor(funcs.Passthrough[string], conv.BigRatToInt64, funcs.Passthrough[bool])
+		floatVisitor = ConversionVisitor(funcs.Passthrough[string], conv.BigRatToFloat64, funcs.Passthrough[bool])
 		val          = JSONValue{typ: Array, value: []JSONValue{}}
 	)
 	assert.Equal(t, []any{}, val.ToSlice())
@@ -552,11 +545,11 @@ func TestToSlice(t *testing.T) {
 	assert.Equal(t, []any{"bar"}, val.ToSlice(floatVisitor))
 
 	// Array [5]
-	num := JSONValue{typ: Number, value: big.NewFloat(5)}
+	num := JSONValue{typ: Number, value: big.NewRat(5, 1)}
 	val = JSONValue{typ: Array, value: []JSONValue{num}}
-	assert.Equal(t, []any{big.NewFloat(5)}, val.ToSlice())
-	assert.Equal(t, []any{big.NewFloat(5)}, val.ToSlice(defaultVisitor))
-	assert.Equal(t, []any{big.NewFloat(10)}, val.ToSlice(customVisitor))
+	assert.Equal(t, []any{big.NewRat(5, 1)}, val.ToSlice())
+	assert.Equal(t, []any{big.NewRat(5, 1)}, val.ToSlice(defaultVisitor))
+	assert.Equal(t, []any{big.NewRat(10, 1)}, val.ToSlice(customVisitor))
 	assert.Equal(t, []any{int64(5)}, val.ToSlice(intVisitor))
 	assert.Equal(t, []any{5.0}, val.ToSlice(floatVisitor))
 
@@ -589,12 +582,12 @@ func TestToSlice(t *testing.T) {
 }
 
 func TestToInt(t *testing.T) {
-	val := JSONValue{typ: Number, value: big.NewFloat(5)}
-	assert.Equal(t, int64(5), val.ToInt())
+	val := JSONValue{typ: Number, value: big.NewRat(5, 1)}
+	assert.Equal(t, int64(5), conv.BigRatToInt64(val.AsBigRat()))
 
 	funcs.TryTo(
 		func() {
-			NullValue.ToInt()
+			NullValue.AsBigRat()
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
@@ -604,12 +597,12 @@ func TestToInt(t *testing.T) {
 }
 
 func TestToFloat(t *testing.T) {
-	val := JSONValue{typ: Number, value: big.NewFloat(5)}
-	assert.Equal(t, 5.0, val.ToFloat())
+	val := JSONValue{typ: Number, value: big.NewRat(5, 1)}
+	assert.Equal(t, 5.0, conv.BigRatToFloat64(val.AsBigRat()))
 
 	funcs.TryTo(
 		func() {
-			NullValue.ToFloat()
+			NullValue.AsBigRat()
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
