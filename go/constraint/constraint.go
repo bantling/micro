@@ -25,12 +25,12 @@ type Float interface {
 
 // Signed differs from golang.org/x/exp/constraints#Signed - it includes Float
 type Signed interface {
-	Integer | Float
+	SignedInteger | Float
 }
 
 // Ordered is equivalent to golang.org/x/exp/constraints#Ordered
 type Ordered interface {
-	Signed | ~string
+	Signed | UnsignedInteger | ~string
 }
 
 // Complex is copied from golang.org/x/exp/constraints#Complex

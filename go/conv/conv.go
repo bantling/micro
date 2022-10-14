@@ -83,7 +83,7 @@ func BigRatToNormalizedString(val *big.Rat) string {
 // ==== int/uint to int/uint, float to int, float64 to float32
 
 // NumBits provides the number of bits of any integer or float type
-func NumBits[T constraint.Signed](val T) int {
+func NumBits[T constraint.Signed | constraint.UnsignedInteger](val T) int {
 	return int(reflect.ValueOf(val).Type().Size() * 8)
 }
 
@@ -471,6 +471,7 @@ func StringToBigFloat(val string) *big.Float {
 	numBits := uint(math.Max(53, math.Ceil(float64(len(val))*log2Of10)))
 	f, _, err := big.ParseFloat(val, 10, numBits, big.ToNearestEven)
 	if err != nil {
+		fmt.Printf("Failed: %s\n", err.Error())
 		panic(fmt.Errorf(errMsg, val, val, "*big.Float"))
 	}
 
@@ -493,12 +494,10 @@ func UintToBigRat[T constraint.UnsignedInteger](val T) *big.Rat {
 
 // FloatToBigRat converts any float type into a *big.Rat
 func FloatToBigRat[T constraint.Float](val T) *big.Rat {
-	r := big.NewRat(1, 1)
-	if r.SetFloat64(float64(val)) == nil {
-		panic(fmt.Errorf(errMsg, val, val, "*big.Rat"))
+	if math.IsInf(float64(val), 0) {
+		panic(fmt.Errorf(errMsg, val, fmt.Sprintf("%f", val), "*big.Rat"))
 	}
-
-	return r
+	return BigFloatToBigRat(FloatToBigFloat(val))
 }
 
 // BigIntToBigRat converts a *big.Int into a *big.Rat
@@ -511,6 +510,10 @@ func BigIntToBigRat(val *big.Int) *big.Rat {
 
 // BigFloatToBigRat converts a *big.Float into a *big.Rat
 func BigFloatToBigRat(val *big.Float) *big.Rat {
+	if val.IsInf() {
+		panic(fmt.Errorf(errMsg, val, val.String(), "*big.Rat"))
+	}
+
 	r := big.NewRat(1, 1)
 	r.SetString(BigFloatToString(val))
 
@@ -525,4 +528,16 @@ func StringToBigRat(val string) *big.Rat {
 	}
 
 	return r
+}
+
+// FloatStringToBigRat converts a float string to a *big.Rat.
+// Unlike StringToBigRat, it will not accept a ratio string like 5/4.
+func FloatStringToBigRat(val string) *big.Rat {
+	// ensure the string is a float string, and not a ratio
+	f := big.NewFloat(0)
+	if _, _, err := f.Parse(val, 10); err != nil {
+		panic(fmt.Errorf(errMsg, val, val, "*big.Rat"))
+	}
+
+	return StringToBigRat(val)
 }

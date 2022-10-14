@@ -664,15 +664,16 @@ func TestUintToBigRat(t *testing.T) {
 func TestFloatToBigRat(t *testing.T) {
 	assert.Equal(t, big.NewRat(125, 100), FloatToBigRat(float32(1.25)))
 	assert.Equal(t, big.NewRat(25, 10), FloatToBigRat(float64(2.5)))
+	assert.Equal(t, big.NewRat(12345, 100), FloatToBigRat(float64(123.45)))
 
-	i := math.Inf(0)
+	i := math.Inf(1)
 	funcs.TryTo(
 		func() {
 			FloatToBigRat(i)
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, fmt.Errorf(errMsg, i, i, "*big.Rat"), e)
+			assert.Equal(t, fmt.Errorf(errMsg, i, fmt.Sprintf("%f", i), "*big.Rat"), e)
 		},
 	)
 }
@@ -685,11 +686,23 @@ func TestBigIntToBigRat(t *testing.T) {
 func TestBigFloatToBigRat(t *testing.T) {
 	assert.Equal(t, big.NewRat(1, 1), BigFloatToBigRat(big.NewFloat(1)))
 	assert.Equal(t, big.NewRat(125, 100), BigFloatToBigRat(big.NewFloat(125.0/100.0)))
+
+	bf := big.NewFloat(math.Inf(1))
+	funcs.TryTo(
+		func() {
+			BigFloatToBigRat(bf)
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, bf, bf.String(), "*big.Rat"), e)
+		},
+	)
 }
 
 func TestStringToBigRat(t *testing.T) {
 	assert.Equal(t, big.NewRat(1, 1), StringToBigRat("1/1"))
 	assert.Equal(t, big.NewRat(125, 100), StringToBigRat("125/100"))
+	assert.Equal(t, big.NewRat(125, 100), StringToBigRat("1.25"))
 
 	funcs.TryTo(
 		func() {
@@ -698,6 +711,20 @@ func TestStringToBigRat(t *testing.T) {
 		},
 		func(e any) {
 			assert.Equal(t, fmt.Errorf(errMsg, "1.25p", "1.25p", "*big.Rat"), e)
+		},
+	)
+}
+
+func TestFloatStringToBigRat(t *testing.T) {
+	assert.Equal(t, big.NewRat(125, 100), FloatStringToBigRat("1.25"))
+
+	funcs.TryTo(
+		func() {
+			FloatStringToBigRat("125/100")
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf(errMsg, "125/100", "125/100", "*big.Rat"), e)
 		},
 	)
 }

@@ -43,13 +43,15 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 *** funcs for first, map, filter, reduce, expand, skip, limit, peek, generate infinite series, all match, any match,
    none match, count, distinct, duplicate, reverse, sort, and parallel
 *** control over how and when parallel execution occurs, default algorithm provided
+* json
+** Value type that describes any kind of JSON value
+** Convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
+** default numeric type is *big.Rat, but custom conversion functions can be used for some other numeric type
 * util
 ** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
 
 == TODO
 
-* JSON builder to more easily build values
-* Rename json.JSONValue to just json.Value
 * Range types
 * Split out creation of slice indexes for parallel into func([]T)[][]int
 * Change pointers to values wherever possible

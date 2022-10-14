@@ -13,14 +13,13 @@ import (
 
 // Error constants
 var (
-	ErrInvalidGoValueMsg       = "A value of type %T is not a valid type to convert to a JSONValue. Acceptable types are map[string]any, []any, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString, bool, and nil"
-	ErrInvalidGoNumberValueMsg = "A value of type %T is not a valid type to convert to a JSON Number. Acceptable types are int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, and NumberString"
-	ErrNotObject               = fmt.Errorf("The JSONValue is not an object")
-	ErrNotArray                = fmt.Errorf("The JSONValue is not an array")
-	ErrNotString               = fmt.Errorf("The JSONValue is not a string")
-	ErrNotNumber               = fmt.Errorf("The JSONValue is not a number")
-	ErrNotBoolean              = fmt.Errorf("The JSONValue is not a boolean")
-	ErrNotStringable           = fmt.Errorf("The JSONValue is not a string, number, or boolean")
+	ErrInvalidGoValueMsg = "A value of type %T is not a valid type to convert to a Value. Acceptable types are map[string]any, []any, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString, bool, and nil"
+	ErrNotObject         = fmt.Errorf("The Value is not an object")
+	ErrNotArray          = fmt.Errorf("The Value is not an array")
+	ErrNotString         = fmt.Errorf("The Value is not a string")
+	ErrNotNumber         = fmt.Errorf("The Value is not a number")
+	ErrNotBoolean        = fmt.Errorf("The Value is not a boolean")
+	ErrNotStringable     = fmt.Errorf("The Value is not a string, number, or boolean")
 )
 
 // ValueType is an enum of value types
@@ -39,29 +38,36 @@ const (
 // NumberString is a special type that allows a plain string to be considered a JSON Number
 type NumberString string
 
-// JSONValue represents any kind of JSON value - object, array, string, number, boolean, null
-type JSONValue struct {
+// NumberType is a constraint of all possible number types
+// int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString
+type NumberType interface {
+	constraint.Signed | constraint.UnsignedInteger | *big.Int | *big.Float | *big.Rat | NumberString
+}
+
+// Value represents any kind of JSON value - object, array, string, number, boolean, null
+type Value struct {
 	typ   ValueType
 	value any
 }
 
 // Constant values for a true, false, and Null
 var (
-	TrueValue  = JSONValue{typ: Boolean, value: true}
-	FalseValue = JSONValue{typ: Boolean, value: false}
-	NullValue  = JSONValue{typ: Null, value: nil}
+	TrueValue  = Value{typ: Boolean, value: true}
+	FalseValue = Value{typ: Boolean, value: false}
+	NullValue  = Value{typ: Null, value: nil}
 )
 
 // Constant for default value visitor
-var DefaultConversionVisitor func(JSONValue) any = ConversionVisitor(
+var DefaultConversionVisitor func(Value) any = ConversionVisitor(
 	funcs.Passthrough[string],
-	funcs.Passthrough[*big.Rat],
+	funcs.Passthrough[any],
 	funcs.Passthrough[bool],
 )
 
-// fromNumberInternal converts any kind of number into a JSONValue
+// fromNumberInternal converts any kind of number into a Value
 // returns zero value if the given value is not any recognized numeric type
-func fromNumberInternal(n any) JSONValue {
+func fromNumberInternal(n any) Value {
+
 	if v, isa := n.(int); isa {
 		return FromSignedInt(v)
 	} else if v, isa := n.(int8); isa {
@@ -96,10 +102,10 @@ func fromNumberInternal(n any) JSONValue {
 		return FromNumberString(v)
 	}
 
-	return JSONValue{}
+	return Value{}
 }
 
-// FromValue converts a Go value into a JSONValue, where the Go value must be as follows:
+// FromValue converts a Go value into a Value, where the Go value must be as follows:
 //
 // Object: map[string]any
 // Array: []any
@@ -109,8 +115,10 @@ func fromNumberInternal(n any) JSONValue {
 // Null: nil
 //
 // Panics if any other kind of Go value is provided
-func FromValue(v any) JSONValue {
-	var jval JSONValue
+// If the optional custom number conversion is provided, it is only called if the value is NOT map[string]any, []any,
+// string, bool, or nil.
+func FromValue(v any, cnf ...func(any) Value) Value {
+	var jval Value
 
 	if jv, isa := v.(map[string]any); isa {
 		jval = FromMap(jv)
@@ -122,6 +130,8 @@ func FromValue(v any) JSONValue {
 		jval = FromBool(jv)
 	} else if v == nil {
 		jval = NullValue
+	} else if len(cnf) > 0 {
+		return cnf[0](v)
 	} else if jval = fromNumberInternal(v); jval.value == nil {
 		panic(fmt.Errorf(ErrInvalidGoValueMsg, v))
 	}
@@ -129,116 +139,114 @@ func FromValue(v any) JSONValue {
 	return jval
 }
 
-// FromMap converts a map[string]any into a JSONValue
-// The types of the map keys must be acceptable to FromValue
-func FromMap(m map[string]any) JSONValue {
-	jv := map[string]JSONValue{}
+// FromMap converts a map[string]any into a Value.
+// The types of the map keys must be acceptable to FromValue.
+// An optional custom number conversion can be provided, which is passed to FromValue.
+func FromMap(m map[string]any, cnf ...func(any) Value) Value {
+	jv := map[string]Value{}
 
 	for k, v := range m {
-		jv[k] = FromValue(v)
+		jv[k] = FromValue(v, cnf...)
 	}
 
-	return JSONValue{typ: Object, value: jv}
+	return Value{typ: Object, value: jv}
 }
 
-// FromSlice converts a []any into a JSONValue
-// The types of the slice elements must be acceptable to FromValue
-func FromSlice(a []any) JSONValue {
-	jv := make([]JSONValue, len(a))
+// FromSlice converts a []any into a Value.
+// The types of the slice elements must be acceptable to FromValue.
+// An optional custom number conversion can be provided, which is passed to FromValue.
+func FromSlice(a []any, cnf ...func(any) Value) Value {
+	jv := make([]Value, len(a))
 
 	for i, v := range a {
-		jv[i] = FromValue(v)
+		jv[i] = FromValue(v, cnf...)
 	}
 
-	return JSONValue{typ: Array, value: jv}
+	return Value{typ: Array, value: jv}
 }
 
-// FromString converts a string into a JSONValue
-func FromString(s string) JSONValue {
-	return JSONValue{typ: String, value: s}
+// FromString converts a string into a Value
+func FromString(s string) Value {
+	return Value{typ: String, value: s}
 }
 
-// FromSignedInt converts any kind of signed int into a JSONValue
-func FromSignedInt[T constraint.SignedInteger](n T) JSONValue {
-	return JSONValue{typ: Number, value: conv.IntToBigRat(n)}
+// FromSignedInt converts any kind of signed int into a Value
+func FromSignedInt[T constraint.SignedInteger](n T) Value {
+	return Value{typ: Number, value: conv.IntToBigRat(n)}
 }
 
-// FromUnsignedInt converts any kind of unsigned int into a JSONValue
-func FromUnsignedInt[T constraint.UnsignedInteger](n T) JSONValue {
-	return JSONValue{typ: Number, value: conv.UintToBigRat(n)}
+// FromUnsignedInt converts any kind of unsigned int into a Value
+func FromUnsignedInt[T constraint.UnsignedInteger](n T) Value {
+	return Value{typ: Number, value: conv.UintToBigRat(n)}
 }
 
-// FromFloat converts any kind of float into a JSONValue
-func FromFloat[T constraint.Float](n T) JSONValue {
-	return JSONValue{typ: Number, value: conv.FloatToBigRat(n)}
+// FromFloat converts any kind of float into a Value
+func FromFloat[T constraint.Float](n T) Value {
+	return Value{typ: Number, value: conv.FloatToBigRat(n)}
 }
 
-// FromBigInt converts a *big.Int into a JSONValue
-func FromBigInt(n *big.Int) JSONValue {
-	return JSONValue{typ: Number, value: conv.BigIntToBigRat(n)}
+// FromBigInt converts a *big.Int into a Value
+func FromBigInt(n *big.Int) Value {
+	return Value{typ: Number, value: conv.BigIntToBigRat(n)}
 }
 
-// FromBigFloat converts a *big.Float into a JSONValue
-func FromBigFloat(n *big.Float) JSONValue {
-	return JSONValue{typ: Number, value: conv.BigFloatToBigRat(n)}
+// FromBigFloat converts a *big.Float into a Value
+func FromBigFloat(n *big.Float) Value {
+	return Value{typ: Number, value: conv.BigFloatToBigRat(n)}
 }
 
-// FromBigRat converts a *big.Rat into a JSONValue
-func FromBigRat(n *big.Rat) JSONValue {
-	return JSONValue{typ: Number, value: n}
+// FromBigRat converts a *big.Rat into a Value
+func FromBigRat(n *big.Rat) Value {
+	return Value{typ: Number, value: n}
 }
 
-// FromNumberString converts a NumberString into a JSONValue
-func FromNumberString(n NumberString) JSONValue {
+// FromNumberString converts a NumberString into a Value
+func FromNumberString(n NumberString) Value {
 	// Convert to *big.Float first, to ensure only a floating point string is acceptable.
 	// Then convert to *big.Rat, as that is the internal value for numbers.
-	return JSONValue{typ: Number, value: conv.BigFloatToBigRat(conv.StringToBigFloat(string(n)))}
+	return Value{typ: Number, value: conv.StringToBigRat(string(n))}
 }
 
 // FromNumber converts an int, int8, int16, int32, int64, uint, uin8, uint16, uint32, uint64, float32, float64, *big.Int,
-// *big.Float, *big.Rat, or NumberString into a JSONValue
-func FromNumber(n any) JSONValue {
-	jv := fromNumberInternal(n)
-	if jv.value == nil {
-		panic(fmt.Errorf(ErrInvalidGoNumberValueMsg, n))
-	}
-	return jv
+// *big.Float, *big.Rat, or NumberString into a Value
+func FromNumber[N NumberType](n N) Value {
+	return fromNumberInternal(n)
 }
 
-// FromBool converts a bool into a JSONValue
-func FromBool(b bool) JSONValue {
+// FromBool converts a bool into a Value
+func FromBool(b bool) Value {
 	return funcs.Ternary(b, TrueValue, FalseValue)
 }
 
-// Type returns the type of value this JSONValue contains
-func (jv JSONValue) Type() ValueType {
+// Type returns the type of value this Value contains
+func (jv Value) Type() ValueType {
 	return jv.typ
 }
 
-// AsMap returns a map representation of a JSONValue.
-// Panics if the JSONValue is not an object.
-func (jv JSONValue) AsMap() map[string]JSONValue {
+// AsMap returns a map representation of a Value.
+// Panics if the Value is not an object.
+func (jv Value) AsMap() map[string]Value {
 	if jv.typ != Object {
 		panic(ErrNotObject)
 	}
 
-	return jv.value.(map[string]JSONValue)
+	return jv.value.(map[string]Value)
 }
 
-// AsSlice returns a slice representation of a JSONValue.
-// Panics if the JSONValue is not an array.
-func (jv JSONValue) AsSlice() []JSONValue {
+// AsSlice returns a slice representation of a Value.
+// Panics if the Value is not an array.
+func (jv Value) AsSlice() []Value {
 	if jv.typ != Array {
 		panic(ErrNotArray)
 	}
 
-	return jv.value.([]JSONValue)
+	return jv.value.([]Value)
 }
 
-// AsString returns a string representation of a JSONValue.
-// Panics if the JSONValue is not a string, number, or boolean.
+// AsString returns a string representation of a Value.
+// Panics if the Value is not a string, number, or boolean.
 // In the case of number, if it is an int, then it is formatted as an int, otherwise it is formatted as a float.
-func (jv JSONValue) AsString() string {
+func (jv Value) AsString() string {
 	switch jv.typ {
 	case String:
 		return jv.value.(string)
@@ -251,9 +259,9 @@ func (jv JSONValue) AsString() string {
 	panic(ErrNotStringable)
 }
 
-// AsBigRat returns a *big.Rat representation of a JSONValue.
-// Panics if the JSONValue is not a number.
-func (jv JSONValue) AsBigRat() *big.Rat {
+// AsBigRat returns a *big.Rat representation of a Value.
+// Panics if the Value is not a number.
+func (jv Value) AsBigRat() *big.Rat {
 	if jv.typ != Number {
 		panic(ErrNotNumber)
 	}
@@ -261,9 +269,9 @@ func (jv JSONValue) AsBigRat() *big.Rat {
 	return jv.value.(*big.Rat)
 }
 
-// AsBoolean returns a bool representation of a JSONValue.
-// Panics if the JSONValue is not a boolean.
-func (jv JSONValue) AsBoolean() bool {
+// AsBoolean returns a bool representation of a Value.
+// Panics if the Value is not a boolean.
+func (jv Value) AsBool() bool {
 	if jv.typ != Boolean {
 		panic(ErrNotBoolean)
 	}
@@ -271,22 +279,22 @@ func (jv JSONValue) AsBoolean() bool {
 	return jv.value.(bool)
 }
 
-// IsNull returns true if the JSONValue is a null, else false
-func (jv JSONValue) IsNull() bool {
+// IsNull returns true if the Value is a null, else false
+func (jv Value) IsNull() bool {
 	return jv.typ == Null
 }
 
 // Visit implements a very simple visitor pattern, where the provided visitor function is applied to each value in an
 // object, each element in an array, and each string, number, boolean and null primitive value.
-// It is up to the visitor func to recursively call the JSONValue.Visit method on the values of each object key or array
+// It is up to the visitor func to recursively call the Value.Visit method on the values of each object key or array
 // element. Empty objects and arrays are returned as non-nil empty maps and slices.
 //
 // The purpose is to allow conversion of json values to arbitrary go values, eg convert all numbers to ints.
-func (jv JSONValue) Visit(visitor func(JSONValue) any) any {
+func (jv Value) Visit(visitor func(Value) any) any {
 	switch jv.typ {
 	case Object:
 		var (
-			obj = jv.value.(map[string]JSONValue)
+			obj = jv.value.(map[string]Value)
 			res = map[string]any{}
 		)
 
@@ -298,7 +306,7 @@ func (jv JSONValue) Visit(visitor func(JSONValue) any) any {
 
 	case Array:
 		var (
-			obj = jv.value.([]JSONValue)
+			obj = jv.value.([]Value)
 			res = make([]any, len(obj))
 		)
 
@@ -315,22 +323,28 @@ func (jv JSONValue) Visit(visitor func(JSONValue) any) any {
 
 // ConversionVisitor generates a visitor function - given conversion functions for String, Number,and Boolean values - that
 // converts as follows:
-// Object and Array: return a recursive call to JSONValue.Visit(generated visitor function)
+// Object and Array: return a recursive call to Value.Visit(generated visitor function)
 // String: stringConv(string)
-// Number: numberConv(*big.Rat)
+// Number: numberConv(any)
 // Boolean: boolConv(bool)
 // Null: nil
 //
-// The conversion funcs cannot be nil, but can be funcs.Passthrough[string], funcs.Passthrough[*big.Rat], and
+// The conversion funcs cannot be nil, but can be funcs.Passthrough[string], funcs.Passthrough[any], and
 // funcs.Passthrough[bool].
+//
+// The numberConv accepts any because it is possible to create a Value using a custom numeric conversion function rather
+// than the default conversion to *big.Rat. (See FromValue, FromMap, and FromSlice functions).
+//
+// Unless you provide a custom numeric conversion function when creating your JSON values, you can assume the numberConv
+// will receive a *big.Rat.
 func ConversionVisitor[S, N, B any](
 	stringConv func(string) S,
-	numberConv func(*big.Rat) N,
+	numberConv func(any) N,
 	boolConv func(bool) B,
-) func(JSONValue) any {
-	var conversionVisitorFn func(JSONValue) any
+) func(Value) any {
+	var conversionVisitorFn func(Value) any
 
-	conversionVisitorFn = func(jv JSONValue) any {
+	conversionVisitorFn = func(jv Value) any {
 		switch jv.typ {
 		case Object:
 			return jv.Visit(conversionVisitorFn)
@@ -339,7 +353,7 @@ func ConversionVisitor[S, N, B any](
 		case String:
 			return stringConv(jv.value.(string))
 		case Number:
-			return numberConv(jv.value.(*big.Rat))
+			return numberConv(jv.value)
 		case Boolean:
 			return boolConv(jv.value.(bool))
 		}
@@ -352,12 +366,12 @@ func ConversionVisitor[S, N, B any](
 }
 
 // DefaultVisitorFunc is the default visitor function that converts JSON values as follows:
-// Object and Array: return a recursive call to JSONValue.Visit(DefaultVisitor)
+// Object and Array: return a recursive call to Value.Visit(DefaultVisitor)
 // String: string
 // Number: *big.Rat
 // Boolean: bool
 // Null: nil
-func DefaultVisitorFunc(jv JSONValue) any {
+func DefaultVisitorFunc(jv Value) any {
 	if (jv.typ == Object) || (jv.typ == Array) {
 		return jv.Visit(DefaultConversionVisitor)
 	}
@@ -366,10 +380,10 @@ func DefaultVisitorFunc(jv JSONValue) any {
 	return jv.value
 }
 
-// ToMap returns a map[string]any representation of a JSONValue.
-// Panics if the JSONValue is not an object.
+// ToMap returns a map[string]any representation of a Value.
+// Panics if the Value is not an object.
 // If the optional visitor func is not provided, then DefaultVisitor is used.
-func (jv JSONValue) ToMap(visitor ...func(JSONValue) any) map[string]any {
+func (jv Value) ToMap(visitor ...func(Value) any) map[string]any {
 	if jv.typ != Object {
 		panic(ErrNotObject)
 	}
@@ -377,10 +391,10 @@ func (jv JSONValue) ToMap(visitor ...func(JSONValue) any) map[string]any {
 	return jv.Visit(funcs.SliceIndex(visitor, 0, DefaultVisitorFunc)).(map[string]any)
 }
 
-// ToSlice returns a []any representation of a JSONValue.
-// Panics if the JSONValue is not an Array.
+// ToSlice returns a []any representation of a Value.
+// Panics if the Value is not an Array.
 // If the optional visitor func is not provided, then DefaultVisitor is used.
-func (jv JSONValue) ToSlice(visitor ...func(JSONValue) any) []any {
+func (jv Value) ToSlice(visitor ...func(Value) any) []any {
 	if jv.typ != Array {
 		panic(ErrNotArray)
 	}
