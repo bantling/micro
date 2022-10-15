@@ -60,14 +60,13 @@ var (
 // Constant for default value visitor
 var DefaultConversionVisitor func(Value) any = ConversionVisitor(
 	funcs.Passthrough[string],
-	funcs.Passthrough[any],
+	funcs.Passthrough[NumberString],
 	funcs.Passthrough[bool],
 )
 
 // fromNumberInternal converts any kind of number into a Value
 // returns zero value if the given value is not any recognized numeric type
 func fromNumberInternal(n any) Value {
-
 	if v, isa := n.(int); isa {
 		return FromSignedInt(v)
 	} else if v, isa := n.(int8); isa {
@@ -115,9 +114,7 @@ func fromNumberInternal(n any) Value {
 // Null: nil
 //
 // Panics if any other kind of Go value is provided
-// If the optional custom number conversion is provided, it is only called if the value is NOT map[string]any, []any,
-// string, bool, or nil.
-func FromValue(v any, cnf ...func(any) Value) Value {
+func FromValue(v any) Value {
 	var jval Value
 
 	if jv, isa := v.(map[string]any); isa {
@@ -130,8 +127,6 @@ func FromValue(v any, cnf ...func(any) Value) Value {
 		jval = FromBool(jv)
 	} else if v == nil {
 		jval = NullValue
-	} else if len(cnf) > 0 {
-		return cnf[0](v)
 	} else if jval = fromNumberInternal(v); jval.value == nil {
 		panic(fmt.Errorf(ErrInvalidGoValueMsg, v))
 	}
@@ -141,12 +136,11 @@ func FromValue(v any, cnf ...func(any) Value) Value {
 
 // FromMap converts a map[string]any into a Value.
 // The types of the map keys must be acceptable to FromValue.
-// An optional custom number conversion can be provided, which is passed to FromValue.
-func FromMap(m map[string]any, cnf ...func(any) Value) Value {
+func FromMap(m map[string]any) Value {
 	jv := map[string]Value{}
 
 	for k, v := range m {
-		jv[k] = FromValue(v, cnf...)
+		jv[k] = FromValue(v)
 	}
 
 	return Value{typ: Object, value: jv}
@@ -154,12 +148,11 @@ func FromMap(m map[string]any, cnf ...func(any) Value) Value {
 
 // FromSlice converts a []any into a Value.
 // The types of the slice elements must be acceptable to FromValue.
-// An optional custom number conversion can be provided, which is passed to FromValue.
-func FromSlice(a []any, cnf ...func(any) Value) Value {
+func FromSlice(a []any) Value {
 	jv := make([]Value, len(a))
 
 	for i, v := range a {
-		jv[i] = FromValue(v, cnf...)
+		jv[i] = FromValue(v)
 	}
 
 	return Value{typ: Array, value: jv}
@@ -172,39 +165,39 @@ func FromString(s string) Value {
 
 // FromSignedInt converts any kind of signed int into a Value
 func FromSignedInt[T constraint.SignedInteger](n T) Value {
-	return Value{typ: Number, value: conv.IntToBigRat(n)}
+	return Value{typ: Number, value: NumberString(conv.IntToString(n))}
 }
 
 // FromUnsignedInt converts any kind of unsigned int into a Value
 func FromUnsignedInt[T constraint.UnsignedInteger](n T) Value {
-	return Value{typ: Number, value: conv.UintToBigRat(n)}
+	return Value{typ: Number, value: NumberString(conv.UintToString(n))}
 }
 
 // FromFloat converts any kind of float into a Value
 func FromFloat[T constraint.Float](n T) Value {
-	return Value{typ: Number, value: conv.FloatToBigRat(n)}
+	return Value{typ: Number, value: NumberString(conv.FloatToString(n))}
 }
 
 // FromBigInt converts a *big.Int into a Value
 func FromBigInt(n *big.Int) Value {
-	return Value{typ: Number, value: conv.BigIntToBigRat(n)}
+	return Value{typ: Number, value: NumberString(conv.BigIntToString(n))}
 }
 
 // FromBigFloat converts a *big.Float into a Value
 func FromBigFloat(n *big.Float) Value {
-	return Value{typ: Number, value: conv.BigFloatToBigRat(n)}
+	return Value{typ: Number, value: NumberString(conv.BigFloatToString(n))}
 }
 
 // FromBigRat converts a *big.Rat into a Value
 func FromBigRat(n *big.Rat) Value {
-	return Value{typ: Number, value: n}
+	return Value{typ: Number, value: NumberString(conv.BigRatToNormalizedString(n))}
 }
 
 // FromNumberString converts a NumberString into a Value
 func FromNumberString(n NumberString) Value {
 	// Convert to *big.Float first, to ensure only a floating point string is acceptable.
 	// Then convert to *big.Rat, as that is the internal value for numbers.
-	return Value{typ: Number, value: conv.StringToBigRat(string(n))}
+	return Value{typ: Number, value: n}
 }
 
 // FromNumber converts an int, int8, int16, int32, int64, uint, uin8, uint16, uint32, uint64, float32, float64, *big.Int,
@@ -251,7 +244,7 @@ func (jv Value) AsString() string {
 	case String:
 		return jv.value.(string)
 	case Number:
-		return conv.BigRatToNormalizedString(jv.value.(*big.Rat))
+		return string(jv.value.(NumberString))
 	case Boolean:
 		return fmt.Sprintf("%t", jv.value.(bool))
 	}
@@ -259,14 +252,14 @@ func (jv Value) AsString() string {
 	panic(ErrNotStringable)
 }
 
-// AsBigRat returns a *big.Rat representation of a Value.
+// AsBigRat returns a NumberString representation of a Value.
 // Panics if the Value is not a number.
-func (jv Value) AsBigRat() *big.Rat {
+func (jv Value) AsNumberString() NumberString {
 	if jv.typ != Number {
 		panic(ErrNotNumber)
 	}
 
-	return jv.value.(*big.Rat)
+	return jv.value.(NumberString)
 }
 
 // AsBoolean returns a bool representation of a Value.
@@ -339,7 +332,7 @@ func (jv Value) Visit(visitor func(Value) any) any {
 // will receive a *big.Rat.
 func ConversionVisitor[S, N, B any](
 	stringConv func(string) S,
-	numberConv func(any) N,
+	numberConv func(NumberString) N,
 	boolConv func(bool) B,
 ) func(Value) any {
 	var conversionVisitorFn func(Value) any
@@ -353,7 +346,7 @@ func ConversionVisitor[S, N, B any](
 		case String:
 			return stringConv(jv.value.(string))
 		case Number:
-			return numberConv(jv.value)
+			return numberConv(jv.value.(NumberString))
 		case Boolean:
 			return boolConv(jv.value.(bool))
 		}
