@@ -28,6 +28,11 @@ type Signed interface {
 	SignedInteger | Float
 }
 
+// IntegerAndFloat describes any signed or unsigned integer type and any float type
+type IntegerAndFloat interface {
+	Integer | Float
+}
+
 // Ordered is equivalent to golang.org/x/exp/constraints#Ordered
 type Ordered interface {
 	Signed | UnsignedInteger | ~string

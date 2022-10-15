@@ -52,7 +52,6 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 
 == TODO
 
-* Range types
 * Split out creation of slice indexes for parallel into func([]T)[][]int
 * Change pointers to values wherever possible
 * Streaming json parser that can parse JSON docs as they are read. In the case of an array, as each element is parsed,

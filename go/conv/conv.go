@@ -80,6 +80,43 @@ func BigRatToNormalizedString(val *big.Rat) string {
 	return BigRatToBigFloat(val).String()
 }
 
+// Converts any signed or unsigned int type, any float type, *big.Int, *big.Float, or *big.Rat to a string.
+// The *big.Rat string will be normalized (see BigRatToNormalizedString).
+func ToString[T constraint.Integer | constraint.Float | *big.Int | *big.Float | *big.Rat](val T) string {
+	if v, isa := any(val).(int); isa {
+		return IntToString(v)
+	} else if v, isa := any(val).(int8); isa {
+		return IntToString(v)
+	} else if v, isa := any(val).(int16); isa {
+		return IntToString(v)
+	} else if v, isa := any(val).(int32); isa {
+		return IntToString(v)
+	} else if v, isa := any(val).(int64); isa {
+		return IntToString(v)
+	} else if v, isa := any(val).(uint); isa {
+		return UintToString(v)
+	} else if v, isa := any(val).(uint8); isa {
+		return UintToString(v)
+	} else if v, isa := any(val).(uint16); isa {
+		return UintToString(v)
+	} else if v, isa := any(val).(uint32); isa {
+		return UintToString(v)
+	} else if v, isa := any(val).(uint64); isa {
+		return UintToString(v)
+	} else if v, isa := any(val).(float32); isa {
+		return FloatToString(v)
+	} else if v, isa := any(val).(float64); isa {
+		return FloatToString(v)
+	} else if v, isa := any(val).(*big.Int); isa {
+		return BigIntToString(v)
+	} else if v, isa := any(val).(*big.Float); isa {
+		return BigFloatToString(v)
+	}
+
+	// Must be *big.Rat
+	return BigRatToNormalizedString(any(val).(*big.Rat))
+}
+
 // ==== int/uint to int/uint, float to int, float64 to float32
 
 // NumBits provides the number of bits of any integer or float type
