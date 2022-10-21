@@ -77,8 +77,30 @@ func TestOfReaderAsRunes(t *testing.T) {
 	assert.False(t, it.Next())
 }
 
+func TestOfStringAsRunes(t *testing.T) {
+	it := OfStringAsRunes("ab")
+	assert.True(t, it.Next())
+	assert.Equal(t, 'a', it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, 'b', it.Value())
+	assert.False(t, it.Next())
+}
+
 func TestOfReaderAsLines(t *testing.T) {
 	it := OfReaderAsLines(strings.NewReader("ab\ncd\ref\r\ngh"))
+	assert.True(t, it.Next())
+	assert.Equal(t, "ab", it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, "cd", it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, "ef", it.Value())
+	assert.True(t, it.Next())
+	assert.Equal(t, "gh", it.Value())
+	assert.False(t, it.Next())
+}
+
+func TestOfStringAsLines(t *testing.T) {
+	it := OfStringAsLines("ab\ncd\ref\r\ngh")
 	assert.True(t, it.Next())
 	assert.Equal(t, "ab", it.Value())
 	assert.True(t, it.Next())

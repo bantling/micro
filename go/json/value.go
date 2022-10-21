@@ -146,16 +146,46 @@ func FromMap(m map[string]any) Value {
 	return Value{typ: Object, value: jv}
 }
 
+// FromMapOfValue converts a []Value into a Value
+func FromMapOfValue(m map[string]Value) Value {
+	return Value{typ: Object, value: m}
+}
+
 // FromSlice converts a []any into a Value.
 // The types of the slice elements must be acceptable to FromValue.
 func FromSlice(a []any) Value {
-	jv := make([]Value, len(a))
+	js := make([]Value, len(a))
 
 	for i, v := range a {
-		jv[i] = FromValue(v)
+		js[i] = FromValue(v)
 	}
 
-	return Value{typ: Array, value: jv}
+	return Value{typ: Array, value: js}
+}
+
+// FromSliceOfValue converts a []Value into a Value
+func FromSliceOfValue(a []Value) Value {
+	return Value{typ: Array, value: a}
+}
+
+// FromDocument converts a map[string]any or []any into a Value.
+// See FromMap and FromSlice.
+func FromDocument[T map[string]any | []any](doc T) Value {
+	if m, isa := any(doc).(map[string]any); isa {
+		return FromMap(m)
+	}
+
+	return FromSlice(any(doc).([]any))
+}
+
+// FromDocumentOfValue converts a map[string]Value or []Value into a Value.
+// See FromMapOfValue and FromSliceOfValue.
+func FromDocumentOfValue[T map[string]Value | []Value](doc T) Value {
+	if m, isa := any(doc).(map[string]Value); isa {
+		return FromMapOfValue(m)
+	}
+
+	return FromSliceOfValue(any(doc).([]Value))
 }
 
 // FromString converts a string into a Value

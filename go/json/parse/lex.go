@@ -45,8 +45,8 @@ var (
 
 // token is a single lexical token
 type token struct {
-	typ tokenType
-	val string
+	typ   tokenType
+	value string
 }
 
 // token constants
@@ -201,8 +201,16 @@ func lexNumber(it *iter.Iter[rune]) token {
 		str       []rune
 		r         = it.Value()
 		haveDigit = r != '-'
-		die       = func() { panic(fmt.Errorf(errInvalidNumberMsg, string(str))) }
-		tok       = func() token { it.Unread(r); return token{tNumber, string(str)} }
+		die       = func() {
+			panic(fmt.Errorf(errInvalidNumberMsg, string(str)))
+		}
+		tok = func() token {
+			// Don't unread eof
+			if r > 0 {
+				it.Unread(r)
+			}
+			return token{tNumber, string(str)}
+		}
 	)
 	str = append(str, r)
 
@@ -358,6 +366,7 @@ func lex(it *iter.Iter[rune]) token {
 	if !it.Next() {
 		return tokEOF
 	}
+
 	it.Unread(it.Value())
 
 	// Skip ws
@@ -395,4 +404,12 @@ func lex(it *iter.Iter[rune]) token {
 
 	// Anything except the above is an illegal character
 	panic(fmt.Errorf(errInvalidCharMsg, r))
+}
+
+// lexer uses lex and converts an iter[rune] into an iter[token]
+func lexer(it *iter.Iter[rune]) *iter.Iter[token] {
+	return iter.NewIter(func() (token, bool) {
+		tok := lex(it)
+		return tok, tok != tokEOF
+	})
 }

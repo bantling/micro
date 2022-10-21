@@ -354,7 +354,7 @@ func TestReaderAsRunesIterGen(t *testing.T) {
 
 	// non-eof error occurs after one byte
 
-	err := fmt.Errorf("An eerror")
+	err := fmt.Errorf("An error")
 	src = util.NewErrorReader([]byte("a"), err)
 	iter = ReaderAsRunesIterGen(src)
 
@@ -388,6 +388,83 @@ func TestReaderAsRunesIterGen(t *testing.T) {
 	)
 }
 
+func TestStringAsRunesIterGen(t *testing.T) {
+	// nil
+	var src string
+	assert.Zero(t, src)
+	iter := StringAsRunesIterGen(src)
+
+	val, haveIt := iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+
+	val, haveIt = iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+
+	// empty
+	src = ""
+	iter = StringAsRunesIterGen(src)
+
+	val, haveIt = iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+
+	val, haveIt = iter()
+	assert.Zero(t, val)
+	assert.False(t, haveIt)
+	inputs := []string{
+		"",
+		// 1 byte UTF8
+		"a",
+		"ab",
+		"abc",
+		"abcd",
+		"abcde",
+		"abcdef",
+		"abcdefg",
+		"abcdefgh",
+		"abcdefghi",
+		// 2 byte UTF8
+		"\u00e0",
+		"\u00e0\u00e0",
+		"\u00e0\u00e0\u00e0",
+		"\u00e0\u00e0\u00e0\u00e0",
+		// 3 byte UTF8
+		"\u1e01",
+		"\u1e01\u1e01",
+		"\u1e01\u1e01\u1e01",
+		"\u1e01\u1e01\u1e01\u1e01",
+		// 4 bytes UTF8
+		"\u10348",
+		"\u10348\u10348",
+		"\u10348\u10348\u10348",
+		"\u10348\u10348\u10348\u10348",
+	}
+
+	for _, input := range inputs {
+		var (
+			iter   = StringAsRunesIterGen(input)
+			val    rune
+			haveIt bool
+		)
+
+		for _, char := range []rune(input) {
+			val, haveIt = iter()
+			assert.Equal(t, char, val)
+			assert.True(t, haveIt)
+		}
+
+		val, haveIt = iter()
+		assert.Equal(t, rune(0), val)
+		assert.False(t, haveIt)
+
+		val, haveIt = iter()
+		assert.Equal(t, rune(0), val)
+		assert.False(t, haveIt)
+	}
+}
+
 func TestReaderAsLinesIterGen(t *testing.T) {
 	var (
 		inputs = []string{
@@ -403,6 +480,42 @@ func TestReaderAsLinesIterGen(t *testing.T) {
 	for _, input := range inputs {
 		var (
 			iterFunc = ReaderAsLinesIterGen(strings.NewReader(input))
+			lines    = linesRegex.Split(input, -1)
+			val      string
+			haveIt   bool
+		)
+
+		for _, line := range lines {
+			val, haveIt = iterFunc()
+			assert.Equal(t, line, val)
+			assert.Equal(t, input != "", haveIt)
+		}
+
+		val, haveIt = iterFunc()
+		assert.Equal(t, "", val)
+		assert.False(t, haveIt)
+
+		val, haveIt = iterFunc()
+		assert.Equal(t, "", val)
+		assert.False(t, haveIt)
+	}
+}
+
+func TestStringAsLinesIterGen(t *testing.T) {
+	var (
+		inputs = []string{
+			"",
+			"oneline",
+			"two\rline cr",
+			"two\nline lf",
+			"two\r\nline crlf",
+		}
+		linesRegex, _ = regexp.Compile("\r\n|\r|\n")
+	)
+
+	for _, input := range inputs {
+		var (
+			iterFunc = StringAsLinesIterGen(input)
 			lines    = linesRegex.Split(input, -1)
 			val      string
 			haveIt   bool

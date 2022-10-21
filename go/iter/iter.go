@@ -5,6 +5,7 @@ package iter
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 // ==== Constants
@@ -76,19 +77,30 @@ func OfMap[K comparable, V any](items map[K]V) *Iter[KeyValue[K, V]] {
 // OfReader constructs an Iter[byte] that iterates the bytes of a Reader.
 // See ReaderIterGen for details.
 func OfReader(src io.Reader) *Iter[byte] {
-	return NewIter[byte](ReaderIterGen(src))
+	return NewIter(ReaderIterGen(src))
 }
 
 // OfReaderAsRunes constructs an Iter[rune] that iterates the UTF-8 runes of a Reader.
+//
 // See ReaderAsRunesIterGen for details.
-func OfReaderAsRunes(src io.Reader) *Iter[rune] {
-	return NewIter[rune](ReaderAsRunesIterGen(src))
+func OfReaderAsRunes[T io.Reader](src T) *Iter[rune] {
+	return NewIter(ReaderAsRunesIterGen(src))
+}
+
+// OfStringAsRunes constructs an Iter[rune] that iterates runes of a string.
+func OfStringAsRunes(src string) *Iter[rune] {
+	return Of([]rune(src)...)
 }
 
 // OfReaderAsLines constructs an Iter[string] that iterates the UTF-8 lines of a Reader.
 // See ReaderAsLinesIterGen for details.
 func OfReaderAsLines(src io.Reader) *Iter[string] {
-	return NewIter[string](ReaderAsLinesIterGen(src))
+	return NewIter(ReaderAsLinesIterGen(src))
+}
+
+// OfStringAsLines constructs an Iter[rune] that iterates lines of a string.
+func OfStringAsLines(src string) *Iter[string] {
+	return NewIter(ReaderAsLinesIterGen(strings.NewReader(src)))
 }
 
 // Concatenate any number of Iter[T] into a single Iter[T] that iterates all the elements of each Iter[T], until the

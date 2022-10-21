@@ -249,20 +249,23 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, bool) {
 	}
 }
 
-// ReaderAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of an io.Reader
-func ReaderAsLinesIterGen(src io.Reader) func() (string, bool) {
-	// Use ReaderAsRunesIterGen to read individual runes until a line is read
+// StringAsRunesIterGen generates an iterating function that iterates the runes of a string
+func StringAsRunesIterGen(src string) func() (rune, bool) {
+	return SliceIterGen([]rune(src))
+}
+
+// readLines is common functionality for ReaderAsLinesIterGen and StringAsLinesIterGen
+func readLines(it func() (rune, bool)) func() (string, bool) {
 	var (
-		runesIter = ReaderAsRunesIterGen(src)
-		str       strings.Builder
-		lastCR    bool
+		str    strings.Builder
+		lastCR bool
 	)
 
 	return func() (string, bool) {
 		str.Reset()
 
 		for {
-			codePoint, haveIt := runesIter()
+			codePoint, haveIt := it()
 
 			if !haveIt {
 				if str.Len() > 0 {
@@ -289,4 +292,16 @@ func ReaderAsLinesIterGen(src io.Reader) func() (string, bool) {
 			str.WriteRune(codePoint)
 		}
 	}
+}
+
+// ReaderAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of an io.Reader
+func ReaderAsLinesIterGen(src io.Reader) func() (string, bool) {
+	// Use ReaderAsRunesIterGen to read individual runes until a line is read
+	return readLines(ReaderAsRunesIterGen(src))
+}
+
+// StringAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of a String
+func StringAsLinesIterGen(src string) func() (string, bool) {
+	// Use StringAsRunesIterGen to read individual runes until a line is read
+	return readLines(StringAsRunesIterGen(src))
 }

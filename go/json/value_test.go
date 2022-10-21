@@ -120,8 +120,26 @@ func TestFromMap(t *testing.T) {
 	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromMap(map[string]any{"foo": "bar"}))
 }
 
+func TestFromMapOfValue(t *testing.T) {
+	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromMapOfValue(map[string]Value{"foo": {typ: String, value: "bar"}}))
+}
+
 func TestFromSlice(t *testing.T) {
 	assertArray(t, []Value{{typ: String, value: "bar"}}, FromSlice([]any{"bar"}))
+}
+
+func TestFromSliceOfValue(t *testing.T) {
+	assertArray(t, []Value{{typ: String, value: "bar"}}, FromSliceOfValue([]Value{{typ: String, value: "bar"}}))
+}
+
+func TestFromDocument(t *testing.T) {
+	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromDocument(map[string]any{"foo": "bar"}))
+	assertArray(t, []Value{{typ: String, value: "bar"}}, FromDocument([]any{"bar"}))
+}
+
+func TestFromDocumentOfValue(t *testing.T) {
+	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromDocumentOfValue(map[string]Value{"foo": {typ: String, value: "bar"}}))
+	assertArray(t, []Value{{typ: String, value: "bar"}}, FromDocumentOfValue([]Value{{typ: String, value: "bar"}}))
 }
 
 func TestFromString(t *testing.T) {
