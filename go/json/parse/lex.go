@@ -65,7 +65,7 @@ var (
 
 // lexString lexes a string token, where the iter begins by returning the opening quote character.
 // the returned token does not contain the quotes, only the runes between them.
-func lexString(it *iter.Iter[rune]) token {
+func lexString(it iter.Iter[rune]) token {
 	var (
 		str          = []rune{}
 		readUTF16Hex = func(temp *[]rune) rune {
@@ -194,23 +194,15 @@ func lexString(it *iter.Iter[rune]) token {
 
 // lexNumber lexes a number token, where the iter begins by returning the first rune, which may be a leading - or a digit.
 // The returned token contains every character up to last digit read.
-func lexNumber(it *iter.Iter[rune]) token {
+func lexNumber(it iter.Iter[rune]) token {
 	// There must be first char, it may be a - or digit, just add it. That way, loop can read required digits before dot.
 	it.Next()
 	var (
 		str       []rune
 		r         = it.Value()
 		haveDigit = r != '-'
-		die       = func() {
-			panic(fmt.Errorf(errInvalidNumberMsg, string(str)))
-		}
-		tok = func() token {
-			// Don't unread eof
-			if r > 0 {
-				it.Unread(r)
-			}
-			return token{tNumber, string(str)}
-		}
+		die       = func() { panic(fmt.Errorf(errInvalidNumberMsg, string(str))) }
+		tok       = func() token { it.Unread(r); return token{tNumber, string(str)} }
 	)
 	str = append(str, r)
 
@@ -330,7 +322,7 @@ func lexNumber(it *iter.Iter[rune]) token {
 }
 
 // lexBooleanNull lexes a boolean or null token, where the iter begins by returning the first rune.
-func lexBooleanNull(it *iter.Iter[rune]) token {
+func lexBooleanNull(it iter.Iter[rune]) token {
 	var (
 		str []rune
 		r   rune
@@ -361,7 +353,7 @@ func lexBooleanNull(it *iter.Iter[rune]) token {
 
 // lex lexes the next token, which must be [, ], {, }, comma, :, string, number, boolean, null, or eof.
 // Skip whitespace chars.
-func lex(it *iter.Iter[rune]) token {
+func lex(it iter.Iter[rune]) token {
 	// Handle eof
 	if !it.Next() {
 		return tokEOF
@@ -407,7 +399,7 @@ func lex(it *iter.Iter[rune]) token {
 }
 
 // lexer uses lex and converts an iter[rune] into an iter[token]
-func lexer(it *iter.Iter[rune]) *iter.Iter[token] {
+func lexer(it iter.Iter[rune]) iter.Iter[token] {
 	return iter.NewIter(func() (token, bool) {
 		tok := lex(it)
 		return tok, tok != tokEOF

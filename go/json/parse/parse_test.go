@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func mkIter(str string) *iter.Iter[token] {
+func mkIter(str string) iter.Iter[token] {
 	return lexer(iter.OfStringAsRunes(str))
 }
 
@@ -99,23 +99,97 @@ func TestParseObject(t *testing.T) {
 }
 
 func TestParseArray(t *testing.T) {
+	assert.Equal(t, json.FromSlice([]any{}), json.FromSliceOfValue(iter.ReduceToSlice(parseArray(mkIter(`[]`))).Must()))
 	assert.Equal(t, json.FromSlice([]any{"bar"}), json.FromSliceOfValue(iter.ReduceToSlice(parseArray(mkIter(`["bar"]`))).Must()))
+	assert.Equal(t, json.FromSlice([]any{"foo", "bar"}), json.FromSliceOfValue(iter.ReduceToSlice(parseArray(mkIter(`["foo", "bar"]`))).Must()))
 
 	funcs.TryTo(
 		func() {
-			parseObject(mkIter(`{"foo":1{`))
+			parseArray(mkIter(`[`)).Must()
 			assert.Fail(t, "Must die")
 		},
-		func(e any) { assert.Equal(t, fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, "foo"), e) },
+		func(e any) { assert.Equal(t, errArrayRequiresValueOrBracket, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(parseArray(mkIter(`[}`))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errArrayRequiresValueOrBracket, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(parseArray(mkIter(`["bar"`))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errArrayRequiresCommaOrBracket, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(parseArray(mkIter(`["bar",`))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errArrayRequiresValue, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(parseArray(mkIter(`["bar",}`))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errArrayRequiresValue, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(parseArray(mkIter(`["bar"}`))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errArrayRequiresCommaOrBracket, e) },
 	)
 }
 
 func TestIterate(t *testing.T) {
 	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), iter.ReduceToSlice(Iterate(strings.NewReader(`{"foo": "bar"}`))).Must()[0])
 	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), iter.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar"}]`))).Must()[0])
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(Iterate(strings.NewReader(``))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errEmptyDocument, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			iter.ReduceToSlice(Iterate(strings.NewReader(`,`))).Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errObjectOrArrayRequired, e) },
+	)
 }
 
 func TestParse(t *testing.T) {
 	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), Parse(strings.NewReader(`{"foo": "bar"}`)))
 	assert.Equal(t, json.FromSlice([]any{map[string]any{"foo": "bar"}}), Parse(strings.NewReader(`[{"foo": "bar"}]`)))
+
+	funcs.TryTo(
+		func() {
+			Parse(strings.NewReader(``))
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errEmptyDocument, e) },
+	)
+
+	funcs.TryTo(
+		func() {
+			Parse(strings.NewReader(`,`))
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errObjectOrArrayRequired, e) },
+	)
 }

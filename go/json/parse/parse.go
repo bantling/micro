@@ -31,7 +31,7 @@ var (
 //
 // It is assumed that there does exist at least one more token - it is up to the caller to test this before calling,
 // as only the caller knows what to do on EOF.
-func parseValue(it *iter.Iter[token]) json.Value {
+func parseValue(it iter.Iter[token]) json.Value {
 	tok := it.Must()
 
 	switch tok.typ {
@@ -59,7 +59,7 @@ func parseValue(it *iter.Iter[token]) json.Value {
 // The iter must provide the opening brace.
 // Panics unless the correct lexical elements occur in the correct order.
 // Panics if a duplicate key occurs.
-func parseObject(it *iter.Iter[token]) json.Value {
+func parseObject(it iter.Iter[token]) json.Value {
 	// Discard opening brace
 	it.Must()
 
@@ -136,7 +136,7 @@ func parseObject(it *iter.Iter[token]) json.Value {
 //
 // Panics unless the correct lexical elements occur in the correct order, which could happen after returning some correctly
 // formed elements.
-func parseArray(it *iter.Iter[token]) *iter.Iter[json.Value] {
+func parseArray(it iter.Iter[token]) iter.Iter[json.Value] {
 	var (
 		first        = true
 		tok          token
@@ -146,11 +146,11 @@ func parseArray(it *iter.Iter[token]) *iter.Iter[json.Value] {
 		commaBracket token
 	)
 
-	// Discard opening bracket
-	it.Must()
-
 	return iter.NewIter(func() (json.Value, bool) {
 		if first {
+			// Discard opening bracket
+			it.Must()
+
 			// Must have a closing bracket or value after opening bracket
 			if tok, haveIt = it.NextValue(); !haveIt {
 				panic(errArrayRequiresValueOrBracket)
@@ -179,7 +179,13 @@ func parseArray(it *iter.Iter[token]) *iter.Iter[json.Value] {
 		}
 
 		if commaBracket.typ == tComma {
+			// Ensure there is another token that can be read by parseValue
+			if tok, haveIt = it.NextValue(); !haveIt {
+				panic(errArrayRequiresValue)
+			}
+
 			// Expect value for element, and return it
+			it.Unread(tok)
 			if value = parseValue(it); value == invalidValue {
 				panic(errArrayRequiresValue)
 			}
@@ -205,7 +211,7 @@ func parseArray(it *iter.Iter[token]) *iter.Iter[json.Value] {
 //
 // Panics if the input is not an object or array (including empty/whitespace only input), or if lexical elements do not
 // occur in the correct order (eg unbalanced brackets).
-func Iterate(src io.Reader) *iter.Iter[json.Value] {
+func Iterate(src io.Reader) iter.Iter[json.Value] {
 	// First lexical element must be a { or [
 	var (
 		// Reader > iter[rune] > iter[token]

@@ -116,7 +116,7 @@ func TestReduceExpandMap(t *testing.T) {
 }
 
 func TestTransform(t *testing.T) {
-	it := Transform(func(it *Iter[int]) (int, bool) {
+	it := Transform(func(it Iter[int]) (int, bool) {
 		// Sum pairs of ints
 		if !it.Next() {
 			return 0, false

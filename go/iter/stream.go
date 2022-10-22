@@ -35,13 +35,13 @@ type PInfo struct {
 
 // First combines Next and Value together in a single call.
 // If there is another value, then the next value is returned, else a panic occurs.
-func First[T any](it *Iter[T]) T {
+func First[T any](it Iter[T]) T {
 	return it.Must()
 }
 
 // Map constructs a new Iter[U] from an Iter[T] and a func that transforms a T to a U.
-func Map[T, U any](mapper func(T) U) func(*Iter[T]) *Iter[U] {
-	return func(it *Iter[T]) *Iter[U] {
+func Map[T, U any](mapper func(T) U) func(Iter[T]) Iter[U] {
+	return func(it Iter[T]) Iter[U] {
 		return NewIter(func() (U, bool) {
 			if it.Next() {
 				return mapper(it.Value()), true
@@ -54,8 +54,8 @@ func Map[T, U any](mapper func(T) U) func(*Iter[T]) *Iter[U] {
 }
 
 // Filter constructs a new Iter[T] from an Iter[T] and a func that returns true if a T passes the filter.
-func Filter[T any](filter func(T) bool) func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func Filter[T any](filter func(T) bool) func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		return NewIter(func() (T, bool) {
 			for it.Next() {
 				if val := it.Value(); filter(val) {
@@ -86,8 +86,8 @@ func Filter[T any](filter func(T) bool) func(*Iter[T]) *Iter[T] {
 func Reduce[T any](
 	reducer func(T, T) T,
 	identity ...T,
-) func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+) func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		var done bool
 
 		return NewIter(func() (T, bool) {
@@ -144,8 +144,8 @@ func Reduce[T any](
 func ReduceTo[T, U any](
 	reducer func(U, T) U,
 	identity ...U,
-) func(*Iter[T]) *Iter[U] {
-	return func(it *Iter[T]) *Iter[U] {
+) func(Iter[T]) Iter[U] {
+	return func(it Iter[T]) Iter[U] {
 		var done bool
 
 		return NewIter(func() (U, bool) {
@@ -203,8 +203,8 @@ func ReduceToBool[T any](
 	predicate func(T) bool,
 	identity bool,
 	stopIfTrue bool,
-) func(*Iter[T]) *Iter[bool] {
-	return func(it *Iter[T]) *Iter[bool] {
+) func(Iter[T]) Iter[bool] {
+	return func(it Iter[T]) Iter[bool] {
 		var done bool
 
 		return NewIter(func() (bool, bool) {
@@ -243,7 +243,7 @@ func ReduceToBool[T any](
 // ReduceToSlice reduces an Iter[T] into a Iter[[]T] that contains a single element if type []T.
 // Eg, an Iter[int] of 1,2,3,4,5 becomes an Iter[[]int] of [1,2,3,4,5].
 // An empty Iter is reduced to a zero length slice.
-func ReduceToSlice[T any](it *Iter[T]) *Iter[[]T] {
+func ReduceToSlice[T any](it Iter[T]) Iter[[]T] {
 	var done bool
 
 	return NewIter(func() ([]T, bool) {
@@ -267,8 +267,8 @@ func ReduceToSlice[T any](it *Iter[T]) *Iter[[]T] {
 // - It generates a transform
 //
 // The generated transform panics if the target slice length is not at least as many elements as the source iter
-func ReduceIntoSlice[T any](slc []T) func(*Iter[T]) *Iter[[]T] {
-	return func(it *Iter[T]) *Iter[[]T] {
+func ReduceIntoSlice[T any](slc []T) func(Iter[T]) Iter[[]T] {
+	return func(it Iter[T]) Iter[[]T] {
 		var (
 			done bool
 			i    int
@@ -295,7 +295,7 @@ func ReduceIntoSlice[T any](slc []T) func(*Iter[T]) *Iter[[]T] {
 // If the source Iter contains multiple slices, they are combined together into one set of data (skipping nil and empty
 // slices), so that an Iter[[]int] of [1,2,3], nil, [], [4,5] also becomes an Iter[int] of 1,2,3,4,5.
 // An empty Iter or an Iter with nil/empty slices is expanded to an empty Iter.
-func ExpandSlices[T any](it *Iter[[]T]) *Iter[T] {
+func ExpandSlices[T any](it Iter[[]T]) Iter[T] {
 	var (
 		slc []T
 		idx int
@@ -333,7 +333,7 @@ func ExpandSlices[T any](it *Iter[[]T]) *Iter[T] {
 // If multiple KeyValue objects in the Iter have the same key, the last such object in iteration order determines the
 // value for the key in the resulting map.
 // An empty Iter is reduced to an empty map.
-func ReduceToMap[K comparable, V any](it *Iter[KeyValue[K, V]]) *Iter[map[K]V] {
+func ReduceToMap[K comparable, V any](it Iter[KeyValue[K, V]]) Iter[map[K]V] {
 	var done bool
 
 	return NewIter(func() (map[K]V, bool) {
@@ -359,7 +359,7 @@ func ReduceToMap[K comparable, V any](it *Iter[KeyValue[K, V]]) *Iter[map[K]V] {
 // so that an Iter[map[int]string] of {1: "1", 2: "2"}, nil, {}, {3: "3"} also becomes
 // an Iter[KeyValue[int, string]] of {1: "1"}, {2: "2"}, {3: "3"}.
 // An empty Iter or an Iter with nil/empty maps is expanded to an empty Iter.
-func ExpandMaps[K comparable, V any](it *Iter[map[K]V]) *Iter[KeyValue[K, V]] {
+func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[KeyValue[K, V]] {
 	var (
 		m  map[K]V
 		mr *reflect.MapIter
@@ -398,12 +398,12 @@ func ExpandMaps[K comparable, V any](it *Iter[map[K]V]) *Iter[KeyValue[K, V]] {
 //
 // Note that for the set 1,2,3,4,5 the composition os Skip(1),Limit(3) will first skip 1 then limit to 2,3,4;
 // whereas the composition of Limit(3),Skip(1) will first limit to 1,2,3 then skip 1 returning 2,3.
-func Skip[T any](n int) func(*Iter[T]) *Iter[T] {
+func Skip[T any](n int) func(Iter[T]) Iter[T] {
 	if n < 0 {
 		panic(errSkipLimitValueCannotBeNegative)
 	}
 
-	return func(it *Iter[T]) *Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		skip := n
 
 		return NewIter(func() (T, bool) {
@@ -427,12 +427,12 @@ func Skip[T any](n int) func(*Iter[T]) *Iter[T] {
 //
 // Note that for the set 1,2,3,4,5 the composition of Skip(1),Limit(3) will first skip 1 then limit to 2,3,4;
 // whereas the composition of Limit(3),Skip(1) will first limit to 1,2,3 then skip 1 returning 2,3.
-func Limit[T any](n int) func(*Iter[T]) *Iter[T] {
+func Limit[T any](n int) func(Iter[T]) Iter[T] {
 	if n < 0 {
 		panic(errSkipLimitValueCannotBeNegative)
 	}
 
-	return func(it *Iter[T]) *Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		limit := n
 
 		return NewIter(func() (T, bool) {
@@ -448,8 +448,8 @@ func Limit[T any](n int) func(*Iter[T]) *Iter[T] {
 }
 
 // Peek executes a func for every item being iterated, which is a side effect.
-func Peek[T any](fn func(T)) func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func Peek[T any](fn func(T)) func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		return NewIter(func() (T, bool) {
 			if it.Next() {
 				val := it.Value()
@@ -464,7 +464,7 @@ func Peek[T any](fn func(T)) func(*Iter[T]) *Iter[T] {
 }
 
 // Generator receives a generator (a func of no args that returns a func of Iter[T] -> Iter[U], and detects if the
-// *Iter[T] has changed address. If so, it internally generates a new function by invoking the generator.
+// Iter[T] has changed address. If so, it internally generates a new function by invoking the generator.
 //
 // This allows stateful transforms of Iter[T] -> Iter[U] that track state across calls to begin with a new initial state
 // for each data set the transform is applied to.
@@ -475,13 +475,13 @@ func Peek[T any](fn func(T)) func(*Iter[T]) *Iter[T] {
 // 3. Store composition in a Context that is visible across methods in the thread
 //
 // See Distinct for an example of a stateful function that uses Generator internally.
-func Generator[T, U any](gen func() func(*Iter[T]) *Iter[U]) func(*Iter[T]) *Iter[U] {
+func Generator[T, U any](gen func() func(Iter[T]) Iter[U]) func(Iter[T]) Iter[U] {
 	var (
-		currentIter *Iter[T]
-		fn          func(*Iter[T]) *Iter[U]
+		currentIter Iter[T]
+		fn          func(Iter[T]) Iter[U]
 	)
 
-	return func(it *Iter[T]) *Iter[U] {
+	return func(it Iter[T]) Iter[U] {
 		if currentIter != it {
 			fn = gen()
 		}
@@ -501,8 +501,8 @@ func Generator[T, U any](gen func() func(*Iter[T]) *Iter[U]) func(*Iter[T]) *Ite
 // All iteration logic is handled by the transformer function, it can iterate as many elements as necessary.
 // A transformer should only be used for cases where using other provided functions like Map, Filter, and Reduce(To)
 // either won't work, or result in a process nobody understands.
-func Transform[T, U any](transformer func(*Iter[T]) (U, bool)) func(*Iter[T]) *Iter[U] {
-	return func(it *Iter[T]) *Iter[U] {
+func Transform[T, U any](transformer func(Iter[T]) (U, bool)) func(Iter[T]) Iter[U] {
+	return func(it Iter[T]) Iter[U] {
 		return NewIter(func() (U, bool) {
 			return transformer(it)
 		})
@@ -514,26 +514,26 @@ func Transform[T, U any](transformer func(*Iter[T]) (U, bool)) func(*Iter[T]) *I
 // AllMatch reduces Iter[T] to an Iter[bool] with a single value that is true if the Iter[T] is empty or all elements
 // pass the filter. Boolean short circuit logic stops on first case where filter returns false.
 // Calls ReduceToBool(filter, true, false).
-func AllMatch[T any](filter func(T) bool) func(*Iter[T]) *Iter[bool] {
+func AllMatch[T any](filter func(T) bool) func(Iter[T]) Iter[bool] {
 	return ReduceToBool(filter, true, false)
 }
 
 // AnyMatch reduces Iter[T] to an Iter[bool] with a single value that is true if the Iter[T] is non-empty and any
 // element passes the filter. Boolean short circuit logic stops on first case where filter returns true.
 // Calls ReduceToBool(filter, true, false).
-func AnyMatch[T any](filter func(T) bool) func(*Iter[T]) *Iter[bool] {
+func AnyMatch[T any](filter func(T) bool) func(Iter[T]) Iter[bool] {
 	return ReduceToBool(filter, false, true)
 }
 
 // NoneMatch reduces Iter[T] to an Iter[bool] with a single value that is true if the Iter[T] is empty or no elements
 // pass the filter. Boolean short circuit logic stops on first case where filter returns true.
 // Calls ReduceToBool(!filter, true, false).
-func NoneMatch[T any](filter func(T) bool) func(*Iter[T]) *Iter[bool] {
+func NoneMatch[T any](filter func(T) bool) func(Iter[T]) Iter[bool] {
 	return ReduceToBool(func(t T) bool { return !filter(t) }, true, false)
 }
 
 // Count reduces Iter[T] to an Iter[int] with a single value that is the number of elements in the Iter[T].
-func Count[T any]() func(*Iter[T]) *Iter[int] {
+func Count[T any]() func(Iter[T]) Iter[int] {
 	return ReduceTo[T, int](func(c int, _ T) int { return c + 1 })
 }
 
@@ -544,8 +544,8 @@ func Count[T any]() func(*Iter[T]) *Iter[int] {
 // values is generated. This allows a composition to be stored in a variable and reused across data sets correctly.
 //
 // If you want Distinct to have one state across multiple Iters, use Concat to create a single Iter that traverses them.
-func Distinct[T comparable]() func(*Iter[T]) *Iter[T] {
-	return Generator(func() func(*Iter[T]) *Iter[T] {
+func Distinct[T comparable]() func(Iter[T]) Iter[T] {
+	return Generator(func() func(Iter[T]) Iter[T] {
 		vals := map[T]bool{}
 
 		return Filter[T](func(val T) bool {
@@ -564,8 +564,8 @@ func Distinct[T comparable]() func(*Iter[T]) *Iter[T] {
 // The order of the elements is the order in which the second occurence of each value appears.
 // Eg, for the input 1,2,2,1 the result is 2,1 since the second value of 2 appears before the second value of 1.
 // See Distinct for an explanation of statefulness and the usage of Generator.
-func Duplicate[T comparable]() func(*Iter[T]) *Iter[T] {
-	return Generator(func() func(*Iter[T]) *Iter[T] {
+func Duplicate[T comparable]() func(Iter[T]) Iter[T] {
+	return Generator(func() func(Iter[T]) Iter[T] {
 		vals := map[T]int{}
 
 		return Filter[T](func(val T) bool {
@@ -582,8 +582,8 @@ func Duplicate[T comparable]() func(*Iter[T]) *Iter[T] {
 
 // Reverse reverse all the elements.
 // The input iter must have a finite size.
-func Reverse[T any]() func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func Reverse[T any]() func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		slc := First(ReduceToSlice(it))
 		funcs.Reverse(slc)
 
@@ -593,8 +593,8 @@ func Reverse[T any]() func(*Iter[T]) *Iter[T] {
 
 // SortOrdered sorts an Ordered type that is implicitly sortable.
 // The input iter must have a finite size.
-func SortOrdered[T constraint.Ordered]() func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func SortOrdered[T constraint.Ordered]() func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		slc := First(ReduceToSlice(it))
 		funcs.SortOrdered(slc)
 
@@ -604,8 +604,8 @@ func SortOrdered[T constraint.Ordered]() func(*Iter[T]) *Iter[T] {
 
 // SortComplex sorts a Complex type using funcs.SortComplex.
 // The input iter must have a finite size.
-func SortComplex[T constraint.Complex]() func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func SortComplex[T constraint.Complex]() func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		slc := First(ReduceToSlice(it))
 		funcs.SortComplex(slc)
 
@@ -615,8 +615,8 @@ func SortComplex[T constraint.Complex]() func(*Iter[T]) *Iter[T] {
 
 // SortCmp sorts a Cmp type using funcs.SortCmp.
 // The input iter must have a finite size.
-func SortCmp[T constraint.Cmp[T]]() func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func SortCmp[T constraint.Cmp[T]]() func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		slc := First(ReduceToSlice(it))
 		funcs.SortCmp(slc)
 
@@ -626,8 +626,8 @@ func SortCmp[T constraint.Cmp[T]]() func(*Iter[T]) *Iter[T] {
 
 // SortBy sorts any type using funcs.SortBy and the given comparator.
 // The input iter must have a finite size.
-func SortBy[T any](less func(T, T) bool) func(*Iter[T]) *Iter[T] {
-	return func(it *Iter[T]) *Iter[T] {
+func SortBy[T any](less func(T, T) bool) func(Iter[T]) Iter[T] {
+	return func(it Iter[T]) Iter[T] {
 		slc := First(ReduceToSlice(it))
 		funcs.SortBy(slc, less)
 
@@ -658,8 +658,8 @@ func SortBy[T any](less func(T, T) bool) func(*Iter[T]) *Iter[T] {
 //
 // If types T and U are the same, then a single slice is allocated to contain the input and modified in place to produce
 // the output. Otherwise, two slices are allocated, one for input and one for output.
-func Parallel[T, U any](transforms func(*Iter[T]) *Iter[U], info ...PInfo) func(*Iter[T]) *Iter[U] {
-	return func(source *Iter[T]) *Iter[U] {
+func Parallel[T, U any](transforms func(Iter[T]) Iter[U], info ...PInfo) func(Iter[T]) Iter[U] {
+	return func(source Iter[T]) Iter[U] {
 		var (
 			// Collect all items from source iterator into a slice
 			input = First(ReduceToSlice(source))
