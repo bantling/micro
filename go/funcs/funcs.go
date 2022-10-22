@@ -522,6 +522,7 @@ func IsNil[T any]() func(T) bool {
 
 // IsNonNil generates a filter func (func(T) bool) that returns true if the value given is non-nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
+// Panics if T is not a nillable type.
 func IsNonNil[T any]() func(T) bool {
 	var n T
 	MustBeNillable(reflect.TypeOf(n))
@@ -551,7 +552,7 @@ func MustValue[T any](t T, err error) T {
 
 // ==== Supplier
 
-// SupplierOf generates a func() T that returns the given value
+// SupplierOf generates a func() T that returns the given value every time it is called
 func SupplierOf[T any](value T) func() T {
 	return func() T {
 		return value
@@ -577,7 +578,9 @@ func CachingSupplier[T any](supplier func() T) func() T {
 
 // ==== IgnoreResult
 
-// IgnoreResult takes a func of no args that returns any type, and generates a func of no args and no return value.
+// IgnoreResult takes a func of no args that returns any type, and generates a func of no args and no return value
+// that invokes it.
+//
 // Useful for TryTo function closers.
 func IgnoreResult[T any](fn func() T) func() {
 	return func() {

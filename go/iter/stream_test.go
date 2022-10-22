@@ -391,6 +391,45 @@ func TestSort(t *testing.T) {
 	}
 }
 
+func TestGenerateRanges(t *testing.T) {
+	// ==== square root method
+	assert.Equal(t, [][]uint{{0, 1}, {1, 2}}, generateRanges(2, []PInfo{}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 3}}, generateRanges(3, []PInfo{}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 4}}, generateRanges(4, []PInfo{}))
+	assert.Equal(t, [][]uint{{0, 3}, {3, 6}, {6, 9}, {9, 10}}, generateRanges(10, []PInfo{}))
+	assert.Equal(t, [][]uint{{0, 4}, {4, 8}, {8, 12}, {12, 15}}, generateRanges(15, []PInfo{}))
+
+	// ==== threads method - first remainder threads get one extra item each
+	assert.Equal(t, [][]uint{{0, 1}, {1, 2}}, generateRanges(2, []PInfo{{2, Threads}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 3}}, generateRanges(3, []PInfo{{2, Threads}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 4}}, generateRanges(4, []PInfo{{2, Threads}}))
+	assert.Equal(t, [][]uint{{0, 5}, {5, 10}}, generateRanges(10, []PInfo{{2, Threads}}))
+	assert.Equal(t, [][]uint{{0, 8}, {8, 15}}, generateRanges(15, []PInfo{{2, Threads}}))
+
+	// 2 items with 3 threads = 2 threads, can't have more threads than items
+	assert.Equal(t, [][]uint{{0, 1}, {1, 2}}, generateRanges(2, []PInfo{{3, Threads}}))
+
+	assert.Equal(t, [][]uint{{0, 1}, {1, 2}, {2, 3}}, generateRanges(3, []PInfo{{3, Threads}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 3}, {3, 4}}, generateRanges(4, []PInfo{{3, Threads}}))
+	assert.Equal(t, [][]uint{{0, 4}, {4, 7}, {7, 10}}, generateRanges(10, []PInfo{{3, Threads}}))
+	assert.Equal(t, [][]uint{{0, 5}, {5, 10}, {10, 15}}, generateRanges(15, []PInfo{{3, Threads}}))
+
+	// ==== items per thread method - any remainder is an additional thread
+	assert.Equal(t, [][]uint{{0, 2}}, generateRanges(2, []PInfo{{2, Items}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 3}}, generateRanges(3, []PInfo{{2, Items}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 4}}, generateRanges(4, []PInfo{{2, Items}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 4}, {4, 6}, {6, 8}, {8, 10}}, generateRanges(10, []PInfo{{2, Items}}))
+	assert.Equal(t, [][]uint{{0, 2}, {2, 4}, {4, 6}, {6, 8}, {8, 10}, {10, 12}, {12, 14}, {14, 15}}, generateRanges(15, []PInfo{{2, Items}}))
+
+	// 2 items with 3 items per thread = 2 items in 1 thread, bucket size can't exceed number of items
+	assert.Equal(t, [][]uint{{0, 2}}, generateRanges(2, []PInfo{{3, Items}}))
+
+	assert.Equal(t, [][]uint{{0, 3}}, generateRanges(3, []PInfo{{3, Items}}))
+	assert.Equal(t, [][]uint{{0, 3}, {3, 4}}, generateRanges(4, []PInfo{{3, Items}}))
+	assert.Equal(t, [][]uint{{0, 3}, {3, 6}, {6, 9}, {9, 10}}, generateRanges(10, []PInfo{{3, Items}}))
+	assert.Equal(t, [][]uint{{0, 3}, {3, 6}, {6, 9}, {9, 12}, {12, 15}}, generateRanges(15, []PInfo{{3, Items}}))
+}
+
 func TestParallel(t *testing.T) {
 	var (
 		infoThreads = PInfo{5, Threads}

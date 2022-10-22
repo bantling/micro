@@ -18,7 +18,7 @@ func TestOpenRange(t *testing.T) {
 			OfRange(3, Open, 1, Closed, 2)
 		},
 		func(e any) {
-			assert.Equal(t, fmt.Errorf(ErrMinMaxMsg, "3", "1"), e)
+			assert.Equal(t, fmt.Errorf(errMinMaxMsg, "3", "1"), e)
 		},
 	)
 
@@ -41,7 +41,7 @@ func TestOpenRange(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, fmt.Errorf(ErrOutsideRangeMsg, 1, "1", ">", 1, "<=", 3), e)
+			assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 1, "1", ">", 1, "<=", 3), e)
 		},
 	)
 
@@ -52,7 +52,7 @@ func TestOpenRange(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, fmt.Errorf(ErrOutsideRangeMsg, 4, "4", ">", 1, "<=", 3), e)
+			assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 4, "4", ">", 1, "<=", 3), e)
 		},
 	)
 }

@@ -52,14 +52,14 @@ type IterImpl[T any] struct {
 	value      T
 }
 
-// IOByteIterImpl is a byte override of Iter[rune] that alters the base implementation in a single respect:
+// IOByteIterImpl is an override of Iter[byte] that alters the base implementation in a single respect:
 // Unreading a zero value is ignored, as that means unreading eof, which causes Next/Value to return an actual zero.
 // By ignoring unreads of 0, Next will return false, and the 0 does not get returned as a value.
 type IOByteIterImpl struct {
 	IterImpl[byte]
 }
 
-// IORuneIterImpl is a rune override of Iter[rune] that alters the base implementation in a single respect:
+// IORuneIterImpl is an override of Iter[rune] that alters the base implementation in a single respect:
 // Unreading a zero value is ignored, as that means unreading eof, which causes Next/Value to return an actual zero.
 // By ignoring unreads of 0, Next will return false, and the 0 does not get returned as a value.
 type IORuneIterImpl struct {
@@ -116,7 +116,6 @@ func OfReaderAsRunes(src io.Reader) Iter[rune] {
 
 // OfStringAsRunes constructs an Iter[rune] that iterates runes of a string.
 func OfStringAsRunes(src string) Iter[rune] {
-	// return Of([]rune(src)...)
 	return &IORuneIterImpl{IterImpl: IterImpl[rune]{iterFn: SliceIterGen([]rune(src))}}
 }
 

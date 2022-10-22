@@ -20,8 +20,8 @@ const (
 
 // Error messages
 var (
-	ErrMinMaxMsg       = "The (min, max) values of (%s, %s) are not allowed, min must be < max and max must be > min"
-	ErrOutsideRangeMsg = "The %T value %s is not valid, as the value must be %s %s and %s %s"
+	errMinMaxMsg       = "The (min, max) values of (%s, %s) are not allowed, min must be < max and max must be > min"
+	errOutsideRangeMsg = "The %T value %s is not valid, as the value must be %s %s and %s %s"
 )
 
 // Range represents a range of values.
@@ -45,7 +45,7 @@ func OfRange[T constraint.IntegerAndFloat](
 	initial T,
 ) *Range[T] {
 	if (min >= max) || (max <= min) {
-		panic(fmt.Errorf(ErrMinMaxMsg, conv.ToString(min), conv.ToString(max)))
+		panic(fmt.Errorf(errMinMaxMsg, conv.ToString(min), conv.ToString(max)))
 	}
 
 	return &Range[T]{min, minMode, max, maxMode, initial}
@@ -75,7 +75,7 @@ func (r *Range[T]) SetValue(val T) {
 		r.val = val
 	} else {
 		panic(fmt.Errorf(
-			ErrOutsideRangeMsg,
+			errOutsideRangeMsg,
 			val,
 			conv.ToString(val),
 			funcs.Ternary(r.minMode == Open, ">", ">="), r.min,

@@ -637,6 +637,68 @@ func SortBy[T any](less func(T, T) bool) func(Iter[T]) Iter[T] {
 
 // ==== Parallel
 
+// generateRanges does the work of generating slice ranges from the optional PInfo.
+// numItems must be at least 2, or the results may not be correct.
+func generateRanges(numItems uint, info []PInfo) [][]uint {
+	// Determine the slice ranges of each thread
+	var sliceRanges [][]uint
+
+	if len(info) == 0 {
+		// Use square root when no PInfo given
+		bucketSize := uint(math.Round(math.Sqrt(float64(numItems))))
+		numThreads, remainder := bits.Div(0, numItems, bucketSize)
+
+		// Algorithm has int sqrt number of threads + additional thread if remainder > 0
+		for i, start, end := uint(0), uint(0), uint(0); i < numThreads; i++ {
+			end = start + bucketSize
+			sliceRanges = append(sliceRanges, []uint{start, end})
+
+			start = end
+		}
+
+		if remainder > uint(0) {
+			sliceRanges = append(sliceRanges, []uint{numItems - remainder, numItems})
+		}
+	} else {
+		inf := info[0]
+		if inf.PUnit == Threads {
+			// User specified number of threads, calculate bucket size
+			// Number of threads cannot exceed number of items
+			numThreads := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
+			bucketSize, remainder := bits.Div(0, numItems, numThreads)
+
+			// Algorithm has number of threads given where first remainder threads have 1 additional item
+			for start, end := uint(0), uint(0); start < numItems; start = end {
+				end = start + bucketSize
+				if remainder > 0 {
+					end++
+					remainder--
+				}
+				sliceRanges = append(sliceRanges, []uint{start, end})
+			}
+		} else {
+			// User specified bucket size, calculate number of threads
+			// Bucket size cannot exceed number of items
+			bucketSize := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
+			numThreads, remainder := bits.Div(0, numItems, bucketSize)
+
+			// Algorithm has bucket size given where remainder is an additional thread
+			for i, start, end := uint(0), uint(0), uint(0); i < numThreads; i++ {
+				end = start + bucketSize
+				sliceRanges = append(sliceRanges, []uint{start, end})
+
+				start = end
+			}
+
+			if remainder > uint(0) {
+				sliceRanges = append(sliceRanges, []uint{numItems - remainder, numItems})
+			}
+		}
+	}
+
+	return sliceRanges
+}
+
 // Parallel collects all the items of the source iter into a []T and divvies them up into buckets, then uses a set of
 // threads, one per bucket, to process the items using the given set of transforms. If the optional PInfo is provided,
 // The number N is interpreted in one of two ways, depending on the PUnit:
@@ -676,61 +738,8 @@ func Parallel[T, U any](transforms func(Iter[T]) Iter[U], info ...PInfo) func(It
 			return transforms(OfOne(input[0]))
 		}
 
-		// Determine the slice ranges of each thread
-		var sliceRanges [][]uint
-
-		if len(info) == 0 {
-			// Use square root when no PInfo given
-			bucketSize := uint(math.Round(math.Sqrt(float64(numItems))))
-			numThreads, remainder := bits.Div(0, numItems, bucketSize)
-
-			// Algorithm has int sqrt number of threads + additional thread if remainder > 0
-			for i, start, end := uint(0), uint(0), uint(0); i < numThreads; i++ {
-				end = start + bucketSize
-				sliceRanges = append(sliceRanges, []uint{start, end})
-
-				start = end
-			}
-
-			if remainder > uint(0) {
-				sliceRanges = append(sliceRanges, []uint{numItems - remainder, numItems})
-			}
-		} else {
-			inf := info[0]
-			if inf.PUnit == Threads {
-				// User specified number of threads, calculate bucket size
-				// Number of threads cannot exceed number of items
-				numThreads := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
-				bucketSize, remainder := bits.Div(0, numItems, numThreads)
-
-				// Algorithm has number of threads given where first remainder threads have 1 additional item
-				for start, end := uint(0), uint(0); start < numItems; start = end {
-					end = start + bucketSize
-					if remainder > 0 {
-						end++
-						remainder--
-					}
-					sliceRanges = append(sliceRanges, []uint{start, end})
-				}
-			} else {
-				// User specified bucket size, calculate number of threads
-				// Bucket size cannot exceed number of items
-				bucketSize := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
-				numThreads, remainder := bits.Div(0, numItems, bucketSize)
-
-				// Algorithm has bucket size given where remainder is an additional thread
-				for i, start, end := uint(0), uint(0), uint(0); i < numThreads; i++ {
-					end = start + bucketSize
-					sliceRanges = append(sliceRanges, []uint{start, end})
-
-					start = end
-				}
-
-				if remainder > uint(0) {
-					sliceRanges = append(sliceRanges, []uint{numItems - remainder, numItems})
-				}
-			}
-		}
+		// At least two items, as required by generateRanges. Get slice ranges.
+		sliceRanges := generateRanges(numItems, info)
 
 		// Determine a slice to use for the output
 		var (

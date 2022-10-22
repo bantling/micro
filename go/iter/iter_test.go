@@ -233,3 +233,37 @@ func TestFailure(t *testing.T) {
 		},
 	)
 }
+
+func TestIOByteIterImpl(t *testing.T) {
+	it := OfReader(strings.NewReader("1"))
+	val, _ := it.NextValue()
+	assert.Equal(t, '1', rune(val))
+
+	it.Unread(val)
+	val, _ = it.NextValue()
+	assert.Equal(t, '1', rune(val))
+
+	val, _ = it.NextValue()
+	assert.Equal(t, byte(0), val)
+
+	// Unread of 0 gets ignored
+	it.Unread(val)
+	assert.False(t, it.Next())
+}
+
+func TestIORuneIterImpl(t *testing.T) {
+	it := OfReaderAsRunes(strings.NewReader("1"))
+	val, _ := it.NextValue()
+	assert.Equal(t, '1', val)
+
+	it.Unread(val)
+	val, _ = it.NextValue()
+	assert.Equal(t, '1', rune(val))
+
+	val, _ = it.NextValue()
+	assert.Equal(t, rune(0), val)
+
+	// Unread of 0 gets ignored
+	it.Unread(val)
+	assert.False(t, it.Next())
+}
