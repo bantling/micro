@@ -299,7 +299,7 @@ func TestIntToFloat(t *testing.T) {
 	// 9007199254740998, 100000000000000000000000000000000000000000000000000110, 9007199254740998, true
 	// 9007199254740999, 100000000000000000000000000000000000000000000000000111, 9007199254741000, false
 	//
-	// Notice that the initial value is 24 bits, not 23 as stated maximum number of bits for float32 mantissa.
+	// Notice that the initial value is 53 bits, not 52 as stated maximum number of bits for float64 mantissa.
 	// That's because IEE 754 floating point numbers have one implicit bit of precision that is not stored.
 
 	{
