@@ -218,6 +218,126 @@ func TestUintToUint(t *testing.T) {
 	)
 }
 
+func TestIntToFloat(t *testing.T) {
+	// The following code tries int values that start at maximum value a float32 can hold, and continue for 8 values after
+	// i := 0xFFFFFF
+	// bits := fmt.Sprintf("%b", i)
+	// fmt.Printf("%d, %s, %d\n", i, bits, len(bits))
+	//
+	// for j := 0; j <= 8; j++ {
+	//   v := i + j
+	//   fmt.Printf("%d, %b, %.f, %t\n", v, v, float32(v), v == int(float32(v)))
+	// }
+	//
+	// 16777215, 111111111111111111111111, 24
+	// 16777215, 111111111111111111111111, 16777215, true
+	// 16777216, 1000000000000000000000000, 16777216, true
+	// 16777217, 1000000000000000000000001, 16777216, false
+	// 16777218, 1000000000000000000000010, 16777218, true
+	// 16777219, 1000000000000000000000011, 16777220, false
+	// 16777220, 1000000000000000000000100, 16777220, true
+	// 16777221, 1000000000000000000000101, 16777220, false
+	// 16777222, 1000000000000000000000110, 16777222, true
+	// 16777223, 1000000000000000000000111, 16777224, false
+	//
+	// Notice that the initial value is 24 bits, not 23 as stated maximum number of bits for float32 mantissa.
+	// That's because IEE 754 floating point numbers have one implicit bit of precision that is not stored.
+
+	{
+		goodCases := []int32{
+			16777215,
+			16777216,
+			16777218,
+			16777220,
+			16777222,
+		}
+
+		badCases := []int32{
+			16777217,
+			16777219,
+			16777221,
+			16777223,
+		}
+
+		var fval float32
+		for _, ival := range goodCases {
+			IntToFloat(ival, &fval)
+			assert.Equal(t, ival, int32(fval))
+		}
+
+		for _, ival := range badCases {
+			funcs.TryTo(
+				func() {
+					IntToFloat(ival, &fval)
+					assert.Fail(t, "Must die")
+				},
+				func(e any) {
+					assert.Equal(t, fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), "float32"), e)
+				},
+			)
+		}
+	}
+
+	// The following code tries int values that start at maximum value a float64 can hold, and continue for 8 values after
+	// i := 0x1FFFFFFFFFFFFF
+	// bits := fmt.Sprintf("%b", i)
+	// fmt.Printf("%d, %s, %d\n", i, bits, len(bits))
+	//
+	// for j := 0; j <= 8; j++ {
+	// 	v := i + j
+	// 	fmt.Printf("%d, %b, %.f, %t\n", v, v, float64(v), v == int(float64(v)))
+	// }
+	//
+	// 9007199254740991, 11111111111111111111111111111111111111111111111111111, 53
+	// 9007199254740991, 11111111111111111111111111111111111111111111111111111, 9007199254740991, true
+	// 9007199254740992, 100000000000000000000000000000000000000000000000000000, 9007199254740992, true
+	// 9007199254740993, 100000000000000000000000000000000000000000000000000001, 9007199254740992, false
+	// 9007199254740994, 100000000000000000000000000000000000000000000000000010, 9007199254740994, true
+	// 9007199254740995, 100000000000000000000000000000000000000000000000000011, 9007199254740996, false
+	// 9007199254740996, 100000000000000000000000000000000000000000000000000100, 9007199254740996, true
+	// 9007199254740997, 100000000000000000000000000000000000000000000000000101, 9007199254740996, false
+	// 9007199254740998, 100000000000000000000000000000000000000000000000000110, 9007199254740998, true
+	// 9007199254740999, 100000000000000000000000000000000000000000000000000111, 9007199254741000, false
+	//
+	// Notice that the initial value is 24 bits, not 23 as stated maximum number of bits for float32 mantissa.
+	// That's because IEE 754 floating point numbers have one implicit bit of precision that is not stored.
+
+	{
+		goodCases := []int64{
+			9007199254740991,
+			9007199254740992,
+			9007199254740994,
+			9007199254740996,
+			9007199254740998,
+		}
+
+		badCases := []int64{
+			9007199254740993,
+			9007199254740995,
+			9007199254740997,
+			9007199254740999,
+		}
+
+		var fval float64
+		for _, ival := range goodCases {
+			IntToFloat(ival, &fval)
+			assert.Equal(t, ival, int64(fval))
+		}
+
+		for _, ival := range badCases {
+			funcs.TryTo(
+				func() {
+					IntToFloat(ival, &fval)
+					assert.Fail(t, "Must die")
+				},
+				func(e any) {
+					assert.Equal(t, fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), "float64"), e)
+				},
+			)
+		}
+	}
+}
+
 func TestFloatToInt(t *testing.T) {
 	var d int
 	FloatToInt(float32(125), &d)

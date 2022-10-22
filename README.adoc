@@ -52,9 +52,6 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 
 == TODO
 
-* conv.IntToFloat function that considers the case of ints outside the range of mantissa bits, but are a power of 2
-  multiple of a value that is in the range of mantissa, such that an non-zero exponent could be used.
-  Verify such ints can just be cast to floats with go syntax, and represented properly.
 * Math on plain strings that are decimal values - digits possibly followed by a dot and more digits - 4 basic ops
 * Auto convert each JSON object into Go structs and vice-versa
 * Auto write JSON objects to an SQL table that holds a JSON column

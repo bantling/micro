@@ -184,6 +184,20 @@ func UintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](sval
 	*tval = T(sval)
 }
 
+// IntToFloat converts any kind of signed or unssigned integer into any kind of float.
+// Panics if the int value cannot be exactly represented without rounding.
+func IntToFloat[I constraint.Integer, F constraint.Float](ival I, fval *F) {
+	// Convert int to float type, which may round if int has more bits than float type mantissa
+	var cval F = F(ival)
+
+	// If converting the float back to the int type is not the same value, rounding occurred
+	if ival != I(cval) {
+		panic(fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), reflect.TypeOf(cval).Name()))
+	}
+
+	*fval = cval
+}
+
 // FloatToInt converts and float type to any signed int type
 // Panics if the float value cannot be represented by the int type
 func FloatToInt[F constraint.Float, I constraint.SignedInteger](fval F, ival *I) {
