@@ -52,7 +52,8 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 
 == TODO
 
-* Math on plain strings that are decimal values - digits possibly followed by a dot and more digits - 4 basic ops
+* Move KeyValue struct to util
+* How hard is it to make port of Java BigInteger/BigDecimal?
 * Auto convert each JSON object into Go structs and vice-versa
 * Auto write JSON objects to an SQL table that holds a JSON column
 * Auto write JSON objects to an SQL table that uses individual columns for each field

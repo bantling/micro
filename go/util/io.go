@@ -46,3 +46,40 @@ func (r *ErrorReader) Read(p []byte) (int, error) {
 	r.pos += numBytes
 	return numBytes, nil
 }
+
+// ErrorWriter is the Writer analog to ErrorReader, it returns a non-eof error after some output bytes have been written.
+// A preallocated slice of bytes tracks the bytes written, so the caller can compare.
+type ErrorWriter struct {
+	count  int
+	output []byte
+	err    error
+}
+
+// NewErrorWriter constructs an ErrorWriter from a count of output bytes to allow and an error
+func NewErrorWriter(count int, err error) *ErrorWriter {
+	return &ErrorWriter{count, make([]byte, 0, funcs.MaxOrdered(0, count)), err}
+}
+
+// Write is the io.Writer method, that eventually returns with the provided error
+func (w *ErrorWriter) Write(p []byte) (int, error) {
+	// If we have no bytes left to allow writing, return (0, error)
+	if len(w.output) == w.count {
+		return 0, w.err
+	}
+
+	// If count < 0, return (0, nil) to simulate no bytes read and no error
+	if w.count < 0 {
+		return 0, nil
+	}
+
+	// Return the number of bytes copied, or what we have remaining, whichever is less
+	numBytes := funcs.MinOrdered(len(p), w.count-len(w.output))
+
+	w.output = append(w.output, p[:numBytes]...)
+	return numBytes, nil
+}
+
+// Output provides the output written to the write so far, for comparison
+func (w *ErrorWriter) Output() []byte {
+	return w.output
+}

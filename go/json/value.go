@@ -4,6 +4,7 @@ package json
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/bantling/micro/go/constraint"
@@ -423,4 +424,9 @@ func (jv Value) ToSlice(visitor ...func(Value) any) []any {
 	}
 
 	return jv.Visit(funcs.SliceIndex(visitor, 0, DefaultVisitorFunc)).([]any)
+}
+
+// ToDocument
+func (jv Value) ToDocument(dst io.Writer) {
+
 }
