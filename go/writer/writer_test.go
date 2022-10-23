@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/iter"
+	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,7 +49,7 @@ func TestOfMapWriter(t *testing.T) {
 	)
 	assert.NotNil(t, w)
 
-	w.Write(iter.KVOf(1, "2"))
+	w.Write(util.KVOf(1, "2"))
 	assert.Equal(t, map[int]string{1: "2"}, m)
 }
 

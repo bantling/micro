@@ -92,7 +92,7 @@ func TestMapIterGen(t *testing.T) {
 	iter = MapIterGen(src)
 
 	kv, haveIt = iter()
-	assert.Equal(t, KeyValue[string, int]{"a", 1}, kv)
+	assert.Equal(t, util.KVOf("a", 1), kv)
 	assert.True(t, haveIt)
 
 	kv, haveIt = iter()

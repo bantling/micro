@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/bantling/micro/go/util"
 )
 
 // ==== Constants
@@ -97,8 +99,8 @@ func OfOne[T any](item T) Iter[T] {
 }
 
 // Of constructs an Iter[KeyValue[K, V]] that iterates the items passed.
-func OfMap[K comparable, V any](items map[K]V) Iter[KeyValue[K, V]] {
-	return NewIter[KeyValue[K, V]](MapIterGen[K, V](items))
+func OfMap[K comparable, V any](items map[K]V) Iter[util.KeyValue[K, V]] {
+	return NewIter[util.KeyValue[K, V]](MapIterGen[K, V](items))
 }
 
 // OfReader constructs an Iter[byte] that iterates the bytes of a Reader.

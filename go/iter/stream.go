@@ -11,6 +11,7 @@ import (
 
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/util"
 )
 
 var (
@@ -333,7 +334,7 @@ func ExpandSlices[T any](it Iter[[]T]) Iter[T] {
 // If multiple KeyValue objects in the Iter have the same key, the last such object in iteration order determines the
 // value for the key in the resulting map.
 // An empty Iter is reduced to an empty map.
-func ReduceToMap[K comparable, V any](it Iter[KeyValue[K, V]]) Iter[map[K]V] {
+func ReduceToMap[K comparable, V any](it Iter[util.KeyValue[K, V]]) Iter[map[K]V] {
 	var done bool
 
 	return NewIter(func() (map[K]V, bool) {
@@ -359,13 +360,13 @@ func ReduceToMap[K comparable, V any](it Iter[KeyValue[K, V]]) Iter[map[K]V] {
 // so that an Iter[map[int]string] of {1: "1", 2: "2"}, nil, {}, {3: "3"} also becomes
 // an Iter[KeyValue[int, string]] of {1: "1"}, {2: "2"}, {3: "3"}.
 // An empty Iter or an Iter with nil/empty maps is expanded to an empty Iter.
-func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[KeyValue[K, V]] {
+func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[util.KeyValue[K, V]] {
 	var (
 		m  map[K]V
 		mr *reflect.MapIter
 	)
 
-	return NewIter(func() (KeyValue[K, V], bool) {
+	return NewIter(func() (util.KeyValue[K, V], bool) {
 		if (m == nil) || (!mr.Next()) {
 			// Search for next non-nil non-empty map
 			// Nilify m var in case we just finished iterating last element of last map, which is non-nil
@@ -381,12 +382,12 @@ func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[KeyValue[K, V]] {
 
 			// Stop if no more non-nil non-empty maps available
 			if m == nil {
-				var zv KeyValue[K, V]
+				var zv util.KeyValue[K, V]
 				return zv, false
 			}
 		}
 
-		val := KeyValue[K, V]{mr.Key().Interface().(K), mr.Value().Interface().(V)}
+		val := util.KVOf(mr.Key().Interface().(K), mr.Value().Interface().(V))
 
 		return val, true
 	})

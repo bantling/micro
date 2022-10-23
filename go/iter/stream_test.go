@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -106,7 +107,7 @@ func TestReduceExpandSlice(t *testing.T) {
 }
 
 func TestReduceExpandMap(t *testing.T) {
-	it := ReduceToMap(Of(KVOf(1, "1"), KVOf(2, "2"), KVOf(3, "3")))
+	it := ReduceToMap(Of(util.KVOf(1, "1"), util.KVOf(2, "2"), util.KVOf(3, "3")))
 	assert.Equal(t, map[int]string{1: "1", 2: "2", 3: "3"}, it.Must())
 	assert.False(t, it.Next())
 

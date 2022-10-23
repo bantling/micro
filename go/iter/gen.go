@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/bantling/micro/go/util"
 )
 
 // ==== Constants
@@ -43,32 +45,21 @@ func SliceIterGen[T any](slc []T) func() (T, bool) {
 	}
 }
 
-// KeyValue is a struct to hold a single key/pair for a map[K]V entry
-type KeyValue[K comparable, V any] struct {
-	Key   K
-	Value V
-}
-
-// KVOf constructs a KeyValue so user does not have to enter generic type, Go can infer them
-func KVOf[K comparable, V any](key K, val V) KeyValue[K, V] {
-	return KeyValue[K, V]{key, val}
-}
-
 // MapIterGen generates an iterating function for a map[K]V
 // First len(m) calls to iterating function return (KeyValue[K, V]{m key, m value}, true)
 // All remaining calls return (KeyValue[K, V] zero value, false)
-func MapIterGen[K comparable, V any](m map[K]V) func() (KeyValue[K, V], bool) {
+func MapIterGen[K comparable, V any](m map[K]V) func() (util.KeyValue[K, V], bool) {
 	// Unlike a slice, we don't know the set of indexes ahead of time
 	// Use reflection.Value.MapIter to iterate the keys via a stateful object that tracks the progress of key iteration internally
 	// We could use a go routine that writes a key/value pair to a channel, but that would cause a memory leak if map is not fully iterated
 
 	var (
 		mi   = reflect.ValueOf(m).MapRange()
-		zkv  KeyValue[K, V]
+		zkv  util.KeyValue[K, V]
 		done bool
 	)
 
-	return func() (KeyValue[K, V], bool) {
+	return func() (util.KeyValue[K, V], bool) {
 		if done {
 			return zkv, false
 		}
@@ -76,7 +67,7 @@ func MapIterGen[K comparable, V any](m map[K]V) func() (KeyValue[K, V], bool) {
 		if done {
 			return zkv, false
 		}
-		return KeyValue[K, V]{mi.Key().Interface().(K), mi.Value().Interface().(V)}, true
+		return util.KVOf(mi.Key().Interface().(K), mi.Value().Interface().(V)), true
 	}
 }
 
