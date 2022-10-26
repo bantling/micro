@@ -103,12 +103,5 @@ func TestWrite(t *testing.T) {
 		w   = NewWriter(func(any) error { return err })
 	)
 	assert.NotNil(t, w)
-
-	funcs.TryTo(
-		func() {
-			w.Write(0)
-			assert.Fail(t, "Must die")
-		},
-		func(e any) { assert.Equal(t, err, e) },
-	)
+	assert.Equal(t, err, w.Write(0))
 }

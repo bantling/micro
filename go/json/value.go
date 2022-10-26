@@ -4,23 +4,24 @@ package json
 
 import (
 	"fmt"
-	"io"
 	"math/big"
 
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/writer"
 )
 
 // Error constants
 var (
-	ErrInvalidGoValueMsg = "A value of type %T is not a valid type to convert to a Value. Acceptable types are map[string]any, []any, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString, bool, and nil"
-	ErrNotObject         = fmt.Errorf("The Value is not an object")
-	ErrNotArray          = fmt.Errorf("The Value is not an array")
-	ErrNotString         = fmt.Errorf("The Value is not a string")
-	ErrNotNumber         = fmt.Errorf("The Value is not a number")
-	ErrNotBoolean        = fmt.Errorf("The Value is not a boolean")
-	ErrNotStringable     = fmt.Errorf("The Value is not a string, number, or boolean")
+	errInvalidGoValueMsg = "A value of type %T is not a valid type to convert to a Value. Acceptable types are map[string]any, []any, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString, bool, and nil"
+	errNotObject         = fmt.Errorf("The Value is not an object")
+	errNotArray          = fmt.Errorf("The Value is not an array")
+	errNotString         = fmt.Errorf("The Value is not a string")
+	errNotNumber         = fmt.Errorf("The Value is not a number")
+	errNotBoolean        = fmt.Errorf("The Value is not a boolean")
+	errNotStringable     = fmt.Errorf("The Value is not a string, number, or boolean")
+	errNotDocumentMsg    = "A Value of type %s is not a document, it must be an Object or Array"
 )
 
 // ValueType is an enum of value types
@@ -35,6 +36,23 @@ const (
 	Boolean
 	Null
 )
+
+// The value types as strings
+var (
+	valueTypeToString = map[ValueType]string{
+		Object:  "Object",
+		Array:   "Array",
+		String:  "String",
+		Number:  "Number",
+		Boolean: "Boolean",
+		Null:    "Null",
+	}
+)
+
+// ToString is the Stringer interface for fmt
+func (typ ValueType) String() string {
+	return valueTypeToString[typ]
+}
 
 // NumberString is a special type that allows a plain string to be considered a JSON Number
 type NumberString string
@@ -56,13 +74,6 @@ var (
 	TrueValue  = Value{typ: Boolean, value: true}
 	FalseValue = Value{typ: Boolean, value: false}
 	NullValue  = Value{typ: Null, value: nil}
-)
-
-// Constant for default value visitor
-var DefaultConversionVisitor func(Value) any = ConversionVisitor(
-	funcs.Passthrough[string],
-	funcs.Passthrough[NumberString],
-	funcs.Passthrough[bool],
 )
 
 // fromNumberInternal converts any kind of number into a Value
@@ -129,7 +140,7 @@ func FromValue(v any) Value {
 	} else if v == nil {
 		jval = NullValue
 	} else if jval = fromNumberInternal(v); jval.value == nil {
-		panic(fmt.Errorf(ErrInvalidGoValueMsg, v))
+		panic(fmt.Errorf(errInvalidGoValueMsg, v))
 	}
 
 	return jval
@@ -251,7 +262,7 @@ func (jv Value) Type() ValueType {
 // Panics if the Value is not an object.
 func (jv Value) AsMap() map[string]Value {
 	if jv.typ != Object {
-		panic(ErrNotObject)
+		panic(errNotObject)
 	}
 
 	return jv.value.(map[string]Value)
@@ -261,7 +272,7 @@ func (jv Value) AsMap() map[string]Value {
 // Panics if the Value is not an array.
 func (jv Value) AsSlice() []Value {
 	if jv.typ != Array {
-		panic(ErrNotArray)
+		panic(errNotArray)
 	}
 
 	return jv.value.([]Value)
@@ -269,7 +280,6 @@ func (jv Value) AsSlice() []Value {
 
 // AsString returns a string representation of a Value.
 // Panics if the Value is not a string, number, or boolean.
-// In the case of number, if it is an int, then it is formatted as an int, otherwise it is formatted as a float.
 func (jv Value) AsString() string {
 	switch jv.typ {
 	case String:
@@ -280,14 +290,14 @@ func (jv Value) AsString() string {
 		return fmt.Sprintf("%t", jv.value.(bool))
 	}
 
-	panic(ErrNotStringable)
+	panic(errNotStringable)
 }
 
 // AsBigRat returns a NumberString representation of a Value.
 // Panics if the Value is not a number.
 func (jv Value) AsNumberString() NumberString {
 	if jv.typ != Number {
-		panic(ErrNotNumber)
+		panic(errNotNumber)
 	}
 
 	return jv.value.(NumberString)
@@ -297,7 +307,7 @@ func (jv Value) AsNumberString() NumberString {
 // Panics if the Value is not a boolean.
 func (jv Value) AsBool() bool {
 	if jv.typ != Boolean {
-		panic(ErrNotBoolean)
+		panic(errNotBoolean)
 	}
 
 	return jv.value.(bool)
@@ -308,111 +318,38 @@ func (jv Value) IsNull() bool {
 	return jv.typ == Null
 }
 
-// Visit implements a very simple visitor pattern, where the provided visitor function is applied to each value in an
-// object, each element in an array, and each string, number, boolean and null primitive value.
-// It is up to the visitor func to recursively call the Value.Visit method on the values of each object key or array
-// element. Empty objects and arrays are returned as non-nil empty maps and slices.
-//
-// The purpose is to allow conversion of json values to arbitrary go values, eg convert all numbers to ints.
-func (jv Value) Visit(visitor func(Value) any) any {
+// ToAny converts the Value to the approriate go type:
+// Object  = map[string]any
+// Array   = []any
+// String  = string
+// Number  = NumberString
+// Boolean = bool
+// NUll    = nil
+func (jv Value) ToAny() any {
 	switch jv.typ {
 	case Object:
-		var (
-			obj = jv.value.(map[string]Value)
-			res = map[string]any{}
-		)
-
-		for k, v := range obj {
-			res[k] = visitor(v)
-		}
-
-		return res
-
+		return jv.ToMap()
 	case Array:
-		var (
-			obj = jv.value.([]Value)
-			res = make([]any, len(obj))
-		)
-
-		for i, v := range obj {
-			res[i] = visitor(v)
-		}
-
-		return res
+		return jv.ToSlice()
+	default:
+		return jv.value
 	}
-
-	// Must be a primitive value
-	return visitor(jv)
-}
-
-// ConversionVisitor generates a visitor function - given conversion functions for String, Number,and Boolean values - that
-// converts as follows:
-// Object and Array: return a recursive call to Value.Visit(generated visitor function)
-// String: stringConv(string)
-// Number: numberConv(any)
-// Boolean: boolConv(bool)
-// Null: nil
-//
-// The conversion funcs cannot be nil, but can be funcs.Passthrough[string], funcs.Passthrough[any], and
-// funcs.Passthrough[bool].
-//
-// The numberConv accepts any because it is possible to create a Value using a custom numeric conversion function rather
-// than the default conversion to *big.Rat. (See FromValue, FromMap, and FromSlice functions).
-//
-// Unless you provide a custom numeric conversion function when creating your JSON values, you can assume the numberConv
-// will receive a *big.Rat.
-func ConversionVisitor[S, N, B any](
-	stringConv func(string) S,
-	numberConv func(NumberString) N,
-	boolConv func(bool) B,
-) func(Value) any {
-	var conversionVisitorFn func(Value) any
-
-	conversionVisitorFn = func(jv Value) any {
-		switch jv.typ {
-		case Object:
-			return jv.Visit(conversionVisitorFn)
-		case Array:
-			return jv.Visit(conversionVisitorFn)
-		case String:
-			return stringConv(jv.value.(string))
-		case Number:
-			return numberConv(jv.value.(NumberString))
-		case Boolean:
-			return boolConv(jv.value.(bool))
-		}
-
-		// Must be Null
-		return nil
-	}
-
-	return conversionVisitorFn
-}
-
-// DefaultVisitorFunc is the default visitor function that converts JSON values as follows:
-// Object and Array: return a recursive call to Value.Visit(DefaultVisitor)
-// String: string
-// Number: *big.Rat
-// Boolean: bool
-// Null: nil
-func DefaultVisitorFunc(jv Value) any {
-	if (jv.typ == Object) || (jv.typ == Array) {
-		return jv.Visit(DefaultConversionVisitor)
-	}
-
-	// Must be String, Number, Boolean, or Null, which is already string, *big.Rat, bool, or nil
-	return jv.value
 }
 
 // ToMap returns a map[string]any representation of a Value.
 // Panics if the Value is not an object.
-// If the optional visitor func is not provided, then DefaultVisitor is used.
-func (jv Value) ToMap(visitor ...func(Value) any) map[string]any {
+func (jv Value) ToMap() map[string]any {
 	if jv.typ != Object {
-		panic(ErrNotObject)
+		panic(errNotObject)
 	}
 
-	return jv.Visit(funcs.SliceIndex(visitor, 0, DefaultVisitorFunc)).(map[string]any)
+	m := map[string]any{}
+
+	for k, v := range jv.value.(map[string]Value) {
+		m[k] = v.ToAny()
+	}
+
+	return m
 }
 
 // ToSlice returns a []any representation of a Value.
@@ -420,13 +357,86 @@ func (jv Value) ToMap(visitor ...func(Value) any) map[string]any {
 // If the optional visitor func is not provided, then DefaultVisitor is used.
 func (jv Value) ToSlice(visitor ...func(Value) any) []any {
 	if jv.typ != Array {
-		panic(ErrNotArray)
+		panic(errNotArray)
 	}
 
-	return jv.Visit(funcs.SliceIndex(visitor, 0, DefaultVisitorFunc)).([]any)
+	s := []any{}
+
+	for _, v := range jv.value.([]Value) {
+		s = append(s, v.ToAny())
+	}
+
+	return s
 }
 
-// ToDocument
-func (jv Value) ToDocument(dst io.Writer) {
+// IsDocument returns true if a Value is a document (Object or Array)
+func (jv Value) IsDocument() bool {
+	return (jv.typ == Object) || (jv.typ == Array)
+}
 
+// Write writes any value to a writer
+func (jv Value) Write(dst writer.Writer[rune]) error {
+	switch jv.typ {
+	case Object:
+		return jv.WriteObject(dst)
+	case Array:
+		return jv.WriteArray(dst)
+	case String:
+		return dst.Write(append(append(append([]rune{}, '"'), []rune(jv.AsString())...), '"')...)
+	case Number:
+		fallthrough
+	case Boolean:
+		return dst.Write([]rune(jv.AsString())...)
+	}
+
+	return dst.Write([]rune("null")...)
+}
+
+// WriteObject writes an object to a writer
+func (jv Value) WriteObject(dst writer.Writer[rune]) error {
+	if err := dst.Write('{'); err != nil {
+		return err
+	}
+
+	var i = 0
+	for k, v := range jv.value.(map[string]Value) {
+		var data []rune
+
+		if i > 0 {
+			data = append(data, ',')
+		}
+		i++
+
+		data = append(append(append(data, '"'), []rune(k)...), '"', ':')
+		if err := dst.Write(data...); err != nil {
+			return err
+		}
+
+		if err := v.Write(dst); err != nil {
+			return err
+		}
+	}
+
+	return dst.Write('}')
+}
+
+// WriteArray writes an array to a writer
+func (jv Value) WriteArray(dst writer.Writer[rune]) error {
+	if err := dst.Write('['); err != nil {
+		return err
+	}
+
+	for i, v := range jv.value.([]Value) {
+		if i > 0 {
+			if err := dst.Write(','); err != nil {
+				return err
+			}
+		}
+
+		if err := v.Write(dst); err != nil {
+			return err
+		}
+	}
+
+	return dst.Write(']')
 }

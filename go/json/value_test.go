@@ -4,11 +4,12 @@ package json
 
 import (
 	"fmt"
-	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/writer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,6 +35,15 @@ func assertBoolean(t *testing.T, e bool, a Value) {
 
 func assertNull(t *testing.T, a Value) {
 	assert.Equal(t, NullValue, a)
+}
+
+func TestString(t *testing.T) {
+	assert.Equal(t, "Object", fmt.Sprintf("%s", Object))
+	assert.Equal(t, "Array", fmt.Sprintf("%s", Array))
+	assert.Equal(t, "String", fmt.Sprintf("%s", String))
+	assert.Equal(t, "Number", fmt.Sprintf("%s", Number))
+	assert.Equal(t, "Boolean", fmt.Sprintf("%s", Boolean))
+	assert.Equal(t, "Null", fmt.Sprintf("%s", Null))
 }
 
 func TestFromNumberInternal(t *testing.T) {
@@ -112,7 +122,7 @@ func TestFromValue(t *testing.T) {
 	// Error
 	funcs.TryTo(
 		func() { FromValue((1 + 2i)) },
-		func(e any) { assert.Equal(t, fmt.Errorf(ErrInvalidGoValueMsg, (1+2i)), e) },
+		func(e any) { assert.Equal(t, fmt.Errorf(errInvalidGoValueMsg, (1+2i)), e) },
 	)
 }
 
@@ -233,7 +243,7 @@ func TestAsMap(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotObject, e)
+			assert.Equal(t, errNotObject, e)
 		},
 	)
 }
@@ -248,7 +258,7 @@ func TestAsSlice(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotArray, e)
+			assert.Equal(t, errNotArray, e)
 		},
 	)
 }
@@ -268,7 +278,7 @@ func TestAsString(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotStringable, e)
+			assert.Equal(t, errNotStringable, e)
 		},
 	)
 }
@@ -283,7 +293,7 @@ func TestAsBigRat(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotNumber, e)
+			assert.Equal(t, errNotNumber, e)
 		},
 	)
 }
@@ -297,7 +307,7 @@ func TestAsBool(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotBoolean, e)
+			assert.Equal(t, errNotBoolean, e)
 		},
 	)
 }
@@ -307,243 +317,29 @@ func TestIsNull(t *testing.T) {
 	assert.False(t, TrueValue.IsNull())
 }
 
-func TestVisit(t *testing.T) {
-	// Object {}
-	var (
-		val    = Value{typ: Object, value: map[string]Value{}}
-		noconv = func(jv Value) any { return jv }
-	)
-	assert.Equal(t, map[string]any{}, val.Visit(noconv))
+func TestToAny(t *testing.T) {
+	m := map[string]any{"foo": "bar"}
+	assert.Equal(t, m, FromMap(m).ToAny())
 
-	// Object {"foo": "bar"}
-	str := Value{typ: String, value: "bar"}
-	val = Value{typ: Object, value: map[string]Value{"foo": str}}
-	assert.Equal(t, map[string]any{"foo": str}, val.Visit(noconv))
+	s := []any{"foo", "bar"}
+	assert.Equal(t, s, FromSlice(s).ToAny())
 
-	// Array []
-	val = Value{typ: Array, value: []Value{}}
-	assert.Equal(t, []any{}, val.Visit(noconv))
-
-	// Array ["bar"]
-	val = Value{typ: Array, value: []Value{str}}
-	assert.Equal(t, []any{str}, val.Visit(noconv))
-
-	// String "bar"
-	assert.Equal(t, str, str.Visit(noconv))
-
-	// Number 0
-	val = Value{typ: Number, value: NumberString("0")}
-	assert.Equal(t, val, val.Visit(noconv))
-
-	// Boolean true
-	assert.Equal(t, TrueValue, TrueValue.Visit(noconv))
-
-	// Null
-	assert.Equal(t, NullValue, NullValue.Visit(noconv))
-}
-
-func TestDefaultVisitor(t *testing.T) {
-	// Object {}
-	val := Value{typ: Object, value: map[string]Value{}}
-	assert.Equal(t, map[string]any{}, val.Visit(DefaultVisitorFunc))
-
-	// Object {"foo": "bar"}
-	str := Value{typ: String, value: "bar"}
-	val = Value{typ: Object, value: map[string]Value{"foo": str}}
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(DefaultVisitorFunc))
-
-	// Object {"foo": {"bar": "baz"}}
-	baz := Value{typ: String, value: "baz"}
-	val = Value{typ: Object, value: map[string]Value{
-		"foo": {typ: Object, value: map[string]Value{"bar": baz}}},
-	}
-	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "baz"}}, val.Visit(DefaultVisitorFunc))
-
-	// Array []
-	val = Value{typ: Array, value: []Value{}}
-	assert.Equal(t, []any{}, val.Visit(DefaultVisitorFunc))
-
-	// Array ["bar"]
-	val = Value{typ: Array, value: []Value{str}}
-	assert.Equal(t, []any{"bar"}, val.Visit(DefaultVisitorFunc))
-
-	// Array [ Array ["bar"] ]
-	val = Value{typ: Array, value: []Value{{typ: Array, value: []Value{str}}}}
-	assert.Equal(t, []any{[]any{"bar"}}, val.Visit(DefaultVisitorFunc))
-
-	// String "bar"
-	assert.Equal(t, "bar", str.Visit(DefaultVisitorFunc))
-
-	// Number 0
-	val = Value{typ: Number, value: NumberString("0")}
-	assert.Equal(t, NumberString("0"), val.Visit(DefaultVisitorFunc))
-
-	// Boolean true
-	assert.Equal(t, true, TrueValue.Visit(DefaultVisitorFunc))
-
-	// Null
-	assert.Nil(t, NullValue.Visit(DefaultVisitorFunc))
-}
-
-func TestConversionVisitor(t *testing.T) {
-	// Object {}
-	var (
-		defaultVisitor = DefaultConversionVisitor
-		customVisitor  = ConversionVisitor(
-			func(str string) string { return str + str },
-			func(num NumberString) *big.Rat {
-				num_ := conv.StringToBigRat(string(num))
-				res := big.NewRat(0, 1)
-				res.Add(num_, num_)
-				return res
-			},
-			func(b bool) bool { return !b },
-		)
-		intVisitor = ConversionVisitor(
-			funcs.Passthrough[string],
-			func(v NumberString) int64 { return conv.StringToInt64(string(v)) },
-			funcs.Passthrough[bool],
-		)
-		floatVisitor = ConversionVisitor(
-			funcs.Passthrough[string],
-			func(v NumberString) float64 { return conv.StringToFloat64(string(v)) },
-			funcs.Passthrough[bool],
-		)
-		val = Value{typ: Object, value: map[string]Value{}}
-	)
-	assert.Equal(t, map[string]any{}, val.Visit(defaultVisitor))
-	assert.Equal(t, map[string]any{}, val.Visit(customVisitor))
-	assert.Equal(t, map[string]any{}, val.Visit(intVisitor))
-	assert.Equal(t, map[string]any{}, val.Visit(floatVisitor))
-
-	// Object {"foo": "bar"}
-	str := Value{typ: String, value: "bar"}
-	val = Value{typ: Object, value: map[string]Value{"foo": str}}
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": "barbar"}, val.Visit(customVisitor))
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(intVisitor))
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.Visit(floatVisitor))
-
-	// Object {"foo": {"bar": "baz"}}
-	baz := Value{typ: String, value: "baz"}
-	val = Value{typ: Object, value: map[string]Value{
-		"foo": {typ: Object, value: map[string]Value{"bar": baz}}},
-	}
-	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "baz"}}, val.Visit(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "bazbaz"}}, val.Visit(customVisitor))
-	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "baz"}}, val.Visit(intVisitor))
-	assert.Equal(t, map[string]any{"foo": map[string]any{"bar": "baz"}}, val.Visit(floatVisitor))
-
-	// Array []
-	val = Value{typ: Array, value: []Value{}}
-	assert.Equal(t, []any{}, val.Visit(defaultVisitor))
-	assert.Equal(t, []any{}, val.Visit(customVisitor))
-	assert.Equal(t, []any{}, val.Visit(intVisitor))
-	assert.Equal(t, []any{}, val.Visit(floatVisitor))
-
-	// Array ["bar"]
-	val = Value{typ: Array, value: []Value{str}}
-	assert.Equal(t, []any{"bar"}, val.Visit(defaultVisitor))
-	assert.Equal(t, []any{"barbar"}, val.Visit(customVisitor))
-	assert.Equal(t, []any{"bar"}, val.Visit(intVisitor))
-	assert.Equal(t, []any{"bar"}, val.Visit(floatVisitor))
-
-	// Array [ Array ["bar"] ]
-	val = Value{typ: Array, value: []Value{{typ: Array, value: []Value{str}}}}
-	assert.Equal(t, []any{[]any{"bar"}}, val.Visit(defaultVisitor))
-	assert.Equal(t, []any{[]any{"barbar"}}, val.Visit(customVisitor))
-	assert.Equal(t, []any{[]any{"bar"}}, val.Visit(intVisitor))
-	assert.Equal(t, []any{[]any{"bar"}}, val.Visit(floatVisitor))
-
-	// String "bar"
-	assert.Equal(t, "bar", str.Visit(defaultVisitor))
-	assert.Equal(t, "barbar", str.Visit(customVisitor))
-	assert.Equal(t, "bar", str.Visit(intVisitor))
-	assert.Equal(t, "bar", str.Visit(floatVisitor))
-
-	// Number 5
-	val = Value{typ: Number, value: NumberString("5")}
-	assert.Equal(t, NumberString("5"), val.Visit(defaultVisitor))
-	assert.Equal(t, big.NewRat(10, 1), val.Visit(customVisitor))
-	assert.Equal(t, int64(5), val.Visit(intVisitor))
-	assert.Equal(t, float64(5), val.Visit(floatVisitor))
-
-	// Boolean true
-	assert.Equal(t, true, TrueValue.Visit(defaultVisitor))
-	assert.Equal(t, false, TrueValue.Visit(customVisitor))
-	assert.Equal(t, true, TrueValue.Visit(intVisitor))
-	assert.Equal(t, true, TrueValue.Visit(floatVisitor))
-
-	// Null
-	assert.Nil(t, NullValue.Visit(defaultVisitor))
-	assert.Nil(t, NullValue.Visit(customVisitor))
-	assert.Nil(t, NullValue.Visit(intVisitor))
-	assert.Nil(t, NullValue.Visit(floatVisitor))
+	assert.Equal(t, "str", FromString("str").ToAny())
+	assert.Equal(t, NumberString("1"), FromNumberString("1").ToAny())
+	assert.Equal(t, true, FromBool(true).ToAny())
+	assert.Nil(t, NullValue.ToAny())
 }
 
 func TestToMap(t *testing.T) {
-	// Object {}
-	var (
-		defaultVisitor = DefaultConversionVisitor
-		customVisitor  = ConversionVisitor(
-			func(str string) string { return str + str },
-			func(num NumberString) *big.Rat {
-				num_ := conv.StringToBigRat(string(num))
-				res := big.NewRat(0, 1)
-				res.Add(num_, num_)
-				return res
-			},
-			func(b bool) bool { return !b },
-		)
-		intVisitor = ConversionVisitor(
-			funcs.Passthrough[string],
-			func(num NumberString) int64 { return conv.StringToInt64(string(num)) },
-			funcs.Passthrough[bool],
-		)
-		floatVisitor = ConversionVisitor(
-			funcs.Passthrough[string],
-			func(num NumberString) float64 { return conv.StringToFloat64(string(num)) },
-			funcs.Passthrough[bool],
-		)
-		val = Value{typ: Object, value: map[string]Value{}}
-	)
-	assert.Equal(t, map[string]any{}, val.ToMap())
-	assert.Equal(t, map[string]any{}, val.ToMap(defaultVisitor))
-	assert.Equal(t, map[string]any{}, val.ToMap(customVisitor))
-
-	// Object {"foo": "bar"}
-	str := Value{typ: String, value: "bar"}
-	val = Value{typ: Object, value: map[string]Value{"foo": str}}
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.ToMap())
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.ToMap(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": "barbar"}, val.ToMap(customVisitor))
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.ToMap(intVisitor))
-	assert.Equal(t, map[string]any{"foo": "bar"}, val.ToMap(floatVisitor))
-
-	// Object {"foo": 5}
-	num := Value{typ: Number, value: NumberString("5")}
-	val = Value{typ: Object, value: map[string]Value{"foo": num}}
-	assert.Equal(t, map[string]any{"foo": NumberString("5")}, val.ToMap())
-	assert.Equal(t, map[string]any{"foo": NumberString("5")}, val.ToMap(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": big.NewRat(10, 1)}, val.ToMap(customVisitor))
-	assert.Equal(t, map[string]any{"foo": int64(5)}, val.ToMap(intVisitor))
-	assert.Equal(t, map[string]any{"foo": 5.0}, val.ToMap(floatVisitor))
-
-	// Object {"foo": true}
-	val = Value{typ: Object, value: map[string]Value{"foo": TrueValue}}
-	assert.Equal(t, map[string]any{"foo": true}, val.ToMap())
-	assert.Equal(t, map[string]any{"foo": true}, val.ToMap(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": false}, val.ToMap(customVisitor))
-	assert.Equal(t, map[string]any{"foo": true}, val.ToMap(intVisitor))
-	assert.Equal(t, map[string]any{"foo": true}, val.ToMap(floatVisitor))
-
-	// Object {"foo": nil}
-	val = Value{typ: Object, value: map[string]Value{"foo": NullValue}}
-	assert.Equal(t, map[string]any{"foo": nil}, val.ToMap())
-	assert.Equal(t, map[string]any{"foo": nil}, val.ToMap(defaultVisitor))
-	assert.Equal(t, map[string]any{"foo": nil}, val.ToMap(customVisitor))
-	assert.Equal(t, map[string]any{"foo": nil}, val.ToMap(intVisitor))
-	assert.Equal(t, map[string]any{"foo": nil}, val.ToMap(floatVisitor))
+	m := map[string]any{
+		"map": map[string]any{"foo": "bar"},
+		"slc": []any{"foo", "bar"},
+		"str": "foo",
+		"num": NumberString("1"),
+		"bln": true,
+		"nil": nil,
+	}
+	assert.Equal(t, m, FromMap(m).ToMap())
 
 	// Panic if value is not an object
 	funcs.TryTo(
@@ -552,74 +348,21 @@ func TestToMap(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotObject, e)
+			assert.Equal(t, errNotObject, e)
 		},
 	)
 }
 
 func TestToSlice(t *testing.T) {
-	// Array []
-	var (
-		defaultVisitor = DefaultConversionVisitor
-		customVisitor  = ConversionVisitor(
-			func(str string) string { return str + str },
-			func(num NumberString) *big.Rat {
-				num_ := conv.StringToBigRat(string(num))
-				res := big.NewRat(0, 1)
-				res.Add(num_, num_)
-				return res
-			},
-			func(b bool) bool { return !b },
-		)
-		intVisitor = ConversionVisitor(
-			funcs.Passthrough[string],
-			func(num NumberString) int64 { return conv.StringToInt64(string(num)) },
-			funcs.Passthrough[bool],
-		)
-		floatVisitor = ConversionVisitor(
-			funcs.Passthrough[string],
-			func(num NumberString) float64 { return conv.StringToFloat64(string(num)) },
-			funcs.Passthrough[bool],
-		)
-		val = Value{typ: Array, value: []Value{}}
-	)
-	assert.Equal(t, []any{}, val.ToSlice())
-	assert.Equal(t, []any{}, val.ToSlice(defaultVisitor))
-	assert.Equal(t, []any{}, val.ToSlice(customVisitor))
-
-	// Array ["bar"]
-	str := Value{typ: String, value: "bar"}
-	val = Value{typ: Array, value: []Value{str}}
-	assert.Equal(t, []any{"bar"}, val.ToSlice())
-	assert.Equal(t, []any{"bar"}, val.ToSlice(defaultVisitor))
-	assert.Equal(t, []any{"barbar"}, val.ToSlice(customVisitor))
-	assert.Equal(t, []any{"bar"}, val.ToSlice(intVisitor))
-	assert.Equal(t, []any{"bar"}, val.ToSlice(floatVisitor))
-
-	// Array [5]
-	num := Value{typ: Number, value: NumberString("5")}
-	val = Value{typ: Array, value: []Value{num}}
-	assert.Equal(t, []any{NumberString("5")}, val.ToSlice())
-	assert.Equal(t, []any{NumberString("5")}, val.ToSlice(defaultVisitor))
-	assert.Equal(t, []any{big.NewRat(10, 1)}, val.ToSlice(customVisitor))
-	assert.Equal(t, []any{int64(5)}, val.ToSlice(intVisitor))
-	assert.Equal(t, []any{5.0}, val.ToSlice(floatVisitor))
-
-	// Array [true]
-	val = Value{typ: Array, value: []Value{TrueValue}}
-	assert.Equal(t, []any{true}, val.ToSlice())
-	assert.Equal(t, []any{true}, val.ToSlice(defaultVisitor))
-	assert.Equal(t, []any{false}, val.ToSlice(customVisitor))
-	assert.Equal(t, []any{true}, val.ToSlice(intVisitor))
-	assert.Equal(t, []any{true}, val.ToSlice(floatVisitor))
-
-	// Array [nil]
-	val = Value{typ: Array, value: []Value{NullValue}}
-	assert.Equal(t, []any{nil}, val.ToSlice())
-	assert.Equal(t, []any{nil}, val.ToSlice(defaultVisitor))
-	assert.Equal(t, []any{nil}, val.ToSlice(customVisitor))
-	assert.Equal(t, []any{nil}, val.ToSlice(intVisitor))
-	assert.Equal(t, []any{nil}, val.ToSlice(floatVisitor))
+	s := []any{
+		map[string]any{"foo": "bar"},
+		[]any{"foo", "bar"},
+		"str",
+		NumberString("1"),
+		true,
+		nil,
+	}
+	assert.Equal(t, s, FromSlice(s).ToSlice())
 
 	// Panic if value is not an array
 	funcs.TryTo(
@@ -628,37 +371,47 @@ func TestToSlice(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(e any) {
-			assert.Equal(t, ErrNotArray, e)
+			assert.Equal(t, errNotArray, e)
 		},
 	)
 }
 
-func TestToInt(t *testing.T) {
-	val := Value{typ: Number, value: NumberString("5")}
-	assert.Equal(t, int64(5), conv.StringToInt64(string(val.AsNumberString())))
-
-	funcs.TryTo(
-		func() {
-			NullValue.AsNumberString()
-			assert.Fail(t, "Must die")
-		},
-		func(e any) {
-			assert.Equal(t, ErrNotNumber, e)
-		},
-	)
+func TestIsDocument(t *testing.T) {
+	assert.True(t, FromMap(map[string]any{}).IsDocument())
+	assert.True(t, FromSlice([]any{}).IsDocument())
+	assert.False(t, FromString("").IsDocument())
+	assert.False(t, FromNumber(0).IsDocument())
+	assert.False(t, FromBool(true).IsDocument())
+	assert.False(t, NullValue.IsDocument())
 }
 
-func TestToFloat(t *testing.T) {
-	val := Value{typ: Number, value: NumberString("5")}
-	assert.Equal(t, 5.0, conv.StringToFloat64(string(val.AsNumberString())))
+func TestWrite(t *testing.T) {
+	var str strings.Builder
 
-	funcs.TryTo(
-		func() {
-			NullValue.AsNumberString()
-			assert.Fail(t, "Must die")
-		},
-		func(e any) {
-			assert.Equal(t, ErrNotNumber, e)
-		},
-	)
+	FromMap(map[string]any{}).Write(writer.OfIOWriterAsRunes(&str))
+	assert.Equal(t, "{}", str.String())
+
+	str.Reset()
+	FromSlice([]any{}).Write(writer.OfIOWriterAsRunes(&str))
+	assert.Equal(t, "[]", str.String())
+
+	str.Reset()
+	FromString("foo").Write(writer.OfIOWriterAsRunes(&str))
+	assert.Equal(t, `"foo"`, str.String())
+
+	str.Reset()
+	FromNumberString("1").Write(writer.OfIOWriterAsRunes(&str))
+	assert.Equal(t, "1", str.String())
+
+	str.Reset()
+	TrueValue.Write(writer.OfIOWriterAsRunes(&str))
+	assert.Equal(t, "true", str.String())
+
+	str.Reset()
+	NullValue.Write(writer.OfIOWriterAsRunes(&str))
+	assert.Equal(t, "null", str.String())
+}
+
+func TestWriteObject(t *testing.T) {
+
 }

@@ -15,11 +15,11 @@ var (
 	errNewWriterNeedsFn = fmt.Errorf("NewWriter requires a non-nil writing function")
 )
 
-// Writer defines a single method for writing values of type T to some destination.
-// Panics if a value of type T cannot be written to the destination successfully.
+// Writer defines a single method for writing zero or more values of type T to some destination.
+// Panics if any value of type T cannot be written to the destination successfully.
 // The error object provided to panic contains whatever object the underlying storage function provides.
 type Writer[T any] interface {
-	Write(val T)
+	Write(vals ...T) error
 }
 
 // WriterImpl is the base implementation of Writer[T]
@@ -77,8 +77,12 @@ func OfIOWriterAsLines(dst io.Writer) Writer[string] {
 // ==== WriterImpl method
 
 // Write panics if the value given cannot be written to the destination.
-func (w WriterImpl[T]) Write(val T) {
-	if err := w.writerFn(val); err != nil {
-		panic(err)
+func (w WriterImpl[T]) Write(vals ...T) error {
+	for _, val := range vals {
+		if err := w.writerFn(val); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

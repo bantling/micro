@@ -46,13 +46,15 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 * json
 ** Value type that describes any kind of JSON value
 ** Convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
-** default numeric type is *big.Rat, but custom conversion functions can be used for some other numeric type
+** default numeric type is NumberString, but custom conversion functions can be used for some other numeric type
 * util
 ** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
 
 == TODO
 
+* Make lexing and parsing return error instead of panic
 * Auto convert each JSON object into Go structs and vice-versa
 * Auto write JSON objects to an SQL table that holds a JSON column
 * Auto write JSON objects to an SQL table that uses individual columns for each field
 * Consider providing simplistic string based arbitrary concurrency that is not fast, but just does basic operations
+* Modify tests to test errors/panics with strings rather than calling fmt to generate, to ensure string is readable.
