@@ -382,7 +382,7 @@ func (jv Value) Write(dst writer.Writer[rune]) error {
 	case Array:
 		return jv.WriteArray(dst)
 	case String:
-		return dst.Write(append(append(append([]rune{}, '"'), []rune(jv.AsString())...), '"')...)
+		return dst.Write(append(append([]rune{'"'}, []rune(jv.value.(string))...), '"')...)
 	case Number:
 		fallthrough
 	case Boolean:

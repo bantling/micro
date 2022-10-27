@@ -3,12 +3,14 @@ package json
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/util"
 	"github.com/bantling/micro/go/writer"
 	"github.com/stretchr/testify/assert"
 )
@@ -388,30 +390,97 @@ func TestIsDocument(t *testing.T) {
 func TestWrite(t *testing.T) {
 	var str strings.Builder
 
-	FromMap(map[string]any{}).Write(writer.OfIOWriterAsRunes(&str))
+	assert.Nil(t, FromMap(map[string]any{}).Write(writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "{}", str.String())
 
 	str.Reset()
-	FromSlice([]any{}).Write(writer.OfIOWriterAsRunes(&str))
+	assert.Nil(t, FromSlice([]any{}).Write(writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "[]", str.String())
 
 	str.Reset()
-	FromString("foo").Write(writer.OfIOWriterAsRunes(&str))
+	assert.Nil(t, FromString("foo").Write(writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, `"foo"`, str.String())
 
 	str.Reset()
-	FromNumberString("1").Write(writer.OfIOWriterAsRunes(&str))
+	assert.Nil(t, FromNumberString("1").Write(writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "1", str.String())
 
 	str.Reset()
-	TrueValue.Write(writer.OfIOWriterAsRunes(&str))
+	assert.Nil(t, TrueValue.Write(writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "true", str.String())
 
 	str.Reset()
-	NullValue.Write(writer.OfIOWriterAsRunes(&str))
+	assert.Nil(t, NullValue.Write(writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "null", str.String())
 }
 
 func TestWriteObject(t *testing.T) {
+	var (
+		str strings.Builder
+		m   = map[string]any{
+			"obj": map[string]any{"foo": "bar"},
+			"arr": []any{"foo"},
+			"str": "foo",
+			"num": NumberString("1"),
+			"bln": false,
+			"nul": nil,
+		}
+	)
 
+	assert.Nil(t, FromMap(m).Write(writer.OfIOWriterAsRunes(&str)))
+
+	// Can't rely on map ordering in string result, and can't use our parser since it imports this package making a cycle.
+	// So use go built in JSON parser to parse string into a map struct. It parses number as a float64 when using a map.
+	var mc map[string]any
+	json.Unmarshal([]byte(str.String()), &mc)
+	mc["num"] = NumberString(conv.FloatToString(mc["num"].(float64)))
+
+	assert.Equal(t, mc, m)
+
+	// Test errors
+	err := fmt.Errorf("An error")
+
+	// Fail to write opening {
+	w := util.NewErrorWriter(0, err)
+	assert.Equal(t, err, FromMap(m).Write(writer.OfIOWriterAsRunes(w)))
+
+	// Fail to write first key
+	w = util.NewErrorWriter(1, err)
+	assert.Equal(t, err, FromMap(m).Write(writer.OfIOWriterAsRunes(w)))
+
+	// Fail to write first value
+	w = util.NewErrorWriter(7, err)
+	assert.Equal(t, err, FromMap(map[string]any{"foo": "bar"}).Write(writer.OfIOWriterAsRunes(w)))
+}
+
+func TestWriteArray(t *testing.T) {
+	var (
+		str strings.Builder
+		s   = []any{
+			map[string]any{"foo": "bar"},
+			[]any{"foo"},
+			"foo",
+			NumberString("1"),
+			false,
+			nil,
+		}
+	)
+
+	assert.Nil(t, FromSlice(s).Write(writer.OfIOWriterAsRunes(&str)))
+	assert.Equal(t, `[{"foo":"bar"},["foo"],"foo",1,false,null]`, str.String())
+
+	// Test errors
+	err := fmt.Errorf("An error")
+
+	// Fail to write opening [
+	w := util.NewErrorWriter(0, err)
+	assert.Equal(t, err, FromSlice(s).Write(writer.OfIOWriterAsRunes(w)))
+
+	// Fail to write first comma
+	w = util.NewErrorWriter(14, err)
+	assert.Equal(t, err, FromSlice(s).Write(writer.OfIOWriterAsRunes(w)))
+
+	// Fail to write second value
+	w = util.NewErrorWriter(15, err)
+	assert.Equal(t, err, FromSlice(s).Write(writer.OfIOWriterAsRunes(w)))
 }
