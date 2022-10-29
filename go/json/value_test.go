@@ -5,6 +5,7 @@ package json
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -64,9 +65,18 @@ func TestFromNumberInternal(t *testing.T) {
 	assertNumber(t, NumberString("1.25"), fromNumberInternal(float32(1.25)))
 	assertNumber(t, NumberString("2.5"), fromNumberInternal(float64(2.5)))
 
-	assertNumber(t, NumberString("3"), fromNumberInternal(conv.IntToBigInt(3)))
-	assertNumber(t, NumberString("3.75"), fromNumberInternal(conv.FloatToBigFloat(3.75)))
-	assertNumber(t, NumberString("4.25"), fromNumberInternal(conv.FloatToBigRat(4.25)))
+	var (
+		bi *big.Int
+		bf *big.Float
+		br *big.Rat
+	)
+	conv.IntToBigInt(3, &bi)
+	assert.Equal(t, big.NewInt(3), bi)
+	assertNumber(t, NumberString("3"), fromNumberInternal(bi))
+	conv.FloatToBigFloat(3.75, &bf)
+	assertNumber(t, NumberString("3.75"), fromNumberInternal(bf))
+	conv.FloatToBigRat(4.25, &br)
+	assertNumber(t, NumberString("4.25"), fromNumberInternal(br))
 
 	// fromNumberInternal accepts type any, so explicit conversion required
 	assertNumber(t, NumberString("5.75"), fromNumberInternal(NumberString("5.75")))
@@ -104,9 +114,17 @@ func TestFromValue(t *testing.T) {
 	assertNumber(t, NumberString("2.5"), FromValue(float64(2.5)))
 
 	// Number - *big.Int, *big.Float, *big.Rat
-	assertNumber(t, NumberString("3"), FromValue(conv.IntToBigInt(3)))
-	assertNumber(t, NumberString("3.75"), FromValue(conv.FloatToBigFloat(3.75)))
-	assertNumber(t, NumberString("4.25"), FromValue(conv.FloatToBigRat(4.25)))
+	var (
+		bi *big.Int
+		bf *big.Float
+		br *big.Rat
+	)
+	conv.IntToBigInt(3, &bi)
+	assertNumber(t, NumberString("3"), FromValue(bi))
+	conv.FloatToBigFloat(3.75, &bf)
+	assertNumber(t, NumberString("3.75"), FromValue(bf))
+	conv.FloatToBigRat(4.25, &br)
+	assertNumber(t, NumberString("4.25"), FromValue(br))
 
 	// Number - NumberString
 	// fromValue accepts type any, so explicit conversion required
@@ -180,15 +198,21 @@ func TestFromFloat(t *testing.T) {
 }
 
 func TestFromBigInt(t *testing.T) {
-	assertNumber(t, NumberString("3"), FromBigInt(conv.IntToBigInt(3)))
+	var bi *big.Int
+	conv.IntToBigInt(3, &bi)
+	assertNumber(t, NumberString("3"), FromBigInt(bi))
 }
 
 func TestFromBigFloat(t *testing.T) {
-	assertNumber(t, NumberString("3.75"), FromBigFloat(conv.FloatToBigFloat(3.75)))
+	var bf *big.Float
+	conv.FloatToBigFloat(3.75, &bf)
+	assertNumber(t, NumberString("3.75"), FromBigFloat(bf))
 }
 
 func TestFromBigRat(t *testing.T) {
-	assertNumber(t, NumberString("4.25"), FromBigFloat(conv.FloatToBigFloat(4.25)))
+	var br *big.Rat
+	conv.FloatToBigRat(4.25, &br)
+	assertNumber(t, NumberString("4.25"), FromBigRat(br))
 }
 
 func TestFromNumberString(t *testing.T) {
@@ -216,9 +240,17 @@ func TestFromNumber(t *testing.T) {
 	assertNumber(t, NumberString("2.5"), FromNumber(float64(2.5)))
 
 	// Number - *big.Int, *big.Float, *big.Rat
-	assertNumber(t, NumberString("3"), FromNumber(conv.IntToBigInt(3)))
-	assertNumber(t, NumberString("3.75"), FromNumber(conv.FloatToBigFloat(3.75)))
-	assertNumber(t, NumberString("4.25"), FromNumber(conv.FloatToBigRat(4.25)))
+	var (
+		bi *big.Int
+		bf *big.Float
+		br *big.Rat
+	)
+	conv.IntToBigInt(3, &bi)
+	assertNumber(t, NumberString("3"), FromNumber(bi))
+	conv.FloatToBigFloat(3.75, &bf)
+	assertNumber(t, NumberString("3.75"), FromNumber(bf))
+	conv.FloatToBigRat(4.25, &br)
+	assertNumber(t, NumberString("4.25"), FromNumber(br))
 
 	// Number - NumberString
 	// FromNumber accepts type any, so explicit conversion required
