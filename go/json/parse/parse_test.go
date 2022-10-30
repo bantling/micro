@@ -153,8 +153,24 @@ func TestParseArray(t *testing.T) {
 }
 
 func TestIterate(t *testing.T) {
-	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), iter.ReduceToSlice(Iterate(strings.NewReader(`{"foo": "bar"}`))).Must()[0])
-	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), iter.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar"}]`))).Must()[0])
+	assert.Equal(
+		t,
+		json.FromMap(map[string]any{"foo": "bar"}),
+		iter.ReduceToSlice(Iterate(strings.NewReader(`{"foo": "bar"}`))).Must()[0],
+	)
+
+	assert.Equal(
+		t,
+		json.FromMap(map[string]any{"foo": "bar"}),
+		iter.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar"}]`))).Must()[0],
+	)
+
+	vals := iter.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar", "baz": 1}, ["fooey", 2], true, null]`))).Must()
+	assert.Equal(t, 4, len(vals))
+	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar", "baz": 1}), vals[0])
+	assert.Equal(t, json.FromSlice([]any{"fooey", 2}), vals[1])
+	assert.Equal(t, json.TrueValue, vals[2])
+	assert.Equal(t, json.NullValue, vals[3])
 
 	funcs.TryTo(
 		func() {
@@ -174,22 +190,19 @@ func TestIterate(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), Parse(strings.NewReader(`{"foo": "bar"}`)))
-	assert.Equal(t, json.FromSlice([]any{map[string]any{"foo": "bar"}}), Parse(strings.NewReader(`[{"foo": "bar"}]`)))
+	val, err := Parse(strings.NewReader(`{"foo": "bar"}`))
+	assert.Nil(t, err)
+	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar"}), val)
 
-	funcs.TryTo(
-		func() {
-			Parse(strings.NewReader(``))
-			assert.Fail(t, "Must die")
-		},
-		func(e any) { assert.Equal(t, errEmptyDocument, e) },
-	)
+	val, err = Parse(strings.NewReader(`[{"foo": "bar"}]`))
+	assert.Nil(t, err)
+	assert.Equal(t, json.FromSlice([]any{map[string]any{"foo": "bar"}}), val)
 
-	funcs.TryTo(
-		func() {
-			Parse(strings.NewReader(`,`))
-			assert.Fail(t, "Must die")
-		},
-		func(e any) { assert.Equal(t, errObjectOrArrayRequired, e) },
-	)
+	val, err = Parse(strings.NewReader(``))
+	assert.Equal(t, json.Value{}, val)
+	assert.Equal(t, errEmptyDocument, err)
+
+	val, err = Parse(strings.NewReader(`,`))
+	assert.Equal(t, json.Value{}, val)
+	assert.Equal(t, errObjectOrArrayRequired, err)
 }

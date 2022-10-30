@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/iter"
 	"github.com/bantling/micro/go/json"
 )
@@ -40,7 +41,7 @@ func parseValue(it iter.Iter[token]) json.Value {
 		return parseObject(it)
 	case tOBracket:
 		it.Unread(tok)
-		// Collect all array elements into a slice, and return it
+		// Assume this array is not top level document, collect all array elements into a slice and return it
 		return json.FromSliceOfValue(iter.ReduceToSlice(parseArray(it)).Must())
 	case tString:
 		return json.FromString(tok.value)
@@ -70,7 +71,7 @@ func parseObject(it iter.Iter[token]) json.Value {
 		value        json.Value
 		invalidValue json.Value
 		commaBrace   token
-		object       map[string]json.Value = map[string]json.Value{}
+		object       = map[string]json.Value{}
 	)
 
 	// Read as many key/value pairs as are provided
@@ -243,25 +244,41 @@ func Iterate(src io.Reader) iter.Iter[json.Value] {
 // Parse parses a JSON document fully before returning it, unlike Iterate which provides an iter.
 // Useful for cases like a configuration file, where you need the whole document, and it is easier to not have to iterate.
 // The top level object or array is provided as a Value.
-func Parse(src io.Reader) json.Value {
-	// First lexical element must be a { or [
+// If the reader can be parsed into a valid json document the result is (Value, nil), else it is (invalid value, error).
+func Parse(src io.Reader) (json.Value, error) {
 	var (
-		// Reader > iter[rune] > iter[token]
-		it               = lexer(iter.OfReaderAsRunes(src))
-		firstTok, haveIt = it.NextValue()
+		doc json.Value
+		err error
 	)
 
-	// Die if empty
-	if !haveIt {
-		panic(errEmptyDocument)
-	}
+	funcs.TryTo(
+		func() {
+			// First lexical element must be a { or [
+			var (
+				// Reader > iter[rune] > iter[token]
+				it               = lexer(iter.OfReaderAsRunes(src))
+				firstTok, haveIt = it.NextValue()
+			)
 
-	// If object or array, return the fully parsed object as a Value
-	if (firstTok.typ == tOBrace) || (firstTok.typ == tOBracket) {
-		it.Unread(firstTok)
-		return parseValue(it)
-	}
+			// Die if empty
+			if !haveIt {
+				panic(errEmptyDocument)
+			}
 
-	// Die if some other token exists that is not a brace or bracket
-	panic(errObjectOrArrayRequired)
+			// If object or array, return the fully parsed object as a Value
+			if (firstTok.typ == tOBrace) || (firstTok.typ == tOBracket) {
+				it.Unread(firstTok)
+				doc = parseValue(it)
+				return
+			}
+
+			// Die if some other token exists that is not a brace or bracket
+			panic(errObjectOrArrayRequired)
+		},
+		func(e any) {
+			err = e.(error)
+		},
+	)
+
+	return doc, err
 }

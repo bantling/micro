@@ -610,8 +610,7 @@ func FloatStringToBigRat(ival string, oval **big.Rat) error {
 		return fmt.Errorf(errMsg, ival, ival, "*big.Rat")
 	}
 
-	if err = StringToBigRat(ival, oval); err != nil {
-		return err
-	}
+	// If it is a float string, cannot fail to be parsed by StringToBigRat
+	StringToBigRat(ival, oval)
 	return nil
 }
