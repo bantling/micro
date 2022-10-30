@@ -534,20 +534,42 @@ func IsNonNil[T any]() func(T) bool {
 
 // ==== Error
 
-// Must panics if the error is non-nil, else returns
+// Must panics if the error is non-nil, else returns.
+// Useful to wrap calls to functions that return only an error.
 func Must(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
-// MustValue panics if the error is non-nil, else returns the value of type T
+// MustValue panics if the error is non-nil, else returns the value of type T.
+// Useful to wrap calls to functions that return a value and an error, where the value is only valid if the error is nil.
 func MustValue[T any](t T, err error) T {
 	if err != nil {
 		panic(err)
 	}
 
 	return t
+}
+
+// MustValue2 panics if the error is non-nil, else returns the values of types T and U.
+// Useful to wrap calls to functions that return two values and an error, where the values are only valid if the error is nil.
+func MustValue2[T, U any](t T, u U, err error) (T, U) {
+	if err != nil {
+		panic(err)
+	}
+
+	return t, u
+}
+
+// MustValue3 panics if the error is non-nil, else returns the values of types T, U, and V.
+// Useful to wrap calls to functions that return two values and an error, where the values are only valid if the error is nil.
+func MustValue3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
+	if err != nil {
+		panic(err)
+	}
+
+	return t, u, v
 }
 
 // ==== Supplier
@@ -599,14 +621,6 @@ func FirstValue2[T, U any](t T, u U) T {
 // FirstValue3 takes three values and returns only the first one.
 // Useful for functions that return three results and you only care about the first one
 func FirstValue3[T, U, V any](t T, u U, v V) T {
-	return t
-}
-
-// ==== Passthrough
-
-// Passthrough is a generic func that returns the argument passed as is.
-// Useful in some cases of generics.
-func Passthrough[T any](t T) T {
 	return t
 }
 

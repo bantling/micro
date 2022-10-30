@@ -53,8 +53,8 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 == TODO
 
 * Make lexing and parsing return error instead of panic
+* Modify tests to test errors/panics with strings rather than calling fmt to generate, to ensure string is readable.
 * Auto convert each JSON object into Go structs and vice-versa
 * Auto write JSON objects to an SQL table that holds a JSON column
 * Auto write JSON objects to an SQL table that uses individual columns for each field
 * Consider providing simplistic string based arbitrary concurrency that is not fast, but just does basic operations
-* Modify tests to test errors/panics with strings rather than calling fmt to generate, to ensure string is readable.

@@ -135,30 +135,7 @@ func OfStringAsLines(src string) Iter[string] {
 // Concatenate any number of Iter[T] into a single Iter[T] that iterates all the elements of each Iter[T], until the
 // last element of the last iterator has been returned.
 func Concat[T any](iters ...Iter[T]) Iter[T] {
-	var (
-		i    int
-		iter Iter[T]
-	)
-
-	return NewIter[T](func() (T, bool) {
-		for {
-			if i == len(iters) {
-				var zv T
-				return zv, false
-			}
-
-			if iter == nil {
-				iter = iters[i]
-			}
-
-			if (iter != nil) && iter.Next() {
-				return iter.Value(), true
-			}
-
-			iter = nil
-			i++
-		}
-	})
+	return NewIter(ConcatIterGen(iters))
 }
 
 // ==== IterImpl Methods

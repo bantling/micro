@@ -101,6 +101,18 @@ func TestReduceExpandSlice(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("%p", slc), fmt.Sprintf("%p", cmp))
 	assert.False(t, it.Next())
 
+	// Verify panics if target slice is shorter than iter
+	it = ReduceIntoSlice(slc)(Of(1, 2, 3))
+	funcs.TryTo(
+		func() {
+			it.Must()
+			assert.Fail(t, "Must die")
+		},
+		func(e any) {
+			assert.Equal(t, "runtime.boundsError{x:2, y:2, signed:true, code:0x0}", fmt.Sprintf("%#v", e))
+		},
+	)
+
 	it = ReduceToSlice(ExpandSlices(Of([]int{1, 2, 3}, nil, []int{}, []int{4, 5})))
 	assert.Equal(t, []int{1, 2, 3, 4, 5}, it.Must())
 	assert.False(t, it.Next())

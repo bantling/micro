@@ -34,8 +34,8 @@ type PInfo struct {
 
 // ==== Functions that provide the foundation for all other functions
 
-// First combines Next and Value together in a single call.
-// If there is another value, then the next value is returned, else a panic occurs.
+// First gets the first (next) value of the iter. May be called multiple times.
+// Panics if there is no value to return.
 func First[T any](it Iter[T]) T {
 	return it.Must()
 }

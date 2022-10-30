@@ -31,28 +31,12 @@ func TestOpenRange(t *testing.T) {
 	assert.Equal(t, Closed, maxOpen)
 
 	assert.Equal(t, 2, r.GetValue())
-	r.SetValue(3)
+	assert.Nil(t, r.SetValue(3))
 	assert.Equal(t, 3, r.GetValue())
 
-	// Die setting to 1, as open min is 1, so val must be > 1
-	funcs.TryTo(
-		func() {
-			r.SetValue(1)
-			assert.Fail(t, "Must die")
-		},
-		func(e any) {
-			assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 1, "1", ">", 1, "<=", 3), e)
-		},
-	)
+	// Error setting to 1, as open min is 1, so val must be > 1
+	assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 1, "1", ">", 1, "<=", 3), r.SetValue(1))
 
-	// Die setting to 4, as closed max is 3, so val must be <= 3
-	funcs.TryTo(
-		func() {
-			r.SetValue(4)
-			assert.Fail(t, "Must die")
-		},
-		func(e any) {
-			assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 4, "4", ">", 1, "<=", 3), e)
-		},
-	)
+	// Error setting to 4, as closed max is 3, so val must be <= 3
+	assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 4, "4", ">", 1, "<=", 3), r.SetValue(4))
 }

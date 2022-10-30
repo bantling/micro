@@ -296,3 +296,31 @@ func StringAsLinesIterGen(src string) func() (string, bool) {
 	// Use StringAsRunesIterGen to read individual runes until a line is read
 	return readLines(StringAsRunesIterGen(src))
 }
+
+// ConcatIterGen generates an iterating function that iterates all the values of all the Iters passed
+func ConcatIterGen[T any](src []Iter[T]) func() (T, bool) {
+	var (
+		i    int
+		iter Iter[T]
+	)
+
+	return func() (T, bool) {
+		for {
+			if i == len(src) {
+				var zv T
+				return zv, false
+			}
+
+			if iter == nil {
+				iter = src[i]
+			}
+
+			if (iter != nil) && iter.Next() {
+				return iter.Value(), true
+			}
+
+			iter = nil
+			i++
+		}
+	}
+}

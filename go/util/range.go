@@ -68,18 +68,19 @@ func (r Range[T]) GetValue() T {
 
 // SetValue sets the value.
 //
-//	Panics if the value cannot be set because it is outside the defined bounds.
-func (r *Range[T]) SetValue(val T) {
+//	Returns an error if the value cannot be set because it is outside the defined bounds, otherwise returns nil
+func (r *Range[T]) SetValue(val T) error {
 	if (((r.minMode == Open) && (val > r.min)) || ((r.minMode == Closed) && (val >= r.min))) &&
 		(((r.maxMode == Open) && (val < r.max)) || ((r.maxMode == Closed) && (val <= r.max))) {
 		r.val = val
-	} else {
-		panic(fmt.Errorf(
-			errOutsideRangeMsg,
-			val,
-			conv.ToString(val),
-			funcs.Ternary(r.minMode == Open, ">", ">="), r.min,
-			funcs.Ternary(r.maxMode == Open, "<", "<="), r.max,
-		))
+		return nil
 	}
+
+	return fmt.Errorf(
+		errOutsideRangeMsg,
+		val,
+		conv.ToString(val),
+		funcs.Ternary(r.minMode == Open, ">", ">="), r.min,
+		funcs.Ternary(r.maxMode == Open, "<", "<="), r.max,
+	)
 }

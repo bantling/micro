@@ -522,14 +522,53 @@ func TestMust(t *testing.T) {
 		func() { Must(e) },
 		func(err any) { assert.Equal(t, e, err) },
 	)
+}
 
-	e = nil
-	var i int
+func TestMustValue(t *testing.T) {
+	var (
+		e error
+		i int
+	)
 	assert.Equal(t, i, MustValue(i, e))
 
 	e = fmt.Errorf("bob")
 	TryTo(
-		func() { MustValue(i, e) },
+		func() { MustValue(i, e); assert.Fail(t, "Must die") },
+		func(err any) { assert.Equal(t, e, err) },
+	)
+}
+
+func TestMustValue2(t *testing.T) {
+	var (
+		e      error
+		p1, p2 = 1, 2
+		r1, r2 int
+	)
+	r1, r2 = MustValue2(p1, p2, e)
+	assert.Equal(t, p1, r1)
+	assert.Equal(t, p2, r2)
+
+	e = fmt.Errorf("bob")
+	TryTo(
+		func() { MustValue2(p1, p2, e); assert.Fail(t, "Must die") },
+		func(err any) { assert.Equal(t, e, err) },
+	)
+}
+
+func TestMustValue3(t *testing.T) {
+	var (
+		e          error
+		p1, p2, p3 = 1, 2, 3
+		r1, r2, r3 int
+	)
+	r1, r2, r3 = MustValue3(p1, p2, p3, e)
+	assert.Equal(t, p1, r1)
+	assert.Equal(t, p2, r2)
+	assert.Equal(t, p3, r3)
+
+	e = fmt.Errorf("bob")
+	TryTo(
+		func() { MustValue3(p1, p2, p3, e); assert.Fail(t, "Must die") },
 		func(err any) { assert.Equal(t, e, err) },
 	)
 }
@@ -564,10 +603,6 @@ func TestFirstValue2(t *testing.T) {
 
 func TestFirstValue3(t *testing.T) {
 	assert.Equal(t, 1, FirstValue3(1, 2, 3))
-}
-
-func TestPassthrough(t *testing.T) {
-	assert.Equal(t, 1, Passthrough(1))
 }
 
 func TestTryTo(t *testing.T) {
