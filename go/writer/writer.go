@@ -45,7 +45,7 @@ func OfSliceWriter[T any](dst *[]T) Writer[T] {
 }
 
 // OfMapWriter returns a Writer[KeyValue[K, V]] that writes to the given map
-func OfMapWriter[K comparable, V any](dst map[K]V) Writer[util.KeyValue[K, V]] {
+func OfMapWriter[K comparable, V any](dst map[K]V) Writer[util.Tuple2[K, V]] {
 	return NewWriter(MapWriterGen(dst))
 }
 

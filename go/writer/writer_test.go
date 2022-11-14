@@ -49,7 +49,7 @@ func TestOfMapWriter(t *testing.T) {
 	)
 	assert.NotNil(t, w)
 
-	w.Write(util.KVOf(1, "2"))
+	w.Write(util.Of2(1, "2"))
 	assert.Equal(t, map[int]string{1: "2"}, m)
 }
 

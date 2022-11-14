@@ -3,186 +3,31 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewIter(t *testing.T) {
 	it := NewIter(SliceIterGen[int]([]int{1, 2}))
-	assert.True(t, it.Next())
-	assert.Equal(t, 1, it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 2, it.Value())
-	assert.False(t, it.Next())
-	assert.False(t, it.Next())
-
-	it = Of(3)
-	assert.True(t, it.Next())
-	assert.Equal(t, 3, it.Value())
-	assert.False(t, it.Next())
-	assert.False(t, it.Next())
-
-	it = OfEmpty[int]()
-	assert.False(t, it.Next())
-	assert.False(t, it.Next())
-
-	it = OfOne(4)
-	assert.True(t, it.Next())
-	assert.Equal(t, 4, it.Value())
-	assert.False(t, it.Next())
-	assert.False(t, it.Next())
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(2, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
 
 	it = NewIter(FibonnaciIterGen())
-	assert.Equal(t, 1, it.Must())
-	assert.Equal(t, 1, it.Must())
-	assert.Equal(t, 2, it.Must())
-	assert.Equal(t, 3, it.Must())
-	assert.Equal(t, 5, it.Must())
-	assert.Equal(t, 8, it.Must())
-	assert.Equal(t, 13, it.Must())
-}
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(2, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(3, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(5, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(8, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(13, nil), Maybe(it))
 
-func TestOfMap(t *testing.T) {
-	src := map[string]int{"a": 1, "b": 2}
-	it := OfMap(src)
-	dst := map[string]int{}
-	assert.True(t, it.Next())
-	kv := it.Value()
-	dst[kv.Key] = kv.Value
-	assert.True(t, it.Next())
-	kv = it.Value()
-	dst[kv.Key] = kv.Value
-	assert.False(t, it.Next())
-	assert.Equal(t, src, dst)
-}
-
-func TestOfReader(t *testing.T) {
-	it := OfReader(strings.NewReader("ab"))
-	assert.True(t, it.Next())
-	assert.Equal(t, byte('a'), it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, byte('b'), it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestOfReaderAsRunes(t *testing.T) {
-	it := OfReaderAsRunes(strings.NewReader("ab"))
-	assert.True(t, it.Next())
-	assert.Equal(t, 'a', it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 'b', it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestOfStringAsRunes(t *testing.T) {
-	it := OfStringAsRunes("ab")
-	assert.True(t, it.Next())
-	assert.Equal(t, 'a', it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 'b', it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestOfReaderAsLines(t *testing.T) {
-	it := OfReaderAsLines(strings.NewReader("ab\ncd\ref\r\ngh"))
-	assert.True(t, it.Next())
-	assert.Equal(t, "ab", it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, "cd", it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, "ef", it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, "gh", it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestOfStringAsLines(t *testing.T) {
-	it := OfStringAsLines("ab\ncd\ref\r\ngh")
-	assert.True(t, it.Next())
-	assert.Equal(t, "ab", it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, "cd", it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, "ef", it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, "gh", it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestConcat(t *testing.T) {
-	it := Concat(Of(1), Of(2, 3))
-	assert.True(t, it.Next())
-	assert.Equal(t, 1, it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 2, it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 3, it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestUnread(t *testing.T) {
-	// Unread without next returning false
-	it := OfEmpty[int]()
-	it.Unread(1)
-	assert.True(t, it.Next())
-	assert.Equal(t, 1, it.Value())
-
-	// Unread with next returning false
-	it.Unread(2)
-	assert.True(t, it.Next())
-	assert.Equal(t, 2, it.Value())
-	assert.False(t, it.Next())
-
-	// Unread two values to test order, after next returns false
-	it.Unread(3)
-	it.Unread(4)
-	assert.True(t, it.Next())
-	assert.Equal(t, 3, it.Value())
-	assert.True(t, it.Next())
-	assert.Equal(t, 4, it.Value())
-	assert.False(t, it.Next())
-}
-
-func TestNextValue(t *testing.T) {
-	it := OfEmpty[int]()
-	val, haveIt := it.NextValue()
-	assert.False(t, haveIt)
-	assert.Equal(t, 0, val)
-
-	val, haveIt = it.NextValue()
-	assert.False(t, haveIt)
-	assert.Equal(t, 0, val)
-
-	it = Of(1)
-	val, haveIt = it.NextValue()
-	assert.True(t, haveIt)
-	assert.Equal(t, 1, val)
-
-	val, haveIt = it.NextValue()
-	assert.False(t, haveIt)
-	assert.Equal(t, 0, val)
-}
-
-func TestMust(t *testing.T) {
-	funcs.TryTo(
-		func() {
-			OfEmpty[int]().Must()
-			assert.Fail(t, "Must die")
-		},
-		func(err any) {
-			assert.Equal(t, errNoMoreValues, err)
-		},
-	)
-
-	it := Of(1)
-	assert.Equal(t, 1, it.Must())
-	assert.False(t, it.Next())
-}
-
-func TestFailure(t *testing.T) {
 	// Nil iter func
 	funcs.TryTo(
 		func() {
@@ -193,77 +38,132 @@ func TestFailure(t *testing.T) {
 			assert.Equal(t, errNewIterNeedsIterator, err)
 		},
 	)
-
-	// Call Next twice without calling Value when there is a value to read
-	funcs.TryTo(
-		func() {
-			it := Of(1)
-			it.Next()
-			it.Next()
-			assert.Fail(t, "Must die")
-		},
-		func(err any) {
-			assert.Equal(t, errValueExpected, err)
-		},
-	)
-
-	// Call Value before Next
-	funcs.TryTo(
-		func() {
-			it := Of(1)
-			it.Value()
-			assert.Fail(t, "Must die")
-		},
-		func(err any) {
-			assert.Equal(t, errNextExpected, err)
-		},
-	)
-
-	// Call Value twice
-	funcs.TryTo(
-		func() {
-			it := Of(1)
-			it.Next()
-			it.Value()
-			it.Value()
-			assert.Fail(t, "Must die")
-		},
-		func(err any) {
-			assert.Equal(t, errNextExpected, err)
-		},
-	)
 }
 
-func TestIOByteIterImpl(t *testing.T) {
-	it := OfReader(strings.NewReader("1"))
-	val, _ := it.NextValue()
-	assert.Equal(t, '1', rune(val))
-
-	it.Unread(val)
-	val, _ = it.NextValue()
-	assert.Equal(t, '1', rune(val))
-
-	val, _ = it.NextValue()
-	assert.Equal(t, byte(0), val)
-
-	// Unread of 0 gets ignored
-	it.Unread(val)
-	assert.False(t, it.Next())
+func TestOf(t *testing.T) {
+	it := Of(3, 4)
+	assert.Equal(t, util.Of2Error(3, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(4, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
 }
 
-func TestIORuneIterImpl(t *testing.T) {
-	it := OfReaderAsRunes(strings.NewReader("1"))
-	val, _ := it.NextValue()
-	assert.Equal(t, '1', val)
+func TestOfEmpty(t *testing.T) {
+	it := OfEmpty[int]()
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+}
 
-	it.Unread(val)
-	val, _ = it.NextValue()
-	assert.Equal(t, '1', rune(val))
+func TestOfOne(t *testing.T) {
+	it := OfOne(5)
+	assert.Equal(t, util.Of2Error(5, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+}
 
-	val, _ = it.NextValue()
-	assert.Equal(t, rune(0), val)
+func TestOfMap(t *testing.T) {
+	var (
+		src = map[string]int{"a": 1, "b": 2}
+		it  = OfMap(src)
+		dst = map[string]int{}
+	)
 
-	// Unread of 0 gets ignored
-	it.Unread(val)
-	assert.False(t, it.Next())
+	kv, err := it.Next()
+	assert.Nil(t, err)
+	dst[kv.T] = kv.U
+
+	kv, err = it.Next()
+	assert.Nil(t, err)
+	dst[kv.T] = kv.U
+
+	assert.Equal(t, util.Of2Error(util.Of2("", 0), EOI), Maybe(it))
+	assert.Equal(t, src, dst)
+}
+
+func TestOfReader(t *testing.T) {
+	it := OfReader(strings.NewReader("ab"))
+	assert.Equal(t, util.Of2Error(byte('a'), nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(byte('b'), nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(byte(0), EOI), Maybe(it))
+}
+
+func TestOfReaderAsRunes(t *testing.T) {
+	it := OfReaderAsRunes(strings.NewReader("ab"))
+	assert.Equal(t, util.Of2Error('a', nil), Maybe(it))
+	assert.Equal(t, util.Of2Error('b', nil), Maybe(it))
+	assert.Equal(t, util.Of2Error('\x00', EOI), Maybe(it))
+}
+
+func TestOfStringAsRunes(t *testing.T) {
+	it := OfStringAsRunes("ab")
+	assert.Equal(t, util.Of2Error('a', nil), Maybe(it))
+	assert.Equal(t, util.Of2Error('b', nil), Maybe(it))
+	assert.Equal(t, util.Of2Error('\x00', EOI), Maybe(it))
+}
+
+func TestOfReaderAsLines(t *testing.T) {
+	it := OfReaderAsLines(strings.NewReader("ab\ncd\ref\r\ngh"))
+	assert.Equal(t, util.Of2Error("ab", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("cd", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("ef", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("gh", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("", EOI), Maybe(it))
+}
+
+func TestOfStringAsLines(t *testing.T) {
+	it := OfStringAsLines("ab\ncd\ref\r\ngh")
+	assert.Equal(t, util.Of2Error("ab", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("cd", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("ef", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("gh", nil), Maybe(it))
+	assert.Equal(t, util.Of2Error("", EOI), Maybe(it))
+}
+
+func TestConcat(t *testing.T) {
+	it := Concat(Of(1), Of(2, 3))
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(2, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(3, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+}
+
+func TestUnread(t *testing.T) {
+	// Unread before next
+	it := OfEmpty[int]()
+	it.Unread(1)
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+
+	// Unread after next
+	it.Unread(2)
+	assert.Equal(t, util.Of2Error(2, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+
+	// Unread two values to test order, after next returns EOI
+	it.Unread(3)
+	it.Unread(4)
+	assert.Equal(t, util.Of2Error(4, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(3, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+}
+
+func TestMaybe(t *testing.T) {
+	it := OfEmpty[int]()
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+
+	it = OfOne(1)
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, EOI), Maybe(it))
+}
+
+func TestSetError(t *testing.T) {
+	anErr := fmt.Errorf("An err")
+	it := SetError(OfEmpty[int](), anErr)
+	assert.Equal(t, util.Of2Error(0, anErr), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, anErr), Maybe(it))
+
+	it = SetError(OfOne(1), anErr)
+	assert.Equal(t, util.Of2Error(1, nil), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, anErr), Maybe(it))
+	assert.Equal(t, util.Of2Error(0, anErr), Maybe(it))
 }

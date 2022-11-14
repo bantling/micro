@@ -60,348 +60,404 @@ var (
 	tokTrue     = token{tBoolean, "true"}
 	tokFalse    = token{tBoolean, "false"}
 	tokNull     = token{tNull, "null"}
-	tokEOF      = token{tEOF, ""}
 )
 
 // lexString lexes a string token, where the iter begins by returning the opening quote character.
 // the returned token does not contain the quotes, only the runes between them.
-func lexString(it iter.Iter[rune]) token {
+func lexString(it iter.Iter[rune]) (token, error) {
 	var (
 		str          = []rune{}
-		readUTF16Hex = func(temp *[]rune) rune {
-			var (
-				hexVal rune
-				r      rune
-			)
+		val          rune
+		zv           = token{}
+		err          error
+		readUTF16Hex = func(temp *[]rune) (rune, error) {
+			var hexVal rune
 
 			for i := 0; i < 4; i++ {
-				if !it.Next() {
-					panic(fmt.Errorf(errIllegalStringEscapeMsg, string(*temp)))
+				if val, err = it.Next(); err != nil {
+					if err == iter.EOI {
+						return 0, fmt.Errorf(errIncompleteStringEscapeMsg, string(*temp))
+					}
+					return 0, err
 				}
 
-				r = it.Value()
-				*temp = append(*temp, r)
-				if (r >= '0') && (r <= '9') {
-					hexVal = hexVal*16 + r - '0'
-				} else if (r >= 'A') && (r <= 'F') {
-					hexVal = hexVal*16 + r - 'A' + 10
-				} else if (r >= 'a') && (r <= 'f') {
-					hexVal = hexVal*16 + r - 'a' + 10
+				*temp = append(*temp, val)
+				if (val >= '0') && (val <= '9') {
+					hexVal = hexVal*16 + val - '0'
+				} else if (val >= 'A') && (val <= 'F') {
+					hexVal = hexVal*16 + val - 'A' + 10
+				} else if (val >= 'a') && (val <= 'f') {
+					hexVal = hexVal*16 + val - 'a' + 10
 				} else {
-					panic(fmt.Errorf(errIllegalStringEscapeMsg, string(*temp)))
+					return 0, fmt.Errorf(errIllegalStringEscapeMsg, string(*temp))
 				}
 			}
 
-			return hexVal
+			return hexVal, nil
 		}
 	)
 
 	// Discard opening quote
-	it.Must()
+	it.Next()
 
 	// Loop until we find unescaped closing double quote
-	for it.Next() {
-		r := it.Value()
+	for {
+		if val, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				return zv, fmt.Errorf(errIncompleteStringMsg, string(str))
+			}
+			return zv, err
+		}
 
 		// ASCII control characters cannot be in a string
-		if r < ' ' {
-			panic(fmt.Errorf(errControlCharInStringMsg, r))
+		if val < ' ' {
+			return zv, fmt.Errorf(errControlCharInStringMsg, val)
 		}
 
 		// If we read a backslash, it must be followed by ", \, /, b, f, n, r, t, or u and 4 hex chars
-		if r == '\\' {
-			if !it.Next() {
-				panic(fmt.Errorf(errIncompleteStringEscapeMsg, string(append(str, r))))
+		if val == '\\' {
+			if val, err = it.Next(); err != nil {
+				if err == iter.EOI {
+					return zv, fmt.Errorf(errIncompleteStringEscapeMsg, string(append(str, '\\')))
+				}
+				return zv, err
 			}
 
-			r = it.Value()
-			switch r {
+			switch val {
 			case '"': // Escaped double quote
-				// Special case - we cannot just set r to a ", that would cause later code to think it is the end of the string
+				// Special case - we cannot just set val to a ", that would cause later code to think it is the end of the string
 				str = append(str, '"')
 				continue
 			case '\\': // Escaped backslash
-				r = '\\'
+				val = '\\'
 			case '/': // Escaped forward slash
-				r = '/'
+				val = '/'
 			case 'b': // Escaped backspace
-				r = '\b'
+				val = '\b'
 			case 'f': // Escaped form feed
-				r = '\f'
+				val = '\f'
 			case 'n': // Escaped line feed
-				r = '\n'
+				val = '\n'
 			case 'r': // Escaped carriage return
-				r = '\r'
+				val = '\r'
 			case 't': // Escaped tab
-				r = '\t'
+				val = '\t'
 			case 'u': // Escaped unicode char in UTF-16
 				// Must be followed by 4 hex chars
 				var (
 					temp   = []rune{'\\', 'u'}
-					hexVal = readUTF16Hex(&temp)
+					hexVal rune
 				)
+				if hexVal, err = readUTF16Hex(&temp); err != nil {
+					return zv, err
+				}
 
-				// Is this escape a UTF-16 part of a surrogate pair?
+				// Is this escape part of a UTF-16 surrogate pair?
 				if utf16.IsSurrogate(hexVal) {
 					temp2 := []rune{}
 
 					// Then we expect another \u sequence to immediately follow that is alao part of a surrogate pair
-					if !it.Next() {
-						panic(fmt.Errorf(errOneSurrogateEscapeMsg, string(temp)))
+					if val, err = it.Next(); err != nil {
+						if err == iter.EOI {
+							return zv, fmt.Errorf(errOneSurrogateEscapeMsg, string(temp))
+						}
+						return zv, err
 					}
-					if r = it.Value(); r != '\\' {
-						panic(fmt.Errorf(errOneSurrogateEscapeMsg, string(temp)))
-					}
-					temp2 = append(temp2, r)
 
-					if !it.Next() {
-						panic(fmt.Errorf(errOneSurrogateEscapeMsg, string(temp)))
+					if val != '\\' {
+						return zv, fmt.Errorf(errOneSurrogateEscapeMsg, string(temp))
 					}
-					if r = it.Value(); r != 'u' {
-						panic(fmt.Errorf(errOneSurrogateEscapeMsg, string(temp)))
-					}
-					temp2 = append(temp2, r)
+					temp2 = append(temp2, val)
 
-					hexVal2 := readUTF16Hex(&temp2)
+					if val, err = it.Next(); err != nil {
+						if err == iter.EOI {
+							return zv, fmt.Errorf(errOneSurrogateEscapeMsg, string(temp))
+						}
+						return zv, err
+					}
+
+					if val != 'u' {
+						return zv, fmt.Errorf(errOneSurrogateEscapeMsg, string(temp))
+					}
+					temp2 = append(temp2, val)
+
+					var hexVal2 rune
+					if hexVal2, err = readUTF16Hex(&temp2); err != nil {
+						return zv, err
+					}
 					if !utf16.IsSurrogate(hexVal2) {
-						panic(fmt.Errorf(errSurrogateNonSurrogateEscapeMsg, string(temp), string(temp2)))
+						return zv, fmt.Errorf(errSurrogateNonSurrogateEscapeMsg, string(temp), string(temp2))
 					}
 
 					// DecodeRune returns 0xFFFD if the pair is not a valid UTF-16 pair.
 					// Note that UTF-16 can be big or little endian, and so can the processor.
 					// Go decodes in the order presented in RFC8259 regardless of processor, where U+1D11E is encoded as \uD834\uDD1E.
 					if hexVal = utf16.DecodeRune(hexVal, hexVal2); hexVal == 0xFFFD {
-						panic(fmt.Errorf(errSurrogateDecodeEscapeMsg, string(temp)+string(temp2)))
+						return zv, fmt.Errorf(errSurrogateDecodeEscapeMsg, string(temp)+string(temp2))
 					}
 				}
 
-				r = hexVal
+				val = hexVal
 			default:
-				panic(fmt.Errorf(errIllegalStringEscapeMsg, string('\\')+string(r)))
+				return zv, fmt.Errorf(errIllegalStringEscapeMsg, string('\\')+string(val))
 			}
 		}
 
-		// r is the next chara to add, whether a plain or escaped char, or escaped surrogate pair
+		// val is the next char to add, whether a plain or escaped char, or escaped surrogate pair
 		// Discard closing quote
-		if r == '"' {
-			return token{tString, string(str)}
+		if val == '"' {
+			break
 		}
-		str = append(str, r)
+		str = append(str, val)
 	}
 
-	panic(fmt.Errorf(errIncompleteStringMsg, `"`+string(str)))
+	return token{tString, string(str)}, nil
 }
 
 // lexNumber lexes a number token, where the iter begins by returning the first rune, which may be a leading - or a digit.
 // The returned token contains every character up to last digit read.
-func lexNumber(it iter.Iter[rune]) token {
-	// There must be first char, it may be a - or digit, just add it. That way, loop can read required digits before dot.
-	it.Next()
+func lexNumber(it iter.Iter[rune]) (token, error) {
+	// There must be first char, it may be a - or digit
+	val, err := it.Next()
 	var (
 		str       []rune
-		r         = it.Value()
-		haveDigit = r != '-'
-		die       = func() { panic(fmt.Errorf(errInvalidNumberMsg, string(str))) }
-		tok       = func() token { it.Unread(r); return token{tNumber, string(str)} }
+		zv        token
+		haveDigit = val != '-'
+		die       = func() (token, error) {
+			if (err != nil) && (err != iter.EOI) {
+				// A problem
+				return zv, err
+			}
+
+			// EOI or other lexing problem
+			return token{}, fmt.Errorf(errInvalidNumberMsg, string(str))
+		}
+		tok = func() (token, error) {
+			if err == nil {
+				it.Unread(val)
+			}
+			return token{tNumber, string(str)}, nil
+		}
 	)
-	str = append(str, r)
+	str = append(str, val)
 
 	// Read digits until dot or e or non-dot non-e non-digit
-	r = 0
-	for it.Next() {
-		if r = it.Value(); (r >= '0') && (r <= '9') {
+	for {
+		if val, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				if !haveDigit {
+					return die()
+				}
+
+				return tok()
+			}
+			// A problem
+			return zv, err
+		}
+
+		if (val >= '0') && (val <= '9') {
 			haveDigit = true
-			str = append(str, r)
-		} else if r == '.' {
-			str = append(str, r)
+			str = append(str, val)
+		} else if val == '.' {
+			str = append(str, val)
 			if haveDigit {
 				break
 			}
 
-			die()
-		} else if (r == 'e') || (r == 'E') {
-			str = append(str, r)
+			return die()
+		} else if (val == 'e') || (val == 'E') {
+			str = append(str, val)
 			if haveDigit {
 				break
 			}
 
-			die()
+			return die()
 		} else {
 			// Ok to have just optional - and some digits
 			if haveDigit {
 				return tok()
 			}
 
-			die()
+			return die()
 		}
-
-		r = 0
-	}
-
-	// EOF may have occured
-	if r == 0 {
-		if !haveDigit {
-			die()
-		}
-		return tok()
 	}
 
 	// Last char may be dot or e or E. If it's a dot, read at least one digit until e or non-e non-digit
-	if r == '.' {
+	if val == '.' {
 		// Must have at least one digit after dot
 		haveDigit = false
-		if !it.Next() {
-			die()
-		}
-		it.Unread(it.Value())
+		for {
+			if val, err = it.Next(); err != nil {
+				if err == iter.EOI {
+					if !haveDigit {
+						return die()
+					}
 
-		r = 0
-		for it.Next() {
-			if r = it.Value(); (r >= '0') && (r <= '9') {
+					// Ok to just have optional -, some digits, a dot, and some digits.
+					return tok()
+				}
+
+				// A problem
+				return zv, err
+			}
+
+			if (val >= '0') && (val <= '9') {
 				haveDigit = true
-				str = append(str, r)
-			} else if (r == 'e') || (r == 'E') {
-				str = append(str, r)
+				str = append(str, val)
+			} else if (val == 'e') || (val == 'E') {
+				str = append(str, val)
 				if haveDigit {
 					break
 				}
 
-				die()
+				return die()
 			} else {
 				if haveDigit {
 					return tok()
 				}
 
-				die()
+				return die()
 			}
-
-			r = 0
 		}
-	}
-
-	if r == 0 {
-		return tok()
 	}
 
 	// Last char must be e or E. Read optional + or - and at least one digit until a non-digit
 	haveDigit = false
-	if !it.Next() {
-		die()
+	if val, err = it.Next(); err != nil {
+		return die()
 	}
 
-	if r = it.Value(); (r == '+') || (r == '-') {
+	if (val == '+') || (val == '-') {
 		// Append sign
-		str = append(str, r)
+		str = append(str, val)
 	} else {
 		// Unread what is hopefully a digit
-		it.Unread(r)
+		it.Unread(val)
 	}
 
-	r = 0
-	for it.Next() {
-		if r = it.Value(); (r >= '0') && (r <= '9') {
+	for {
+		if val, err = it.Next(); err != nil {
+			if (err == iter.EOI) && haveDigit {
+				// At least one digit after e or E and optional sign
+				return tok()
+			}
+			// Either EOI with no digit after e or E, or a problem
+			return die()
+		}
+
+		if (val >= '0') && (val <= '9') {
 			haveDigit = true
-			str = append(str, r)
+			str = append(str, val)
 		} else {
 			if haveDigit {
-				// Have to break here so we can have return statement at top level of function
 				break
 			}
 
-			die()
+			return die()
 		}
-
-		r = 0
-	}
-
-	if (r == 0) && (!haveDigit) {
-		die()
 	}
 
 	return tok()
 }
 
 // lexBooleanNull lexes a boolean or null token, where the iter begins by returning the first rune.
-func lexBooleanNull(it iter.Iter[rune]) token {
+func lexBooleanNull(it iter.Iter[rune]) (token, error) {
 	var (
 		str []rune
-		r   rune
+		val rune
+		err error
+		zv  token
 	)
 
 	// Just read chars until a non-lowercase letter
-	for it.Next() {
-		if r = it.Value(); (r >= 'a') && (r <= 'z') {
-			str = append(str, r)
+	for {
+		if val, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				break
+			}
+			// A problem
+			return zv, err
+		}
+
+		if (val >= 'a') && (val <= 'z') {
+			str = append(str, val)
 		} else {
 			// First char for next token
-			it.Unread(r)
+			it.Unread(val)
 			break
 		}
 	}
 
 	cstr := string(str)
-	if cstr == "true" {
-		return tokTrue
-	} else if cstr == "false" {
-		return tokFalse
-	} else if cstr == "null" {
-		return tokNull
+	switch cstr {
+	case "true":
+		return tokTrue, nil
+	case "false":
+		return tokFalse, nil
+	case "null":
+		return tokNull, nil
 	}
 
-	panic(fmt.Errorf(errInvalidBooleanNullMsg, string(str)))
+	return zv, fmt.Errorf(errInvalidBooleanNullMsg, string(str))
 }
 
 // lex lexes the next token, which must be [, ], {, }, comma, :, string, number, boolean, null, or eof.
 // Skip whitespace chars.
-func lex(it iter.Iter[rune]) token {
+func lex(it iter.Iter[rune]) (token, error) {
 	// Handle eof
-	if !it.Next() {
-		return tokEOF
+	var zv token
+	val, err := it.Next()
+	if err != nil {
+		// EOI or problem, doesn't matter which
+		return zv, err
 	}
 
-	it.Unread(it.Value())
+	it.Unread(val)
 
 	// Skip ws
-	var r rune
-	for it.Next() {
-		if r = it.Value(); !((r == ' ') || (r == '\n') || (r == '\r') || (r == '\t')) {
+	for {
+		if val, err = it.Next(); err != nil {
+			// EOI or problem, doesn't matter which
+			return zv, err
+		}
+
+		if !((val == ' ') || (val == '\n') || (val == '\r') || (val == '\t')) {
 			break
 		}
 	}
 
 	// First non-ws char
 	switch {
-	case r == '[':
-		return tokOBracket
-	case r == ']':
-		return tokCBracket
-	case r == '{':
-		return tokOBrace
-	case r == '}':
-		return tokCBrace
-	case r == ',':
-		return tokComma
-	case r == ':':
-		return tokColon
-	case r == '"':
-		it.Unread(r)
+	case val == '[':
+		return tokOBracket, nil
+	case val == ']':
+		return tokCBracket, nil
+	case val == '{':
+		return tokOBrace, nil
+	case val == '}':
+		return tokCBrace, nil
+	case val == ',':
+		return tokComma, nil
+	case val == ':':
+		return tokColon, nil
+	case val == '"':
+		it.Unread(val)
 		return lexString(it)
-	case (r == '-') || ((r >= '0') && (r <= '9')):
-		it.Unread(r)
+	case (val == '-') || ((val >= '0') && (val <= '9')):
+		it.Unread(val)
 		return lexNumber(it)
-	case (r == 't') || (r == 'f') || (r == 'n'):
-		it.Unread(r)
+	case (val == 't') || (val == 'f') || (val == 'n'):
+		it.Unread(val)
 		return lexBooleanNull(it)
 	}
 
 	// Anything except the above is an illegal character
-	panic(fmt.Errorf(errInvalidCharMsg, r))
+	return zv, fmt.Errorf(errInvalidCharMsg, val)
 }
 
 // lexer uses lex and converts an iter[rune] into an iter[token]
 func lexer(it iter.Iter[rune]) iter.Iter[token] {
-	return iter.NewIter(func() (token, bool) {
-		tok := lex(it)
-		return tok, tok != tokEOF
+	return iter.NewIter(func() (token, error) {
+		return lex(it)
 	})
 }

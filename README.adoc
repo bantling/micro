@@ -53,7 +53,28 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 == TODO
 
 * Modify tests to test errors/panics with strings rather than calling fmt to generate, to ensure string is readable.
+* Resolve issues of cyclic imports by arranging code in tiers
+** Have dirs named shared/tier1, shared/tier2, etc that contain only unexported symbols that packages in that tier
+   can access via a dot import
+** dirs in tier1 are compiled separately, with each dir having access only to itself and shared/tier1
+** dirs in tier2 are compiled separately, with each dir having access only to itself, shared/tier2, and all tier1 dirs
+* Add math ops to streams - average, sum, max, min. Also add count.
 * Auto convert each JSON object into Go structs and vice-versa
-* Auto write JSON objects to an SQL table that holds a JSON column
 * Auto write JSON objects to an SQL table that uses individual columns for each field
-* Consider providing simplistic string based arbitrary concurrency that is not fast, but just does basic operations
+** Auto generate DDL for all free databases
+** Struct tags to say if indexing is needed
+** detect db by driver struct name
+** Work with whole database or schema
+** Different strategies for joins:
+*** Embedded struct by default is flat table, with parent and child columns together (disambiguate name conflicts with struct tag)
+    Can embedded struct have a tag to say make it separate or bridged?
+*** Child struct by default is separate table, tag can make it flat or bridged
+** requirements can be specd as a map[string db vendor]map[string object name]map[string property name]propdef, or by reading a struct.
+   dbvendor is a string like mssql, postgresql, mysql, etc.
+   propdef is a union of string coldef and map[string property name]propdef.
+   coldef defines a column as just a single string, like 'varchar(max)' for mssql.
+* Consider providing simplistic string based arbitrary precision that is not fast, but just does basic operations
+* ETL operations
+** JSON iter of PV pairs for objects, where P is path
+** JSON look up a string path of key names and indexes, as in "addresses[0].city"
+** Look at steps Pentaho and Talend provide as a rough guide

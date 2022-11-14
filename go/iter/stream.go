@@ -3,7 +3,6 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"fmt"
 	"math"
 	"math/bits"
 	"reflect"
@@ -12,10 +11,6 @@ import (
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/util"
-)
-
-var (
-	errSkipLimitValueCannotBeNegative = fmt.Errorf("The Skip or Limit value cannot be negative")
 )
 
 // PUnit indicates how to interpret a parallel quantity
@@ -34,56 +29,66 @@ type PInfo struct {
 
 // ==== Functions that provide the foundation for all other functions
 
-// First gets the first (next) value of the iter. May be called multiple times.
-// Panics if there is no value to return.
-func First[T any](it Iter[T]) T {
-	return it.Must()
-}
-
 // Map constructs a new Iter[U] from an Iter[T] and a func that transforms a T to a U.
+//
+// The resulting iter can return any kind of error from source iter, or EOI.
 func Map[T, U any](mapper func(T) U) func(Iter[T]) Iter[U] {
 	return func(it Iter[T]) Iter[U] {
-		return NewIter(func() (U, bool) {
-			if it.Next() {
-				return mapper(it.Value()), true
+		return NewIter(func() (U, error) {
+			val, err := it.Next()
+			if err == nil {
+				return mapper(val), nil
 			}
 
 			var zv U
-			return zv, false
+			return zv, err
 		})
 	}
 }
 
 // Filter constructs a new Iter[T] from an Iter[T] and a func that returns true if a T passes the filter.
+//
+// The resulting iter can return any kind of error from source iter, or EOI.
 func Filter[T any](filter func(T) bool) func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		return NewIter(func() (T, bool) {
-			for it.Next() {
-				if val := it.Value(); filter(val) {
-					return val, true
+		return NewIter(func() (T, error) {
+			var (
+				val T
+				err error
+			)
+			for {
+				val, err = it.Next()
+				if err == nil {
+					if filter(val) {
+						return val, nil
+					}
+				} else {
+					break
 				}
 			}
 
 			var zv T
-			return zv, false
+			return zv, err
 		})
 	}
 }
 
-// Reduce reduces all elements in the input set to a single element of the same type, depending on two factors:
+// Reduce reduces all elements in the input set to an empty or single element output set, depending on two factors:
 // - the number of elements in the input set (0, 1, or multiple)
 // - whether or not the optional identity is provided
 //
 // If the optional identity is NOT provided:
 // - 0 elements: empty
-// - 1 elements: the element
+// - 1 element: the element
 // - multiple elements: reducer(reducer(reducer(first, second), third), ...)
 //
 //	If the optional identity IS provided:
 //
 // - 0 elements: identity
-// - 1 elements: reducer(identity, the element)
+// - 1 element: reducer(identity, the element)
 // - multiple elements: reducer(reducer(reducer(identity, first), second), ...)
+//
+// The resulting iter can return any kind of error from source iter, or EOI.
 func Reduce[T any](
 	reducer func(T, T) T,
 	identity ...T,
@@ -91,49 +96,78 @@ func Reduce[T any](
 	return func(it Iter[T]) Iter[T] {
 		var done bool
 
-		return NewIter(func() (T, bool) {
-			var zv T
+		return NewIter(func() (T, error) {
+			var (
+				val T
+				zv  T
+				err error
+			)
 
 			if done {
-				return zv, false
+				return zv, EOI
 			}
 
 			done = true
 
 			if len(identity) == 0 {
 				// No identity
-				if !it.Next() {
-
-					// 0 elements = Empty set
-					return zv, false
+				val, err = it.Next()
+				if err != nil {
+					// 0 elements = Empty set, return error that may be EOI or a problem
+					return zv, err
 				} else {
 					// At least one element, start with first element
-					result := it.Value()
+					result := val
 
-					for it.Next() {
-						// If there are more elements, make cumulative reducer calls
-						result = reducer(result, it.Value())
+					for {
+						val, err = it.Next()
+						if err == nil {
+							// If there are more elements, make cumulative reducer calls
+							result = reducer(result, val)
+						} else if err != EOI {
+							// A problem occurred, toss result
+							return zv, err
+						} else {
+							// An EOI occurred
+							break
+						}
 					}
 
-					return result, true
+					// Successfully return result
+					return result, nil
 				}
 			}
 
 			// There is an identity
 			identityVal := identity[0]
-			if !it.Next() {
-				// 0 elements = identity
-				return identityVal, true
+			val, err = it.Next()
+			if err != nil {
+				if err == EOI {
+					// 0 elements = identity
+					return identityVal, nil
+				}
+				// A problem
+				return zv, err
 			} else {
 				// At least one element, call reducer with identity and first element
-				result := reducer(identityVal, it.Value())
+				result := reducer(identityVal, val)
 
-				for it.Next() {
-					// If there are more elements, make cumulative reducer calls
-					result = reducer(result, it.Value())
+				for {
+					val, err = it.Next()
+					if err == nil {
+						// If there are more elements, make cumulative reducer calls
+						result = reducer(result, val)
+					} else if err != EOI {
+						// A problem occurred, toss result
+						return zv, err
+					} else {
+						// An EOI occurred
+						break
+					}
 				}
 
-				return result, true
+				// Successfully return result
+				return result, nil
 			}
 		})
 	}
@@ -142,6 +176,8 @@ func Reduce[T any](
 // ReduceTo is similar to Reduce, except that:
 // - The result does not have to be the same type
 // - If no identity value is given, the zero value is used
+//
+// The resulting iter can return any kind of error from source iter, or EOI.
 func ReduceTo[T, U any](
 	reducer func(U, T) U,
 	identity ...U,
@@ -149,117 +185,185 @@ func ReduceTo[T, U any](
 	return func(it Iter[T]) Iter[U] {
 		var done bool
 
-		return NewIter(func() (U, bool) {
-			var zv U
+		return NewIter(func() (U, error) {
+			var (
+				val T
+				zv  U
+				err error
+			)
 
 			if done {
-				return zv, false
+				return zv, EOI
 			}
 
 			done = true
 
 			if len(identity) == 0 {
 				// No identity
-				if !it.Next() {
-					// 0 elements = Empty set
-					return zv, true
+				val, err = it.Next()
+				if err != nil {
+					// 0 elements = Empty set, return error that may be EOI or a problem
+					return zv, err
 				} else {
 					// At least one element, call reducer with zero value and first element
-					result := reducer(zv, it.Value())
+					result := reducer(zv, val)
 
-					for it.Next() {
-						// If there are more elements, make cumulative reducer calls, combining old and new results
-						result = reducer(result, it.Value())
+					for {
+						val, err = it.Next()
+						if err == nil {
+							// If there are more elements, make cumulative reducer calls, combining old and new results
+							result = reducer(result, val)
+						} else if err != EOI {
+							// A problem occurred, toss result
+							return zv, err
+						} else {
+							// An EOI occurred
+							break
+						}
 					}
 
-					return result, true
+					// Successfully return result
+					return result, nil
 				}
 			}
 
 			// There is an identity
 			identityVal := identity[0]
-
-			if !it.Next() {
-				// 0 elements = identity
-				return identityVal, true
+			val, err = it.Next()
+			if err != nil {
+				if err == EOI {
+					// 0 elements = identity
+					return identityVal, nil
+				}
+				// A problem
+				return zv, err
 			} else {
 				// At least one element, call reducer with identity and first element
-				result := reducer(identityVal, it.Value())
+				result := reducer(identityVal, val)
 
-				for it.Next() {
-					// If there are more elements, make cumulative reducer calls, combining old and new results
-					result = reducer(result, it.Value())
+				for {
+					val, err = it.Next()
+					if err == nil {
+						// If there are more elements, make cumulative reducer calls
+						result = reducer(result, val)
+					} else if err != EOI {
+						// A problem occurred, toss result
+						return zv, err
+					} else {
+						// An EOI occurred
+						break
+					}
 				}
 
-				return result, true
+				// Successfully return result
+				return result, nil
 			}
 		})
 	}
 }
 
 // ReduceToBool is similar to ReduceTo, except that it uses boolean short circuit logic to stop iterating early if
-// possible. If stopIfTrue is true, then early termination occurs on first call to reducer that returns true, else it
-// occurs on first call to reducer that returns false.
+// possible. If stopVal is true, then early termination occurs on the first call to reducer that returns true, else it
+// occurs on the first call to reducer that returns false.
 func ReduceToBool[T any](
 	predicate func(T) bool,
 	identity bool,
-	stopIfTrue bool,
+	stopVal bool,
 ) func(Iter[T]) Iter[bool] {
 	return func(it Iter[T]) Iter[bool] {
 		var done bool
 
-		return NewIter(func() (bool, bool) {
+		return NewIter(func() (bool, error) {
 			if done {
-				return false, false
+				return false, EOI
 			}
 
 			done = true
 
-			if !it.Next() {
-				// 0 elements = identity
-				return identity, true
+			var (
+				val T
+				err error
+			)
+
+			val, err = it.Next()
+			if err != nil {
+				if err == EOI {
+					// 0 elements = identity
+					return identity, nil
+				}
+				// A problem occurred
+				return false, err
 			} else {
 				// At least one element, call reducer with identity and first element
-				result := predicate(it.Value())
-				if result == stopIfTrue {
+				result := predicate(val)
+				if result == stopVal {
 					// Stop early if result matches stopping condition
-					return result, true
+					return result, nil
 				}
 
-				for it.Next() {
-					// If there are more elements, make cumulative reducer calls, combining old and new results
-					result = predicate(it.Value())
-					if result == stopIfTrue {
+				for {
+					val, err = it.Next()
+					if err != nil {
+						if err == EOI {
+							// Successfully return result
+							break
+						}
+						// A problem
+						return false, err
+					}
+
+					// If there are more elements, call predicate
+					result = predicate(val)
+					if result == stopVal {
 						// Stop early if result matches stopping condition
-						return result, true
+						return result, nil
 					}
 				}
 
-				return result, true
+				// Successfully return result
+				return result, nil
 			}
 		})
 	}
 }
 
-// ReduceToSlice reduces an Iter[T] into a Iter[[]T] that contains a single element if type []T.
+// ReduceToSlice reduces an Iter[T] into a Iter[[]T] that contains a single element of type []T.
 // Eg, an Iter[int] of 1,2,3,4,5 becomes an Iter[[]int] of [1,2,3,4,5].
 // An empty Iter is reduced to a zero length slice.
 func ReduceToSlice[T any](it Iter[T]) Iter[[]T] {
 	var done bool
 
-	return NewIter(func() ([]T, bool) {
+	return NewIter(func() ([]T, error) {
 		if done {
-			return nil, false
+			return nil, EOI
 		}
 
 		done = true
 
-		slc := []T{}
-		for it.Next() {
-			slc = append(slc, it.Value())
+		var (
+			val T
+			err error
+			slc = []T{}
+		)
+
+		for {
+			val, err = it.Next()
+			if err != nil {
+				if err == EOI {
+					// Successfully iterated all values
+					break
+				}
+				// A problem
+				var zv []T
+				return zv, err
+			}
+
+			// Append element
+			slc = append(slc, val)
 		}
 
-		return slc, true
+		// Successfully return result
+		return slc, nil
 	})
 }
 
@@ -267,7 +371,8 @@ func ReduceToSlice[T any](it Iter[T]) Iter[[]T] {
 // - It accepts a target slice to append results to
 // - It generates a transform
 //
-// The generated transform panics if the target slice length is not at least as many elements as the source iter
+// The generated transform panics if the target slice length is not at least as many elements as the source iter.
+// If the underlying iter returns a non-nil non-EOI error, the provided slice will have zero values.
 func ReduceIntoSlice[T any](slc []T) func(Iter[T]) Iter[[]T] {
 	return func(it Iter[T]) Iter[[]T] {
 		var (
@@ -275,19 +380,40 @@ func ReduceIntoSlice[T any](slc []T) func(Iter[T]) Iter[[]T] {
 			i    int
 		)
 
-		return NewIter(func() ([]T, bool) {
+		return NewIter(func() ([]T, error) {
 			if done {
-				return nil, false
+				return nil, EOI
 			}
 
 			done = true
 
-			for it.Next() {
-				slc[i] = it.Value()
+			var (
+				val T
+				err error
+			)
+
+			for {
+				val, err = it.Next()
+				if err != nil {
+					if err == EOI {
+						// Successfully iterated all values
+						break
+					}
+					// A problem
+					var zv T
+					for i := range slc {
+						slc[i] = zv
+					}
+					return slc, err
+				}
+
+				// Set next slice index
+				slc[i] = val
 				i++
 			}
 
-			return slc, true
+			// Successfully return result
+			return slc, nil
 		})
 	}
 }
@@ -302,14 +428,31 @@ func ExpandSlices[T any](it Iter[[]T]) Iter[T] {
 		idx int
 	)
 
-	return NewIter(func() (T, bool) {
+	return NewIter(func() (T, error) {
 		if (slc == nil) || (idx == len(slc)) {
 			// Search for next non-nil non-empty slice
 			// Nilify slc var in case we just finished iterating last element of last slice, which is non-nil
 			slc = nil
 
-			for it.Next() {
-				if slc = it.Value(); (slc != nil) && (len(slc) > 0) {
+			var (
+				zv  T
+				err error
+			)
+
+			for {
+				slc, err = it.Next()
+				if err != nil {
+					if err == EOI {
+						// Successfully iterated all values - slc shd be nil, but make sure
+						slc = nil
+						break
+					}
+					// A problem
+					return zv, err
+				}
+
+				if (slc != nil) && (len(slc) > 0) {
+					// Found a non-empty slice
 					idx = 0
 					break
 				}
@@ -317,15 +460,15 @@ func ExpandSlices[T any](it Iter[[]T]) Iter[T] {
 
 			// Stop if no more non-nil non-empty slices available
 			if slc == nil {
-				var zv T
-				return zv, false
+				return zv, EOI
 			}
 		}
 
+		// Successfully acquired an index of a slice to return
 		val := slc[idx]
 		idx++
 
-		return val, true
+		return val, nil
 	})
 }
 
@@ -334,23 +477,39 @@ func ExpandSlices[T any](it Iter[[]T]) Iter[T] {
 // If multiple KeyValue objects in the Iter have the same key, the last such object in iteration order determines the
 // value for the key in the resulting map.
 // An empty Iter is reduced to an empty map.
-func ReduceToMap[K comparable, V any](it Iter[util.KeyValue[K, V]]) Iter[map[K]V] {
+func ReduceToMap[K comparable, V any](it Iter[util.Tuple2[K, V]]) Iter[map[K]V] {
 	var done bool
 
-	return NewIter(func() (map[K]V, bool) {
+	return NewIter(func() (map[K]V, error) {
 		if done {
-			return nil, false
+			return nil, EOI
 		}
 
 		done = true
 
-		m := map[K]V{}
-		for it.Next() {
-			kv := it.Value()
-			m[kv.Key] = kv.Value
+		var (
+			m   = map[K]V{}
+			kv  util.Tuple2[K, V]
+			err error
+		)
+
+		for {
+			kv, err = it.Next()
+			if err != nil {
+				if err == EOI {
+					// Successfully iterated all values
+					break
+				}
+				// A problem
+				var zv map[K]V
+				return zv, err
+			}
+
+			// Successfully acquired a key value pair to put into the map
+			m[kv.T] = kv.U
 		}
 
-		return m, true
+		return m, nil
 	})
 }
 
@@ -360,20 +519,37 @@ func ReduceToMap[K comparable, V any](it Iter[util.KeyValue[K, V]]) Iter[map[K]V
 // so that an Iter[map[int]string] of {1: "1", 2: "2"}, nil, {}, {3: "3"} also becomes
 // an Iter[KeyValue[int, string]] of {1: "1"}, {2: "2"}, {3: "3"}.
 // An empty Iter or an Iter with nil/empty maps is expanded to an empty Iter.
-func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[util.KeyValue[K, V]] {
+func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[util.Tuple2[K, V]] {
 	var (
 		m  map[K]V
 		mr *reflect.MapIter
 	)
 
-	return NewIter(func() (util.KeyValue[K, V], bool) {
+	return NewIter(func() (util.Tuple2[K, V], error) {
+		var (
+			zv  util.Tuple2[K, V]
+			err error
+		)
+
 		if (m == nil) || (!mr.Next()) {
 			// Search for next non-nil non-empty map
-			// Nilify m var in case we just finished iterating last element of last map, which is non-nil
+			// Nilify m var in case last call finished iterating last element of last map
 			m = nil
 
-			for it.Next() {
-				if m = it.Value(); m != nil {
+			for {
+				m, err = it.Next()
+				if err != nil {
+					if err == EOI {
+						// Unable to find next result, nilify m
+						m = nil
+						break
+					}
+					// A problem
+					return zv, err
+				}
+
+				if m != nil {
+					// Found non-nil map, see if it is also non-empty
 					if mr = reflect.ValueOf(m).MapRange(); mr.Next() {
 						break
 					}
@@ -382,68 +558,88 @@ func ExpandMaps[K comparable, V any](it Iter[map[K]V]) Iter[util.KeyValue[K, V]]
 
 			// Stop if no more non-nil non-empty maps available
 			if m == nil {
-				var zv util.KeyValue[K, V]
-				return zv, false
+				return zv, EOI
 			}
 		}
 
-		val := util.KVOf(mr.Key().Interface().(K), mr.Value().Interface().(V))
+		val := util.Of2(mr.Key().Interface().(K), mr.Value().Interface().(V))
 
-		return val, true
+		return val, nil
 	})
 }
 
 // Skip skips the first n elements, then iteration continues from there.
 // If there are n or fewer elements in total, then the resulting iter is empty.
-// Panics if n < 0.
 //
 // Note that for the set 1,2,3,4,5 the composition os Skip(1),Limit(3) will first skip 1 then limit to 2,3,4;
 // whereas the composition of Limit(3),Skip(1) will first limit to 1,2,3 then skip 1 returning 2,3.
-func Skip[T any](n int) func(Iter[T]) Iter[T] {
-	if n < 0 {
-		panic(errSkipLimitValueCannotBeNegative)
-	}
-
+func Skip[T any](n uint) func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
 		skip := n
 
-		return NewIter(func() (T, bool) {
-			for ; (skip > 0) && it.Next(); skip-- {
-				it.Value()
+		return NewIter(func() (T, error) {
+			var (
+				val T
+				zv  T
+				err error
+			)
+
+			// Skip first n values only once
+			for skip > 0 {
+				val, err = it.Next()
+				if err != nil {
+					// Reached end or problem
+					skip = 0
+					return zv, err
+				}
+
+				// Read a value to skip
+				skip--
 			}
 
-			if it.Next() {
-				return it.Value(), true
+			val, err = it.Next()
+			if err != nil {
+				// Reached end or problem
+				return zv, err
 			}
 
-			var zv T
-			return zv, false
+			// Successfully read a value to return
+			return val, nil
 		})
 	}
 }
 
 // Limit returns the first n elements, then iteration stops and all further elements are ignored.
 // If there fewer than n elements in total, then all n elements are returned.
-// Panics if n < 0.
 //
 // Note that for the set 1,2,3,4,5 the composition of Skip(1),Limit(3) will first skip 1 then limit to 2,3,4;
 // whereas the composition of Limit(3),Skip(1) will first limit to 1,2,3 then skip 1 returning 2,3.
-func Limit[T any](n int) func(Iter[T]) Iter[T] {
-	if n < 0 {
-		panic(errSkipLimitValueCannotBeNegative)
-	}
-
+func Limit[T any](n uint) func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
 		limit := n
 
-		return NewIter(func() (T, bool) {
-			if (limit > 0) && it.Next() {
+		return NewIter(func() (T, error) {
+			var (
+				val T
+				zv  T
+				err error
+			)
+
+			if limit > 0 {
+				// Try to get next value that is within the limit
+				val, err = it.Next()
+				if err != nil {
+					// EOI or problem
+					return zv, err
+				}
+
+				// Successfully read value, decrement limit for next time
 				limit--
-				return it.Value(), true
+				return val, nil
 			}
 
-			var zv T
-			return zv, false
+			// Limit = 0, do not read any more values
+			return zv, EOI
 		})
 	}
 }
@@ -451,15 +647,19 @@ func Limit[T any](n int) func(Iter[T]) Iter[T] {
 // Peek executes a func for every item being iterated, which is a side effect.
 func Peek[T any](fn func(T)) func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		return NewIter(func() (T, bool) {
-			if it.Next() {
-				val := it.Value()
-				fn(val)
-				return val, true
+		return NewIter(func() (T, error) {
+			// Read next value
+			val, err := it.Next()
+
+			if err != nil {
+				// EOI or problem
+				var zv T
+				return zv, err
 			}
 
-			var zv T
-			return zv, false
+			// Successfully found a value
+			fn(val)
+			return val, nil
 		})
 	}
 }
@@ -502,9 +702,9 @@ func Generator[T, U any](gen func() func(Iter[T]) Iter[U]) func(Iter[T]) Iter[U]
 // All iteration logic is handled by the transformer function, it can iterate as many elements as necessary.
 // A transformer should only be used for cases where using other provided functions like Map, Filter, and Reduce(To)
 // either won't work, or result in a process nobody understands.
-func Transform[T, U any](transformer func(Iter[T]) (U, bool)) func(Iter[T]) Iter[U] {
+func Transform[T, U any](transformer func(Iter[T]) (U, error)) func(Iter[T]) Iter[U] {
 	return func(it Iter[T]) Iter[U] {
-		return NewIter(func() (U, bool) {
+		return NewIter(func() (U, error) {
 			return transformer(it)
 		})
 	}
@@ -535,7 +735,7 @@ func NoneMatch[T any](filter func(T) bool) func(Iter[T]) Iter[bool] {
 
 // Count reduces Iter[T] to an Iter[int] with a single value that is the number of elements in the Iter[T].
 func Count[T any]() func(Iter[T]) Iter[int] {
-	return ReduceTo[T, int](func(c int, _ T) int { return c + 1 })
+	return ReduceTo[T, int](func(c int, _ T) int { return c + 1 }, 0)
 }
 
 // Distinct reduces Iter[T] to an Iter[T] with distinct values.
@@ -585,9 +785,18 @@ func Duplicate[T comparable]() func(Iter[T]) Iter[T] {
 // The input iter must have a finite size.
 func Reverse[T any]() func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		slc := First(ReduceToSlice(it))
+		// Get values into a slice
+		slc, err := ReduceToSlice(it).Next()
+
+		if err != nil {
+			// Unable to get any values to reverse
+			return SetError[T](OfEmpty[T](), err)
+		}
+
+		// Reverse elements
 		funcs.Reverse(slc)
 
+		// Successfully return reversed iter
 		return Of(slc...)
 	}
 }
@@ -596,9 +805,18 @@ func Reverse[T any]() func(Iter[T]) Iter[T] {
 // The input iter must have a finite size.
 func SortOrdered[T constraint.Ordered]() func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		slc := First(ReduceToSlice(it))
+		// Get values into a slice
+		slc, err := ReduceToSlice(it).Next()
+
+		if err != nil {
+			// Unable to get any values to sort
+			return SetError(OfEmpty[T](), err)
+		}
+
+		// Sort elements
 		funcs.SortOrdered(slc)
 
+		// Successfully return sorted iter
 		return Of(slc...)
 	}
 }
@@ -607,9 +825,18 @@ func SortOrdered[T constraint.Ordered]() func(Iter[T]) Iter[T] {
 // The input iter must have a finite size.
 func SortComplex[T constraint.Complex]() func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		slc := First(ReduceToSlice(it))
+		// Get values into a slice
+		slc, err := ReduceToSlice(it).Next()
+
+		if err != nil {
+			// Unable to get any values to sort
+			return SetError(OfEmpty[T](), err)
+		}
+
+		// Sort elements
 		funcs.SortComplex(slc)
 
+		// Successfully return sorted iter
 		return Of(slc...)
 	}
 }
@@ -618,9 +845,18 @@ func SortComplex[T constraint.Complex]() func(Iter[T]) Iter[T] {
 // The input iter must have a finite size.
 func SortCmp[T constraint.Cmp[T]]() func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		slc := First(ReduceToSlice(it))
+		// Get values into a slice
+		slc, err := ReduceToSlice(it).Next()
+
+		if err != nil {
+			// Unable to get any values to sort
+			return SetError(OfEmpty[T](), err)
+		}
+
+		// Sort elements
 		funcs.SortCmp(slc)
 
+		// Successfully return sorted iter
 		return Of(slc...)
 	}
 }
@@ -629,9 +865,18 @@ func SortCmp[T constraint.Cmp[T]]() func(Iter[T]) Iter[T] {
 // The input iter must have a finite size.
 func SortBy[T any](less func(T, T) bool) func(Iter[T]) Iter[T] {
 	return func(it Iter[T]) Iter[T] {
-		slc := First(ReduceToSlice(it))
+		// Get values into a slice
+		slc, err := ReduceToSlice(it).Next()
+
+		if err != nil {
+			// Unable to get any values to sort
+			return SetError(OfEmpty[T](), err)
+		}
+
+		// Sort elements
 		funcs.SortBy(slc, less)
 
+		// Successfully return sorted iter
 		return Of(slc...)
 	}
 }
@@ -723,12 +968,16 @@ func generateRanges(numItems uint, info []PInfo) [][]uint {
 // the output. Otherwise, two slices are allocated, one for input and one for output.
 func Parallel[T, U any](transforms func(Iter[T]) Iter[U], info ...PInfo) func(Iter[T]) Iter[U] {
 	return func(source Iter[T]) Iter[U] {
-		var (
-			// Collect all items from source iterator into a slice
-			input = First(ReduceToSlice(source))
-			// Get number of items from source
-			numItems = uint(len(input))
-		)
+		// Get values into a slice
+		input, err := ReduceToSlice(source).Next()
+
+		if err != nil {
+			// Unable to get any values
+			return SetError(OfEmpty[U](), err)
+		}
+
+		// Get number of items from source
+		numItems := uint(len(input))
 
 		switch numItems {
 		case 0:
@@ -757,26 +1006,41 @@ func Parallel[T, U any](transforms func(Iter[T]) Iter[U], info ...PInfo) func(It
 		}
 
 		// Create a WaitGroup that can wait for all threads to complete
-		var wg sync.WaitGroup
+		var (
+			wg   sync.WaitGroup
+			errs = make([]error, len(sliceRanges))
+		)
 
 		// The function to execute in each thread, accepting source and target subslices
-		threadFn := func(in []T, out []U) {
+		threadFn := func(threadNum int, in []T, out []U) {
 			// Decrement number of threads remaining once transforms are complete
 			defer wg.Done()
 
 			// Perform transforms and copy to output
-			First(ReduceIntoSlice(out)(transforms(Of(in...))))
+			_, threadErr := ReduceIntoSlice(out)(transforms(Of(in...))).Next()
+
+			// In case an error occurs, populate the appropriate errs slot
+			errs[threadNum] = threadErr
 		}
 
 		// Create the threads, passing a subslice of input to each thread for processing
-		for _, sliceRange := range sliceRanges {
+		for threadNum, sliceRange := range sliceRanges {
 			wg.Add(1)
-			go threadFn(input[sliceRange[0]:sliceRange[1]], output[sliceRange[0]:sliceRange[1]])
+			go threadFn(threadNum, input[sliceRange[0]:sliceRange[1]], output[sliceRange[0]:sliceRange[1]])
 		}
 
 		// Wait for threads to complete
 		wg.Wait()
 
-		return Of(output...)
+		// If any errors occur, return first error found (may not be first error in execution, as threads complete in any order)
+		err = nil
+		for _, e := range errs {
+			if e != nil {
+				err = e
+				break
+			}
+		}
+
+		return funcs.Ternary(err == nil, Of(output...), SetError(OfEmpty[U](), err))
 	}
 }

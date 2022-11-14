@@ -17,65 +17,43 @@ var (
 	errValueExpected        = fmt.Errorf("Value has to be called after Next")
 	errNextExpected         = fmt.Errorf("Next has to be called before Value")
 	errNoMoreValues         = fmt.Errorf("Value cannot be called after Next returns false")
+	EOI                     = fmt.Errorf("End of Iteration")
 )
 
 // ==== Types
 
-// Iter defines iteration operations for type T, which work as follows:
-// - Next and Value must be called in interleaving pairs
-// - Unread can be called any number of times to build up an unbounded buffer of values to iterate
-// - An underlying iteration function that returns (T, bool) provides the values to iterate
-// - NextValue combines Next and Value in a single call, returning value and bool flag to tell if value is valid
-// - Must also combines Next and Value in one call, but only returns the value, and panics if a value does not exist to return
+// Iter defines iteration for type T, which works as follows:
+// - Next returns (next value, nil) if there is another value, or (zero value, EOI) if there is not.
+//   - It is possible for Next to return (zero value, some other error).
+//   - Next should never return (non zero value, non nil error).
+//   - Once Next returns (zero value, EOI or problem error), Next will continue to return (zero value, EOI or problem error).
 //
-// Taken together, in the call sequence Unread*, (Next, Value)*, the following happens:
-// - Unread calls build a buffer
-// - Next/Value pairs return the values in the buffer provided by Unread until it is empty, then the function is consulted.
-// - Note that Unread values are iterated in reverse order: Unreading (1, 2, 3) iterates (3, 2, 1).
-// - Unread calls can be made between Next and Value calls.
-//
-// Panics if:
-// - Next is called a second time before Value
-// - Next returns false and is called a second time without an Unread call
+// - Unread places the given value at the end of a buffer of values
+//   - Next consults the buffer before calling the underlying iterating function
+//   - Next returns values in reverse order of Unreads (eg Unread(1); Unread(2) results in Next returning 2, then 1)
 type Iter[T any] interface {
-	Next() bool
-	Value() T
-	Unread(value T)
-	NextValue() (T, bool)
-	Must() T
+	Next() (T, error)
+	Unread(T)
 }
 
-// IterImpl is the base implementation of Iter[T]
+// IterImpl is the common implementation of Iter[T], based on an underlying iterating function.
 type IterImpl[T any] struct {
-	buffer     []T
-	iterFn     func() (T, bool)
-	nextCalled bool
-	haveValue  bool
-	value      T
-}
-
-// IOByteIterImpl is an override of Iter[byte] that alters the base implementation in a single respect:
-// Unreading a zero value is ignored, as that means unreading eof, which causes Next/Value to return an actual zero.
-// By ignoring unreads of 0, Next will return false, and the 0 does not get returned as a value.
-type IOByteIterImpl struct {
-	IterImpl[byte]
-}
-
-// IORuneIterImpl is an override of Iter[rune] that alters the base implementation in a single respect:
-// Unreading a zero value is ignored, as that means unreading eof, which causes Next/Value to return an actual zero.
-// By ignoring unreads of 0, Next will return false, and the 0 does not get returned as a value.
-type IORuneIterImpl struct {
-	IterImpl[rune]
+	iterFn  func() (T, error)
+	buffer  []T
+	lastErr error
 }
 
 // ==== Construct
 
-// NewIter constructs an Iter[T] from an iterating function that returns (T, bool).
-// The function must return (nextItem, true) for every item available to iterate, then return (invalid, false) on the
+// NewIter constructs an Iter[T] from an iterating function that returns (T, error).
+// The function must return (nextItem, nil) for every item available to iterate, then return (invalid, EOI) on the
 // next call after the last item, where invalid is any value of type T.
-// Once the function returns a false bool value, it will never be called again.
+// If some actual error occurs attempting read the next value, then the function must return (invalid, non-nil non-EOI error).
+// Once the function returns a non-nil error, it will never be called again.
 // Panics if iterFn is nil.
-func NewIter[T any](iterFn func() (T, bool)) Iter[T] {
+//
+// See IterImpl.
+func NewIter[T any](iterFn func() (T, error)) Iter[T] {
 	if iterFn == nil {
 		panic(errNewIterNeedsIterator)
 	}
@@ -84,50 +62,64 @@ func NewIter[T any](iterFn func() (T, bool)) Iter[T] {
 }
 
 // Of constructs an Iter[T] that iterates the items passed.
+//
+// See SliceIterGen.
 func Of[T any](items ...T) Iter[T] {
 	return NewIter[T](SliceIterGen[T](items))
 }
 
 // OfEmpty constructs an Iter[T] that iterates no values.
+//
+// See NoValueIterGen.
 func OfEmpty[T any]() Iter[T] {
 	return NewIter[T](NoValueIterGen[T]())
 }
 
 // OfOne constructs an Iter[T] that iterates a single value.
+//
+// See SingleValueIterGen.
 func OfOne[T any](item T) Iter[T] {
 	return NewIter[T](SingleValueIterGen[T](item))
 }
 
 // Of constructs an Iter[KeyValue[K, V]] that iterates the items passed.
-func OfMap[K comparable, V any](items map[K]V) Iter[util.KeyValue[K, V]] {
-	return NewIter[util.KeyValue[K, V]](MapIterGen[K, V](items))
+//
+// See MapIterGen.
+func OfMap[K comparable, V any](items map[K]V) Iter[util.Tuple2[K, V]] {
+	return NewIter[util.Tuple2[K, V]](MapIterGen[K, V](items))
 }
 
 // OfReader constructs an Iter[byte] that iterates the bytes of a Reader.
-// See ReaderIterGen and IOByteIterImpl for details.
+//
+// See ReaderIterGen.
 func OfReader(src io.Reader) Iter[byte] {
-	return &IOByteIterImpl{IterImpl: IterImpl[byte]{iterFn: ReaderIterGen(src)}}
+	return NewIter[byte](ReaderIterGen(src))
 }
 
 // OfReaderAsRunes constructs an Iter[rune] that iterates the UTF-8 runes of a Reader.
 //
-// See ReaderAsRunesIterGen for details.
+// See ReaderAsRunesIterGen.
 func OfReaderAsRunes(src io.Reader) Iter[rune] {
-	return &IORuneIterImpl{IterImpl: IterImpl[rune]{iterFn: ReaderAsRunesIterGen(src)}}
+	return NewIter(ReaderAsRunesIterGen(src))
 }
 
 // OfStringAsRunes constructs an Iter[rune] that iterates runes of a string.
+//
+// See SliceIterGen.
 func OfStringAsRunes(src string) Iter[rune] {
-	return &IORuneIterImpl{IterImpl: IterImpl[rune]{iterFn: SliceIterGen([]rune(src))}}
+	return NewIter(SliceIterGen([]rune(src)))
 }
 
 // OfReaderAsLines constructs an Iter[string] that iterates the UTF-8 lines of a Reader.
-// See ReaderAsLinesIterGen for details.
+//
+// See ReaderAsLinesIterGen.
 func OfReaderAsLines(src io.Reader) Iter[string] {
 	return NewIter(ReaderAsLinesIterGen(src))
 }
 
 // OfStringAsLines constructs an Iter[rune] that iterates lines of a string.
+//
+// See ReaderAsLinesIterGen.
 func OfStringAsLines(src string) Iter[string] {
 	return NewIter(ReaderAsLinesIterGen(strings.NewReader(src)))
 }
@@ -140,111 +132,62 @@ func Concat[T any](iters ...Iter[T]) Iter[T] {
 
 // ==== IterImpl Methods
 
-// Next returns true if there is another item to be read by Value.
-// When Next returns false, Next can be called any number of times, it just continues to return false.
-// When Next returns true, a panic occurs if Next is called again before calling Value.
-func (it *IterImpl[T]) Next() bool {
-	// Assume no value until we know differently
-	it.haveValue = false
-
-	// Die if Next called twice before Value, unless prior Next call exhausted iter
-	if it.nextCalled && (it.iterFn != nil) {
-		panic(errValueExpected)
+// Next returns (true, nil) if there is another item to be read by Value.
+// When Next returns (zero value, EOI), further calls return (zero value, EOI).
+func (it *IterImpl[T]) Next() (T, error) {
+	// Check buffer for values placed by Unread
+	if len(it.buffer) > 0 {
+		val := it.buffer[len(it.buffer)-1]
+		it.buffer = it.buffer[0 : len(it.buffer)-1]
+		return val, nil
 	}
 
-	it.nextCalled = true
+	// Check if we still may have values to acquire via iterating function
+	if it.iterFn != nil {
+		// Try to get next value
+		val, err := it.iterFn()
 
-	// Check buffer before consulting iterating function in case items have been unread
-	if l := len(it.buffer); l > 0 {
-		// Read items from buffer in order they were unread - eg unread(x), unread(y) returns x first, then y
-		it.haveValue = true
-		it.value = it.buffer[0]
-		it.buffer = it.buffer[1:]
-		return true
+		if err == nil {
+			// Got a value, may still be more left
+			return val, nil
+		}
+
+		// The value is invalid, error could be EOI or a problem.
+		// Don't try to call iterating function again, previous value was the last - function can't change its mind.
+		it.iterFn = nil
+		it.lastErr = err
+
+		// Return (zero value, EOI or problem)
+		var zv T
+		return zv, err
 	}
 
-	// If the iterating func is nil, we must have exhausted the func, Unread was called, and the buffer also exhausted
-	if it.iterFn == nil {
-		return false
-	}
-
-	// Try to get next item from iterating function
-	if value, haveIt := it.iterFn(); haveIt {
-		// If we have it, keep the value for call to Value() and return true
-		it.haveValue = true
-		it.value = value
-		return true
-	}
-
-	// First call with no more items, mark as iterated
-	it.iterFn = nil
-	return false
-}
-
-// Value returns value found by last call to Next.
-// Panics if called before Next
-func (it *IterImpl[T]) Value() T {
-	// Die if Value called twice before Next
-	if !it.nextCalled {
-		panic(errNextExpected)
-	}
-
-	if !it.haveValue {
-		// Die if next indicated no more values exist
-		panic(errNoMoreValues)
-	}
-
-	it.nextCalled = false
-	it.haveValue = false
-
-	// Return value
-	return it.value
-}
-
-// Unread can be called any time to add a value to a buffer that has to be exhausted before any further calls are made
-// to the iterating function.
-func (it *IterImpl[T]) Unread(value T) {
-	it.buffer = append(it.buffer, value)
-	if it.iterFn == nil {
-		it.nextCalled = false
-	}
-}
-
-// NextValue combines Next and Value together in a single call.
-// If there is another value, then (next value, true) is returned, else (zero value, false) is returned.
-// NextValue may be called after Next has already returned false without a panic.
-func (it *IterImpl[T]) NextValue() (T, bool) {
-	if (it.iterFn != nil) && it.Next() {
-		return it.Value(), true
-	}
-
+	// Called again after already returning (zero value, EOI or problem).
+	// Continue to repeat (zero value, EOI or problem).
 	var zv T
-	return zv, false
+	return zv, it.lastErr
 }
 
-// Must combines Next and Value together in a single call.
-// If there is another value, then the next value is returned, else a panic occurs.
-func (it *IterImpl[T]) Must() T {
-	it.Next()
-	return it.Value()
+// Unread adds the given value to an internal buffer, to be returned by Next in reverse order
+func (it *IterImpl[T]) Unread(val T) {
+	it.buffer = append(it.buffer, val)
 }
 
-// ==== IOByteIterImpl Methods
+// ==== Operations on an Iter
 
-// Don't unread a zero byte - this should only occur if caller mistakenly unreads the byte returned by NextValue when
-// the bool is false.
-func (it *IOByteIterImpl) Unread(value byte) {
-	if value > 0 {
-		it.IterImpl.Unread(value)
-	}
+// Maybe converts the result of Next into a Tuple2[T, error] to represent the result as a single type.
+func Maybe[T any](it Iter[T]) util.Tuple2[T, error] {
+	return util.Of2Error(it.Next())
 }
 
-// ==== IORuneIterImpl Methods
-
-// Don't unread a zero rune - this should only occur if caller mistakenly unreads the rune returned by NextValue when
-// the bool is false.
-func (it *IORuneIterImpl) Unread(value rune) {
-	if value > 0 {
-		it.IterImpl.Unread(value)
-	}
+// SetError sets a particular error to occur instead of the first non-nil error the given iterator returns.
+func SetError[T any](it Iter[T], err error) Iter[T] {
+	return NewIter[T](func() (T, error) {
+		if v, e := it.Next(); e == nil {
+			return v, e
+		} else {
+			var zv T
+			return zv, err
+		}
+	})
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/util"
 )
 
@@ -27,73 +28,77 @@ var (
 // ==== Iterating function generators
 
 // SliceIterGen generates an iterating function for a slice of type T
-// First len(slc) calls to iterating function return (slc element, true)
-// All remaining calls return (T zero value, false)
-func SliceIterGen[T any](slc []T) func() (T, bool) {
+// First len(slc) calls to iterating function return (slc element, nil)
+// All remaining calls return (T zero value, EOI)
+func SliceIterGen[T any](slc []T) func() (T, error) {
 	// Simple, just track index on each call
 	var idx int
 
-	return func() (value T, haveIt bool) {
-		if haveIt = idx < len(slc); haveIt {
-			value = slc[idx]
+	return func() (T, error) {
+		if idx < len(slc) {
+			value := slc[idx]
 			idx++
-			return
+			return value, nil
 		}
 
 		// Once idx = len(slc), all further calls will land here
-		return
+		var zv T
+		return zv, EOI
 	}
 }
 
 // MapIterGen generates an iterating function for a map[K]V
-// First len(m) calls to iterating function return (KeyValue[K, V]{m key, m value}, true)
-// All remaining calls return (KeyValue[K, V] zero value, false)
-func MapIterGen[K comparable, V any](m map[K]V) func() (util.KeyValue[K, V], bool) {
+// First len(m) calls to iterating function return (KeyValue[K, V]{m key, m value}, nil)
+// All remaining calls return (KeyValue[K, V] zero value, EOI)
+func MapIterGen[K comparable, V any](m map[K]V) func() (util.Tuple2[K, V], error) {
 	// Unlike a slice, we don't know the set of indexes ahead of time
 	// Use reflection.Value.MapIter to iterate the keys via a stateful object that tracks the progress of key iteration internally
 	// We could use a go routine that writes a key/value pair to a channel, but that would cause a memory leak if map is not fully iterated
 
 	var (
 		mi   = reflect.ValueOf(m).MapRange()
-		zkv  util.KeyValue[K, V]
+		zv   util.Tuple2[K, V]
 		done bool
 	)
 
-	return func() (util.KeyValue[K, V], bool) {
+	return func() (util.Tuple2[K, V], error) {
 		if done {
-			return zkv, false
+			return zv, EOI
 		}
+
 		done = !mi.Next()
 		if done {
-			return zkv, false
+			return zv, EOI
 		}
-		return util.KVOf(mi.Key().Interface().(K), mi.Value().Interface().(V)), true
+
+		return util.Of2(mi.Key().Interface().(K), mi.Value().Interface().(V)), nil
 	}
 }
 
-// NoValueIterGen generates an iterating function that has no values
-func NoValueIterGen[T any]() func() (T, bool) {
+// NoValueIterGen generates an iterating function that has no values.
+// Always returns (zero value, EOI)
+func NoValueIterGen[T any]() func() (T, error) {
 	var zv T
 
-	return func() (T, bool) {
-		return zv, false
+	return func() (T, error) {
+		return zv, EOI
 	}
 }
 
 // SingleValueIterGen generates an iterating function that has one value
-func SingleValueIterGen[T any](value T) func() (T, bool) {
+func SingleValueIterGen[T any](value T) func() (T, error) {
 	var (
 		zv   T
 		done bool
 	)
 
-	return func() (T, bool) {
+	return func() (T, error) {
 		if done {
-			return zv, false
+			return zv, EOI
 		}
 
 		done = true
-		return value, true
+		return value, nil
 	}
 }
 
@@ -107,7 +112,7 @@ func SingleValueIterGen[T any](value T) func() (T, bool) {
 // The seed value is used as the argument to the first call of the given function.
 // The generated values are the first n-1 initialValues followed by the inifinite series
 // f(seed), f(f(seed)), f(f(f(seed))), ...
-func InfiniteIterGen[T any](iterative func(T) T, initialValues ...T) func() (T, bool) {
+func InfiniteIterGen[T any](iterative func(T) T, initialValues ...T) func() (T, error) {
 	var (
 		lastIndex     = len(initialValues) - 1
 		literalValues []T
@@ -122,9 +127,9 @@ func InfiniteIterGen[T any](iterative func(T) T, initialValues ...T) func() (T, 
 		accumulator = initialValues[lastIndex]
 	}
 
-	return func() (result T, haveIt bool) {
+	return func() (T, error) {
 		// Inifinite series always have a value to return
-		haveIt = true
+		var result T
 
 		// Do we still have literal values left to return?
 		if l := len(literalValues); l > 0 {
@@ -140,7 +145,7 @@ func InfiniteIterGen[T any](iterative func(T) T, initialValues ...T) func() (T, 
 				literalValues = nil
 			}
 
-			return
+			return result, nil
 		}
 
 		// No literal values left, execute iterative func with accumulator (could be seed value) to get next accumulator
@@ -148,12 +153,12 @@ func InfiniteIterGen[T any](iterative func(T) T, initialValues ...T) func() (T, 
 
 		// Return next accumulator
 		result = accumulator
-		return
+		return result, nil
 	}
 }
 
 // FibonnaciIterGen generates an iterating function that iterates the Fibonacci series 1, 1, 2, 3, 5, 8, 13, ...
-func FibonnaciIterGen() func() (int, bool) {
+func FibonnaciIterGen() func() (int, error) {
 	// The value returned two calls ago (initially zero)
 	var prev2 int
 
@@ -172,59 +177,67 @@ func FibonnaciIterGen() func() (int, bool) {
 	)
 }
 
-// ReaderIterGen generates an iterating function that iterates all the bytes of an io.Reader
-func ReaderIterGen(src io.Reader) func() (byte, bool) {
+// ReaderIterGen generates an iterating function that iterates all the bytes of an io.Reader.
+// If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
+// If the iter is called again after returning a non-nil error, it returns (0, same error).
+func ReaderIterGen(src io.Reader) func() (byte, error) {
 	var (
 		done = src == nil
+		err  = EOI
 		buf  = make([]byte, 1)
 	)
 
-	return func() (byte, bool) {
+	return func() (byte, error) {
 		if done {
-			return 0, false
+			return 0, err
 		}
 
 		if _, err := src.Read(buf); err != nil {
-			if err != io.EOF {
-				panic(err)
-			}
-
-			return 0, false
+			done = true
+			err = funcs.Ternary(err == io.EOF, EOI, err)
+			return 0, err
 		}
 
-		return buf[0], true
+		return buf[0], nil
 	}
 }
 
-// ReaderAsRunesIterGen generates an iterating function that iterates all the UTF-8 runes of an io.Reader
-func ReaderAsRunesIterGen(src io.Reader) func() (rune, bool) {
+// ReaderAsRunesIterGen generates an iterating function that iterates all the UTF-8 runes of an io.Reader.
+// Up to four UTF-8 bytes are read to produce a single rune.
+// If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
+// If the iter is called again after returning a non-nil error, it returns (0, same error).
+func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 	// UTF-8 requires at most 4 bytes for a code point
 	var (
 		done   = src == nil
+		err    = EOI
 		buf    = make([]byte, 4)
 		bufPos int
 	)
 
-	return func() (rune, bool) {
+	return func() (rune, error) {
 		if done {
-			return 0, false
+			return 0, err
 		}
 
 		// Read next up to 4 bytes from reader into subslice of buffer, after any remaining bytes from last read
 		_, err := src.Read(buf[bufPos:])
 		if (err != nil) && (err != io.EOF) {
-			panic(err)
+			return 0, err
 		}
 
 		// No more to read if first buf pos is 0 and EOF
 		if done = (buf[0] == 0) && (err == io.EOF); done {
-			return 0, false
+			err = EOI
+			return 0, err
 		}
 
 		// Decode up to 4 bytes for next code point
 		r, rl := utf8.DecodeRune(buf)
 		if r == utf8.RuneError {
-			panic(InvalidUTF8EncodingError)
+			done = true
+			err = InvalidUTF8EncodingError
+			return 0, err
 		}
 
 		// Shift any remaining unused bytes back to the beginning of the buffer
@@ -236,39 +249,55 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, bool) {
 		// Clear out the unused bytes at the end, in case we don't have enough bytes left to fill them
 		copy(buf[bufPos:], zeroUTF8Buffer)
 
-		return r, true
+		return r, nil
 	}
 }
 
-// StringAsRunesIterGen generates an iterating function that iterates the runes of a string
-func StringAsRunesIterGen(src string) func() (rune, bool) {
-	return SliceIterGen([]rune(src))
+// StringAsRunesIterGen generates an iterating function that iterates the runes of a string.
+// See ReaderAsRunesIterGen.
+func StringAsRunesIterGen(src string) func() (rune, error) {
+	// If the string is invalid UTF8, when converted to a []rune, it will contain a utf8.RuneError value.
+	// By using ReaderAsRunesIterGen, that rune will be converted to an InvalidUTF8EncodingError.
+	return ReaderAsRunesIterGen(strings.NewReader(src))
 }
 
-// readLines is common functionality for ReaderAsLinesIterGen and StringAsLinesIterGen
-func readLines(it func() (rune, bool)) func() (string, bool) {
+// readLines is common functionality for ReaderAsLinesIterGen and StringAsLinesIterGen.
+// If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
+// If an EOF occurs after some input is buffered, the buffer is returned with a nil error, further calls return 0, EOI.
+// If the iter is called again after returning a non-nil error, it returns (0, same error).
+func readLines(it func() (rune, error)) func() (string, error) {
 	var (
 		str    strings.Builder
 		lastCR bool
+		err    error
 	)
 
-	return func() (string, bool) {
+	return func() (string, error) {
+		if err != nil {
+			return "", err
+		}
+
 		str.Reset()
 
 		for {
-			codePoint, haveIt := it()
+			var codePoint rune
+			codePoint, err = it()
 
-			if !haveIt {
-				if str.Len() > 0 {
-					return str.String(), true
+			if err != nil {
+				if err = funcs.Ternary(err == io.EOF, EOI, err); err != EOI {
+					return "", err
 				}
 
-				return "", false
+				if str.Len() > 0 {
+					return str.String(), nil
+				}
+
+				return "", err
 			}
 
 			if codePoint == '\r' {
 				lastCR = true
-				return str.String(), true
+				return str.String(), nil
 			}
 
 			if codePoint == '\n' {
@@ -277,7 +306,7 @@ func readLines(it func() (rune, bool)) func() (string, bool) {
 					continue
 				}
 
-				return str.String(), true
+				return str.String(), nil
 			}
 
 			str.WriteRune(codePoint)
@@ -286,37 +315,50 @@ func readLines(it func() (rune, bool)) func() (string, bool) {
 }
 
 // ReaderAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of an io.Reader
-func ReaderAsLinesIterGen(src io.Reader) func() (string, bool) {
+// See readLines.
+func ReaderAsLinesIterGen(src io.Reader) func() (string, error) {
 	// Use ReaderAsRunesIterGen to read individual runes until a line is read
 	return readLines(ReaderAsRunesIterGen(src))
 }
 
 // StringAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of a String
-func StringAsLinesIterGen(src string) func() (string, bool) {
+// See readLines.
+func StringAsLinesIterGen(src string) func() (string, error) {
 	// Use StringAsRunesIterGen to read individual runes until a line is read
 	return readLines(StringAsRunesIterGen(src))
 }
 
-// ConcatIterGen generates an iterating function that iterates all the values of all the Iters passed
-func ConcatIterGen[T any](src []Iter[T]) func() (T, bool) {
+// ConcatIterGen generates an iterating function that iterates all the values of all the Iters passed.
+// If a non-nil non-EOI error is returned from an underlying iter, then (zero value, error) is returned.
+// After returning (zero value, non-nil error), all further calls return (zero value, same error).
+func ConcatIterGen[T any](src []Iter[T]) func() (T, error) {
 	var (
 		i    int
 		iter Iter[T]
+		zv   T
+		err  = EOI
 	)
 
-	return func() (T, bool) {
+	return func() (T, error) {
 		for {
 			if i == len(src) {
-				var zv T
-				return zv, false
+				return zv, err
 			}
 
 			if iter == nil {
 				iter = src[i]
 			}
 
-			if (iter != nil) && iter.Next() {
-				return iter.Value(), true
+			if iter != nil {
+				var val T
+				if val, err = iter.Next(); err == nil {
+					return val, nil
+				}
+
+				if err != EOI {
+					i = len(src)
+					return zv, err
+				}
 			}
 
 			iter = nil

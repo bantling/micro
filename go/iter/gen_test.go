@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bantling/micro/go/funcs"
+	// "github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,45 +20,61 @@ func TestSliceIterGen(t *testing.T) {
 	assert.Nil(t, slc)
 	iter := SliceIterGen(slc)
 
-	i, haveIt := iter()
+	i, err := iter()
 	assert.Zero(t, i)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Zero(t, i)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// empty
 	slc = []int{}
 	iter = SliceIterGen(slc)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Zero(t, i)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Zero(t, i)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
+
+	// one element
+	slc = []int{1}
+	iter = SliceIterGen(slc)
+
+	i, err = iter()
+	assert.Equal(t, 1, i)
+	assert.Nil(t, err)
+
+	i, err = iter()
+	assert.Zero(t, i)
+	assert.Equal(t, EOI, err)
+
+	i, err = iter()
+	assert.Zero(t, i)
+	assert.Equal(t, EOI, err)
 
 	// two elements
 	slc = []int{1, 2}
 	iter = SliceIterGen(slc)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Equal(t, 1, i)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Equal(t, 2, i)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Zero(t, i)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	i, haveIt = iter()
+	i, err = iter()
 	assert.Zero(t, i)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 }
 
 func TestMapIterGen(t *testing.T) {
@@ -67,92 +83,92 @@ func TestMapIterGen(t *testing.T) {
 	assert.Nil(t, src)
 	iter := MapIterGen(src)
 
-	kv, haveIt := iter()
+	kv, err := iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// empty
 	src = map[string]int{}
 	iter = MapIterGen(src)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// one pair
 	src = map[string]int{"a": 1}
 	iter = MapIterGen(src)
 
-	kv, haveIt = iter()
-	assert.Equal(t, util.KVOf("a", 1), kv)
-	assert.True(t, haveIt)
+	kv, err = iter()
+	assert.Equal(t, util.Of2("a", 1), kv)
+	assert.Nil(t, err)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// two pairs
 	src = map[string]int{"a": 1, "b": 2}
 	dst := map[string]int{}
 	iter = MapIterGen(src)
 
-	kv, haveIt = iter()
-	assert.True(t, haveIt)
-	dst[kv.Key] = kv.Value
+	kv, err = iter()
+	assert.Nil(t, err)
+	dst[kv.T] = kv.U
 
-	kv, haveIt = iter()
-	assert.True(t, haveIt)
-	dst[kv.Key] = kv.Value
+	kv, err = iter()
+	assert.Nil(t, err)
+	dst[kv.T] = kv.U
 
 	assert.Equal(t, src, dst)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	kv, haveIt = iter()
+	kv, err = iter()
 	assert.Zero(t, kv)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 }
 
 func TestNoValueIterGen(t *testing.T) {
 	iter := NoValueIterGen[int]()
 
-	val, haveIt := iter()
+	val, err := iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 }
 
 func TestSingleValueIterGen(t *testing.T) {
 	iter := SingleValueIterGen(1)
 
-	val, haveIt := iter()
+	val, err := iter()
 	assert.Equal(t, 1, val)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 }
 
 func TestInfiniteIterGen(t *testing.T) {
@@ -165,45 +181,45 @@ func TestInfiniteIterGen(t *testing.T) {
 	iter := InfiniteIterGen(fn)
 
 	for _, e := range []int{1, 2, 3, 4, 5, 6, 7} {
-		v, h := iter()
+		v, err := iter()
 		assert.Equal(t, e, v)
-		assert.True(t, h)
+		assert.Nil(t, err)
 	}
 
 	// Generate {2,3,4, ...}, which requires a seed value of 1
 	iter = InfiniteIterGen(fn, 1)
 
 	for _, e := range []int{2, 3, 4, 5, 6, 7, 8} {
-		v, h := iter()
+		v, err := iter()
 		assert.Equal(t, e, v)
-		assert.True(t, h)
+		assert.Nil(t, err)
 	}
 
 	// Generate {100,1,2,3, ...}, which requires a literal value of 100 and a seed value of 0
 	iter = InfiniteIterGen(fn, 100, 0)
 
 	for _, e := range []int{100, 1, 2, 3, 4, 5, 6} {
-		v, h := iter()
+		v, err := iter()
 		assert.Equal(t, e, v)
-		assert.True(t, h)
+		assert.Nil(t, err)
 	}
 
-	// Generate {100,101,1,2,3, ...}, which requires a literal values of 100,101 and a seed value of 0
+	// Generate {100,101,1,2,3, ...}, which requires literal values of 100,101 and a seed value of 0
 	iter = InfiniteIterGen(fn, 100, 101, 0)
 
 	for _, e := range []int{100, 101, 1, 2, 3, 4, 5} {
-		v, h := iter()
+		v, err := iter()
 		assert.Equal(t, e, v)
-		assert.True(t, h)
+		assert.Nil(t, err)
 	}
 
-	// Generate {100,101,2,3,4, ...}, which requires a literal values of 100,101 and a seed value of 1
+	// Generate {100,101,2,3,4, ...}, which requires literal values of 100,101 and a seed value of 1
 	iter = InfiniteIterGen(fn, 100, 101, 1)
 
 	for _, e := range []int{100, 101, 2, 3, 4, 5, 6} {
-		v, h := iter()
+		v, err := iter()
 		assert.Equal(t, e, v)
-		assert.True(t, h)
+		assert.Nil(t, err)
 	}
 }
 
@@ -212,9 +228,9 @@ func TestFibonnaciIterGen(t *testing.T) {
 	iter := FibonnaciIterGen()
 
 	for _, e := range []int{1, 1, 2, 3, 5, 8, 13} {
-		v, h := iter()
+		v, err := iter()
 		assert.Equal(t, e, v)
-		assert.True(t, h)
+		assert.Nil(t, err)
 	}
 }
 
@@ -224,56 +240,54 @@ func TestReaderIterGen(t *testing.T) {
 	assert.Zero(t, src)
 	iter := ReaderIterGen(src)
 
-	val, haveIt := iter()
+	val, err := iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// empty
 	src = strings.NewReader("")
 	iter = ReaderIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// one byte
 	src = strings.NewReader("a")
 	iter = ReaderIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Equal(t, byte('a'), val)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	// non-eof error occurs after one byte
-
-	err := fmt.Errorf("An error")
-	src = util.NewErrorReader([]byte("a"), err)
+	// non-eof-eoi error occurs after one byte
+	anErr := fmt.Errorf("An error")
+	src = util.NewErrorReader([]byte("a"), anErr)
 	iter = ReaderIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Equal(t, byte('a'), val)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	funcs.TryTo(
-		func() { iter() },
-		func(e any) { assert.Equal(t, err, e) },
-	)
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, anErr, err)
 }
 
 func TestReaderAsRunesIterGen(t *testing.T) {
@@ -282,25 +296,26 @@ func TestReaderAsRunesIterGen(t *testing.T) {
 	assert.Zero(t, src)
 	iter := ReaderAsRunesIterGen(src)
 
-	val, haveIt := iter()
+	val, err := iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// empty
 	src = strings.NewReader("")
 	iter = ReaderAsRunesIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
+
 	inputs := []string{
 		"",
 		// 1 byte UTF8
@@ -332,60 +347,50 @@ func TestReaderAsRunesIterGen(t *testing.T) {
 
 	for _, input := range inputs {
 		var (
-			iter   = ReaderAsRunesIterGen(strings.NewReader(input))
-			val    rune
-			haveIt bool
+			iter = ReaderAsRunesIterGen(strings.NewReader(input))
+			val  rune
+			err  error
 		)
 
 		for _, char := range []rune(input) {
-			val, haveIt = iter()
+			val, err = iter()
 			assert.Equal(t, char, val)
-			assert.True(t, haveIt)
+			assert.Nil(t, err)
 		}
 
-		val, haveIt = iter()
-		assert.Equal(t, rune(0), val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 
-		val, haveIt = iter()
-		assert.Equal(t, rune(0), val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 	}
 
 	// non-eof error occurs after one byte
-
-	err := fmt.Errorf("An error")
-	src = util.NewErrorReader([]byte("a"), err)
+	anErr := fmt.Errorf("An error")
+	src = util.NewErrorReader([]byte("a"), anErr)
 	iter = ReaderAsRunesIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Equal(t, 'a', val)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	funcs.TryTo(
-		func() {
-			iter()
-			assert.Fail(t, "Must die")
-		},
-		func(e any) { assert.Equal(t, err, e) },
-	)
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, anErr, err)
 
 	// utf8 decoding error occurs after one byte
-
 	src = strings.NewReader("a\x80")
 	iter = ReaderAsRunesIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Equal(t, 'a', val)
-	assert.True(t, haveIt)
+	assert.Nil(t, err)
 
-	funcs.TryTo(
-		func() {
-			iter()
-			assert.Fail(t, "Must die")
-		},
-		func(e any) { assert.Equal(t, InvalidUTF8EncodingError, e) },
-	)
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
 func TestStringAsRunesIterGen(t *testing.T) {
@@ -394,25 +399,26 @@ func TestStringAsRunesIterGen(t *testing.T) {
 	assert.Zero(t, src)
 	iter := StringAsRunesIterGen(src)
 
-	val, haveIt := iter()
+	val, err := iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
 	// empty
 	src = ""
 	iter = StringAsRunesIterGen(src)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
 
-	val, haveIt = iter()
+	val, err = iter()
 	assert.Zero(t, val)
-	assert.False(t, haveIt)
+	assert.Equal(t, EOI, err)
+
 	inputs := []string{
 		"",
 		// 1 byte UTF8
@@ -444,31 +450,42 @@ func TestStringAsRunesIterGen(t *testing.T) {
 
 	for _, input := range inputs {
 		var (
-			iter   = StringAsRunesIterGen(input)
-			val    rune
-			haveIt bool
+			iter = StringAsRunesIterGen(input)
+			val  rune
+			err  error
 		)
 
 		for _, char := range []rune(input) {
-			val, haveIt = iter()
+			val, err = iter()
 			assert.Equal(t, char, val)
-			assert.True(t, haveIt)
+			assert.Nil(t, err)
 		}
 
-		val, haveIt = iter()
-		assert.Equal(t, rune(0), val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 
-		val, haveIt = iter()
-		assert.Equal(t, rune(0), val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 	}
+
+	// utf8 decoding error occurs after one byte
+	src = "a\x80"
+	iter = StringAsRunesIterGen(src)
+
+	val, err = iter()
+	assert.Equal(t, 'a', val)
+	assert.Nil(t, err)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
 func TestReaderAsLinesIterGen(t *testing.T) {
 	var (
 		inputs = []string{
-			"",
 			"oneline",
 			"two\rline cr",
 			"two\nline lf",
@@ -479,32 +496,41 @@ func TestReaderAsLinesIterGen(t *testing.T) {
 
 	for _, input := range inputs {
 		var (
-			iterFunc = ReaderAsLinesIterGen(strings.NewReader(input))
-			lines    = linesRegex.Split(input, -1)
-			val      string
-			haveIt   bool
+			iter  = ReaderAsLinesIterGen(strings.NewReader(input))
+			lines = linesRegex.Split(input, -1)
+			val   string
+			err   error
 		)
 
 		for _, line := range lines {
-			val, haveIt = iterFunc()
+			val, err = iter()
 			assert.Equal(t, line, val)
-			assert.Equal(t, input != "", haveIt)
+			assert.Equal(t, nil, err)
 		}
 
-		val, haveIt = iterFunc()
-		assert.Equal(t, "", val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 
-		val, haveIt = iterFunc()
-		assert.Equal(t, "", val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 	}
+
+	iter := ReaderAsLinesIterGen(strings.NewReader(""))
+	val, err := iter()
+	assert.Zero(t, val)
+	assert.Equal(t, EOI, err)
+
+	iter = ReaderAsLinesIterGen(strings.NewReader("a\x80"))
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
 func TestStringAsLinesIterGen(t *testing.T) {
 	var (
 		inputs = []string{
-			"",
 			"oneline",
 			"two\rline cr",
 			"two\nline lf",
@@ -515,24 +541,87 @@ func TestStringAsLinesIterGen(t *testing.T) {
 
 	for _, input := range inputs {
 		var (
-			iterFunc = StringAsLinesIterGen(input)
-			lines    = linesRegex.Split(input, -1)
-			val      string
-			haveIt   bool
+			iter  = StringAsLinesIterGen(input)
+			lines = linesRegex.Split(input, -1)
+			val   string
+			err   error
 		)
 
 		for _, line := range lines {
-			val, haveIt = iterFunc()
+			val, err = iter()
 			assert.Equal(t, line, val)
-			assert.Equal(t, input != "", haveIt)
+			assert.Nil(t, err)
 		}
 
-		val, haveIt = iterFunc()
-		assert.Equal(t, "", val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 
-		val, haveIt = iterFunc()
-		assert.Equal(t, "", val)
-		assert.False(t, haveIt)
+		val, err = iter()
+		assert.Zero(t, val)
+		assert.Equal(t, EOI, err)
 	}
+
+	iter := StringAsLinesIterGen("")
+	val, err := iter()
+	assert.Zero(t, val)
+	assert.Equal(t, EOI, err)
+
+	iter = StringAsLinesIterGen("a\x80")
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, InvalidUTF8EncodingError, err)
+}
+
+func TestConcatIterGen(t *testing.T) {
+	iter := ConcatIterGen(
+		[]Iter[string]{
+			NewIter(NoValueIterGen[string]()),
+			NewIter(SliceIterGen([]string{"foo", "bar"})),
+			NewIter(NoValueIterGen[string]()),
+			NewIter(SingleValueIterGen("baz")),
+			NewIter(NoValueIterGen[string]()),
+		},
+	)
+
+	val, err := iter()
+	assert.Equal(t, "foo", val)
+	assert.Nil(t, err)
+
+	val, err = iter()
+	assert.Equal(t, "bar", val)
+	assert.Nil(t, err)
+
+	val, err = iter()
+	assert.Equal(t, "baz", val)
+	assert.Nil(t, err)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, EOI, err)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, EOI, err)
+
+	anErr := fmt.Errorf("An error")
+	iter = ConcatIterGen(
+		[]Iter[string]{
+			Of("1"),
+			SetError(OfEmpty[string](), anErr),
+			Of("2"),
+		},
+	)
+
+	val, err = iter()
+	assert.Equal(t, "1", val)
+	assert.Nil(t, err)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, anErr, err)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, anErr, err)
 }

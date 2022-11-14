@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/iter"
 	"github.com/bantling/micro/go/json"
 )
@@ -31,9 +30,11 @@ var (
 // so the caller can panic with an appropriate error.
 //
 // It is assumed that there does exist at least one more token - it is up to the caller to test this before calling,
-// as only the caller knows what to do on EOF.
-func parseValue(it iter.Iter[token]) json.Value {
-	tok := it.Must()
+// as only the caller knows what to do on EOI.
+func parseValue(it iter.Iter[token]) (json.Value, error) {
+	// Get first token
+	tok, err := it.Next()
+	var zv json.Value
 
 	switch tok.typ {
 	case tOBrace:
@@ -42,74 +43,104 @@ func parseValue(it iter.Iter[token]) json.Value {
 	case tOBracket:
 		it.Unread(tok)
 		// Assume this array is not top level document, collect all array elements into a slice and return it
-		return json.FromSliceOfValue(iter.ReduceToSlice(parseArray(it)).Must())
+		var slc []json.Value
+		if slc, err = iter.ReduceToSlice(parseArray(it)).Next(); err != nil {
+			return zv, err
+		}
+		return json.FromSliceOfValue(slc), nil
 	case tString:
-		return json.FromString(tok.value)
+		return json.FromString(tok.value), nil
 	case tNumber:
-		return json.FromNumberString(json.NumberString(tok.value))
+		return json.FromNumberString(json.NumberString(tok.value)), nil
 	case tBoolean:
-		return json.FromBool(tok.value == "true")
+		return json.FromBool(tok.value == "true"), nil
 	case tNull:
-		return json.NullValue
+		return json.NullValue, nil
 	}
 
-	return json.Value{}
+	// Only the caller knows what to do if an invalid token occurs
+	return zv, nil
 }
 
 // parseObject parses a JSON object, making potetially recursive calls to parseValue for each key value.
 // The iter must provide the opening brace.
-// Panics unless the correct lexical elements occur in the correct order.
-// Panics if a duplicate key occurs.
-func parseObject(it iter.Iter[token]) json.Value {
+func parseObject(it iter.Iter[token]) (json.Value, error) {
 	// Discard opening brace
-	it.Must()
+	it.Next()
 
 	var (
-		haveIt       bool
-		key          token
-		colon        token
-		value        json.Value
-		invalidValue json.Value
-		commaBrace   token
-		object       = map[string]json.Value{}
+		key        token
+		err        error
+		colon      token
+		valueTok   token
+		value      json.Value
+		zv         json.Value
+		commaBrace token
+		object     = map[string]json.Value{}
 	)
 
 	// Read as many key/value pairs as are provided
 	for {
 		// Must have a closing brace or string key after opening brace
-		if key, haveIt = it.NextValue(); !haveIt {
-			panic(errObjectRequiresKeyOrBrace)
+		if key, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				return zv, errObjectRequiresKeyOrBrace // Case 1
+			}
+			// A problem
+			return zv, err // Case 2
 		}
 
 		// If closing brace, valid empty object
 		if key.typ == tCBrace {
-			return json.FromMapOfValue(object)
+			return json.FromMapOfValue(object), nil
 		}
 
 		// If not closing brace, must be string key
 		if key.typ != tString {
-			panic(errObjectRequiresKeyOrBrace)
+			return zv, errObjectRequiresKeyOrBrace // Case 3
 		}
 
 		// Panic if key is a duplicate
 		if _, haveIt := object[key.value]; haveIt {
-			panic(fmt.Errorf(errObjectDuplicateKeyMsg, key.value))
+			return zv, fmt.Errorf(errObjectDuplicateKeyMsg, key.value) // Case 4
 		}
 
 		// Expect colon separator
-		if colon, haveIt = it.NextValue(); (!haveIt) || (colon.typ != tColon) {
-			panic(fmt.Errorf(errObjectKeyRequiresColonMsg, key.value))
+		if colon, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				return zv, fmt.Errorf(errObjectKeyRequiresColonMsg, key.value) // Case 5
+			}
+			// A problem
+			return zv, err // Case 6
+		}
+		if colon.typ != tColon {
+			return zv, fmt.Errorf(errObjectKeyRequiresColonMsg, key.value) // Case 7
+		}
+
+		// parseValue expects caller to verify there is another token, and provide an appropriate error if not
+		if valueTok, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				return zv, fmt.Errorf(errObjectKeyRequiresValueMsg, key.value) // Case 8
+			}
+			// A problem
+			return zv, err // Case 9
 		}
 
 		// Expect value for key, and map it
-		if value = parseValue(it); value == invalidValue {
-			panic(fmt.Errorf(errObjectKeyRequiresValueMsg, key.value))
+		it.Unread(valueTok)
+		if value, err = parseValue(it); err != nil {
+			// A problem
+			return zv, err // Case 10
 		}
 		object[key.value] = value
 
 		// Expect a comma or closing brace
-		if commaBrace, haveIt = it.NextValue(); !haveIt {
-			panic(fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, key.value))
+		if commaBrace, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				return zv, fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, key.value) // Case 11
+			}
+			// A problem
+			return zv, err // Case 12
 		}
 
 		if commaBrace.typ == tComma {
@@ -122,11 +153,11 @@ func parseObject(it iter.Iter[token]) json.Value {
 			break
 		}
 
-		panic(fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, key.value))
+		return zv, fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, key.value) // Case 13
 	}
 
 	// Return value built from map
-	return json.FromMapOfValue(object)
+	return json.FromMapOfValue(object), nil
 }
 
 // parseArray parses a JSON array, making potetially recursive calls to parseValue for each element value.
@@ -134,72 +165,82 @@ func parseObject(it iter.Iter[token]) json.Value {
 //
 // Returns an iter of each array element, in case this array is the document, so that the caller can process each element
 // as they are parsed. If the array is empty, the first call to the returned iter.Next will be false.
-//
-// Panics unless the correct lexical elements occur in the correct order, which could happen after returning some correctly
-// formed elements.
 func parseArray(it iter.Iter[token]) iter.Iter[json.Value] {
 	var (
 		first        = true
 		tok          token
-		haveIt       bool
+		err          error
 		value        json.Value
-		invalidValue json.Value
+		zv           json.Value
 		commaBracket token
 	)
 
-	return iter.NewIter(func() (json.Value, bool) {
+	return iter.NewIter(func() (json.Value, error) {
 		if first {
 			// Discard opening bracket
-			it.Must()
+			it.Next()
 
 			// Must have a closing bracket or value after opening bracket
-			if tok, haveIt = it.NextValue(); !haveIt {
-				panic(errArrayRequiresValueOrBracket)
+			if tok, err = it.Next(); err != nil {
+				if err == iter.EOI {
+					return zv, errArrayRequiresValueOrBracket // Case 1
+				}
+				// A problem
+				return zv, err // Case 2
 			}
 
 			// If closing bracket, valid empty array
 			if tok.typ == tCBracket {
-				return invalidValue, false
+				return zv, iter.EOI // Case 3
 			}
 
-			// If not closing bracket, must be a value
+			// If not closing bracket, must be a value that begins with the token we just read
 			it.Unread(tok)
-			if value = parseValue(it); value == invalidValue {
-				// If it's not a closing bracket or value, then it isn't valid
-				panic(errArrayRequiresValueOrBracket)
+			if value, err = parseValue(it); err != nil {
+				// A problem - cannot be EOI
+				return zv, err // Case 4
 			}
 
 			// Return first value
 			first = false
-			return value, true
+			return value, nil
 		}
 
 		// At least one element has already been returned, expect a comma or closing bracket
-		if commaBracket, haveIt = it.NextValue(); !haveIt {
-			panic(errArrayRequiresCommaOrBracket)
+		if commaBracket, err = it.Next(); err != nil {
+			if err == iter.EOI {
+				return zv, errArrayRequiresCommaOrBracket // Case 5
+			}
+			// A problem
+			return zv, err // Case 6
 		}
 
 		if commaBracket.typ == tComma {
 			// Ensure there is another token that can be read by parseValue
-			if tok, haveIt = it.NextValue(); !haveIt {
-				panic(errArrayRequiresValue)
+			if tok, err = it.Next(); err != nil {
+				if err == iter.EOI {
+					return zv, errArrayRequiresValue // Case 7
+				}
+				// A problem
+				return zv, err // Case 8
 			}
 
 			// Expect value for element, and return it
 			it.Unread(tok)
-			if value = parseValue(it); value == invalidValue {
-				panic(errArrayRequiresValue)
+			if value, err = parseValue(it); err != nil {
+				// A problem - cannot be EOI
+				return zv, err // Case 9
 			}
 
-			return value, true
+			return value, nil
 		}
 
 		if commaBracket.typ == tCBracket {
 			// Indicate end of array
-			return invalidValue, false
+			return zv, iter.EOI // Case 10
 		}
 
-		panic(errArrayRequiresCommaOrBracket)
+		return zv, errArrayRequiresCommaOrBracket // Case 11
 	})
 }
 
@@ -209,26 +250,35 @@ func parseArray(it iter.Iter[token]) iter.Iter[json.Value] {
 //
 // Useful for cases like writing JSON data to a database, where the JSON input could contain a large number of records,
 // and it is preferable to store each record one at a time, or perhaps in batches of some fixed maximum size.
-//
-// Panics if the input is not an object or array (including empty/whitespace only input), or if lexical elements do not
-// occur in the correct order (eg unbalanced brackets).
 func Iterate(src io.Reader) iter.Iter[json.Value] {
 	// First lexical element must be a { or [
 	var (
 		// Reader > iter[rune] > iter[token]
-		it               = lexer(iter.OfReaderAsRunes(src))
-		firstTok, haveIt = it.NextValue()
+		it            = lexer(iter.OfReaderAsRunes(src))
+		firstTok, err = it.Next()
 	)
 
 	// Die if empty
-	if !haveIt {
-		panic(errEmptyDocument)
+	if err != nil {
+		if err == iter.EOI {
+			return iter.SetError(iter.OfEmpty[json.Value](), errEmptyDocument) // Case 1
+		}
+		// A problem
+		return iter.SetError(iter.OfEmpty[json.Value](), err) // Case 2
 	}
 
 	// If object, return an iter of one element that is parsed right now
 	if firstTok.typ == tOBrace {
 		it.Unread(firstTok)
-		return iter.OfOne(parseObject(it))
+
+		var val json.Value
+		val, err = parseObject(it)
+		if err != nil {
+			// Can't be EOI, we know a token existed before the call
+			return iter.SetError(iter.OfEmpty[json.Value](), err) // Case 3
+		}
+
+		return iter.OfOne(val)
 	}
 
 	// If array, return iter of array elements, which are parsed later as the iter is iterated
@@ -238,7 +288,7 @@ func Iterate(src io.Reader) iter.Iter[json.Value] {
 	}
 
 	// Die if some other token exists that is not a brace or bracket
-	panic(errObjectOrArrayRequired)
+	return iter.SetError(iter.OfEmpty[json.Value](), errObjectOrArrayRequired) // Case 4
 }
 
 // Parse parses a JSON document fully before returning it, unlike Iterate which provides an iter.
@@ -246,39 +296,35 @@ func Iterate(src io.Reader) iter.Iter[json.Value] {
 // The top level object or array is provided as a Value.
 // If the reader can be parsed into a valid json document the result is (Value, nil), else it is (invalid value, error).
 func Parse(src io.Reader) (json.Value, error) {
+	// First lexical element must be a { or [
+	// Reader > iter[rune] > iter[token]
 	var (
-		doc json.Value
-		err error
+		it            = lexer(iter.OfReaderAsRunes(src))
+		firstTok, err = it.Next()
+		doc           json.Value
+		zv            json.Value
 	)
 
-	funcs.TryTo(
-		func() {
-			// First lexical element must be a { or [
-			var (
-				// Reader > iter[rune] > iter[token]
-				it               = lexer(iter.OfReaderAsRunes(src))
-				firstTok, haveIt = it.NextValue()
-			)
+	// Die if empty
+	if err != nil {
+		if err == iter.EOI {
+			return zv, errEmptyDocument // Case 1
+		}
+		// A problem
+		return zv, err // Case 2
+	}
 
-			// Die if empty
-			if !haveIt {
-				panic(errEmptyDocument)
-			}
+	// If object or array, return the fully parsed object as a Value
+	if (firstTok.typ == tOBrace) || (firstTok.typ == tOBracket) {
+		it.Unread(firstTok)
+		if doc, err = parseValue(it); err != nil {
+			// Can't be EOI, already checked that
+			return zv, err // Case 3
+		}
 
-			// If object or array, return the fully parsed object as a Value
-			if (firstTok.typ == tOBrace) || (firstTok.typ == tOBracket) {
-				it.Unread(firstTok)
-				doc = parseValue(it)
-				return
-			}
+		return doc, nil
+	}
 
-			// Die if some other token exists that is not a brace or bracket
-			panic(errObjectOrArrayRequired)
-		},
-		func(e any) {
-			err = e.(error)
-		},
-	)
-
-	return doc, err
+	// Die if some other token exists that is not a brace or bracket
+	return zv, errObjectOrArrayRequired // Case 4
 }
