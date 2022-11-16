@@ -389,7 +389,7 @@ func TestFlattenSlice(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(err any) {
-			assert.Equal(t, fmt.Errorf(flattenSliceArgNotSliceMsg, 0), err)
+			assert.Equal(t, fmt.Errorf("FlattenSlice argument must be a slice, not type int"), err)
 		},
 	)
 
@@ -400,7 +400,7 @@ func TestFlattenSlice(t *testing.T) {
 			assert.Fail(t, "Must die")
 		},
 		func(err any) {
-			assert.Equal(t, fmt.Errorf(flattenSliceArgNotTMsg, reflect.TypeOf(0), reflect.TypeOf("")), err)
+			assert.Equal(t, fmt.Errorf("FlattenSlice argument must be slice of int, not a slice of string"), err)
 		},
 	)
 }
@@ -504,12 +504,12 @@ func TestNillable(t *testing.T) {
 
 	TryTo(
 		func() { IsNil[int]() },
-		func(err any) { assert.Equal(t, fmt.Errorf(notNilableMsg, "int"), err) },
+		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
 
 	TryTo(
 		func() { IsNonNil[int]() },
-		func(err any) { assert.Equal(t, fmt.Errorf(notNilableMsg, "int"), err) },
+		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
 }
 

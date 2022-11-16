@@ -18,7 +18,7 @@ func TestOpenRange(t *testing.T) {
 			OfRange(3, Open, 1, Closed, 2)
 		},
 		func(e any) {
-			assert.Equal(t, fmt.Errorf(errMinMaxMsg, "3", "1"), e)
+			assert.Equal(t, fmt.Errorf("The (min, max) values of (3, 1) are not allowed, min must be < max and max must be > min"), e)
 		},
 	)
 
@@ -35,8 +35,8 @@ func TestOpenRange(t *testing.T) {
 	assert.Equal(t, 3, r.GetValue())
 
 	// Error setting to 1, as open min is 1, so val must be > 1
-	assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 1, "1", ">", 1, "<=", 3), r.SetValue(1))
+	assert.Equal(t, fmt.Errorf("The int value 1 is not valid, as the value must be > 1 and <= 3"), r.SetValue(1))
 
 	// Error setting to 4, as closed max is 3, so val must be <= 3
-	assert.Equal(t, fmt.Errorf(errOutsideRangeMsg, 4, "4", ">", 1, "<=", 3), r.SetValue(4))
+	assert.Equal(t, fmt.Errorf("The int value 4 is not valid, as the value must be > 1 and <= 3"), r.SetValue(4))
 }

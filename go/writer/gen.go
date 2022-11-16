@@ -13,8 +13,8 @@ import (
 
 // Constants
 var (
-	errIOByteWriterMsg   = "The byte %x could not be written"
-	errIORuneWriterMsg   = "The rune \\u%06x could not be written"
+	errIOByteWriterMsg   = "The byte 0x%x could not be written"
+	errIORuneWriterMsg   = "The rune \\U%08x could not be written"
 	errIOStringWriterMsg = "Only the first %d bytes were written of a string of %d runes that is encoded as %d UTF-8 bytes"
 
 	osEOLSequence = funcs.Ternary(runtime.GOOS == "windows", "\r\n", "\n")

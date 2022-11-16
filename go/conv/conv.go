@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	errMsg      = "The %T value of %s cannot be converted to a %s"
+	errMsg      = "The %T value of %s cannot be converted to %s"
 	log2Of10    = math.Log2(10)
 	minIntValue = map[int]int{
 		8:  math.MinInt8,
@@ -213,8 +213,8 @@ func FloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I)
 		inter2 int64
 	)
 
-	if (FloatToBigRat(ival, &inter1) != nil) || (BigRatToInt64(inter1, &inter2) != nil) || (IntToInt(inter2, oval) != nil) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%f", ival), reflect.TypeOf(*oval).Name())
+	if math.IsNaN(float64(ival)) || (FloatToBigRat(ival, &inter1) != nil) || (BigRatToInt64(inter1, &inter2) != nil) || (IntToInt(inter2, oval) != nil) {
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), reflect.TypeOf(*oval).Name())
 	}
 
 	return nil
@@ -228,8 +228,8 @@ func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval 
 		inter2 uint64
 	)
 
-	if (FloatToBigRat(ival, &inter1) != nil) || (BigRatToUint64(inter1, &inter2) != nil) || (UintToUint(inter2, oval) != nil) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%f", ival), reflect.TypeOf(*oval).Name())
+	if math.IsNaN(float64(ival)) || (FloatToBigRat(ival, &inter1) != nil) || (BigRatToUint64(inter1, &inter2) != nil) || (UintToUint(inter2, oval) != nil) {
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), reflect.TypeOf(*oval).Name())
 	}
 
 	return nil
@@ -238,8 +238,13 @@ func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval 
 // Float64ToFloat32 converts a float64 to a float32
 // Panics if the float64 is outside the range of a float32
 func Float64ToFloat32(ival float64, oval *float32) error {
-	if (!math.IsInf(ival, 0)) && (ival != 0) && ((ival < math.SmallestNonzeroFloat32) || (ival > math.MaxFloat32)) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%f", ival), "float32")
+	if math.IsInf(ival, 0) || math.IsNaN(ival) {
+		*oval = float32(ival)
+		return nil
+	}
+
+	if ((ival != 0.0) && (math.Abs(ival) < math.SmallestNonzeroFloat32)) || (ival > math.MaxFloat32) {
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), "float32")
 	}
 
 	*oval = float32(ival)
@@ -382,6 +387,12 @@ func BigRatToFloat32(ival *big.Rat, oval *float32) error {
 // Panics if the string cannot be represented as a float32
 func StringToFloat32(ival string, oval *float32) error {
 	var inter *big.Float
+
+	if ival == "NaN" {
+		*oval = float32(math.NaN())
+		return nil
+	}
+
 	if (StringToBigFloat(ival, &inter) != nil) || (BigFloatToFloat32(inter, oval) != nil) {
 		return fmt.Errorf(errMsg, ival, ival, "float32")
 	}
@@ -433,6 +444,12 @@ func BigRatToFloat64(ival *big.Rat, oval *float64) error {
 // Panics if the string cannot be represented as a float64
 func StringToFloat64(ival string, oval *float64) error {
 	var inter *big.Float
+
+	if ival == "NaN" {
+		*oval = math.NaN()
+		return nil
+	}
+
 	if (StringToBigFloat(ival, &inter) != nil) || (BigFloatToFloat64(inter, oval) != nil) {
 		return fmt.Errorf(errMsg, ival, ival, "float64")
 	}
@@ -456,10 +473,14 @@ func UintToBigInt[T constraint.UnsignedInteger](ival T, oval **big.Int) {
 // FloatToBigInt converts any float type to a *big.Int
 // Panics if the float has fractional digits
 func FloatToBigInt[T constraint.Float](ival T, oval **big.Int) error {
+	if math.IsInf(float64(ival), 0) || math.IsNaN(float64(ival)) {
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), "*big.Int")
+	}
+
 	var inter big.Rat
 	inter.SetFloat64(float64(ival))
 	if !inter.IsInt() {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%f", ival), "*big.Int")
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), "*big.Int")
 	}
 
 	*oval = inter.Num()
@@ -514,8 +535,13 @@ func UintToBigFloat[T constraint.UnsignedInteger](ival T, oval **big.Float) {
 }
 
 // FloatToBigFloat converts any float type into a *big.Float
-func FloatToBigFloat[T constraint.Float](ival T, oval **big.Float) {
+func FloatToBigFloat[T constraint.Float](ival T, oval **big.Float) error {
+	if math.IsNaN(float64(ival)) {
+		return fmt.Errorf(errMsg, ival, "NaN", "*big.Float")
+	}
+
 	*oval = big.NewFloat(float64(ival))
+	return nil
 }
 
 // BigIntToBigFloat converts a *big.Int into a *big.Float
@@ -565,8 +591,8 @@ func UintToBigRat[T constraint.UnsignedInteger](ival T, oval **big.Rat) {
 
 // FloatToBigRat converts any float type into a *big.Rat
 func FloatToBigRat[T constraint.Float](ival T, oval **big.Rat) error {
-	if math.IsInf(float64(ival), 0) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%f", ival), "*big.Rat")
+	if math.IsInf(float64(ival), 0) || math.IsNaN(float64(ival)) {
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), "*big.Rat")
 	}
 
 	var inter *big.Float
@@ -605,9 +631,12 @@ func StringToBigRat(ival string, oval **big.Rat) error {
 func FloatStringToBigRat(ival string, oval **big.Rat) error {
 	// ensure the string is a float string, and not a ratio
 	var err error
+	if (ival == "+Inf") || (ival == "-Inf") || (ival == "NaN") {
+		return fmt.Errorf("The float string value of %s cannot be converted to *big.Rat", ival)
+	}
 
 	if _, _, err = big.NewFloat(0).Parse(ival, 10); err != nil {
-		return fmt.Errorf(errMsg, ival, ival, "*big.Rat")
+		return fmt.Errorf("The float string value of %s cannot be converted to *big.Rat", ival)
 	}
 
 	// If it is a float string, cannot fail to be parsed by StringToBigRat

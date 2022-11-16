@@ -13,9 +13,8 @@ import (
 
 const (
 	notNilableMsg              = "Type %s is not a nillable type"
-	unsortableTypeMsg          = "The type %T is not a sortable type - it must implement constraint.Ordered, constraint.Complex, or constraint.Cmp. Provide a custom sorting function."
 	flattenSliceArgNotSliceMsg = "FlattenSlice argument must be a slice, not type %T"
-	flattenSliceArgNotTMsg     = "FlattenSlice argument must be slice of %T, not a slice of %T"
+	flattenSliceArgNotTMsg     = "FlattenSlice argument must be slice of %s, not a slice of %s"
 )
 
 // ==== Element accessors

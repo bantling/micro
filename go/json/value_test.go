@@ -142,7 +142,9 @@ func TestFromValue(t *testing.T) {
 	// Error
 	funcs.TryTo(
 		func() { FromValue((1 + 2i)) },
-		func(e any) { assert.Equal(t, fmt.Errorf(errInvalidGoValueMsg, (1+2i)), e) },
+		func(e any) {
+			assert.Equal(t, fmt.Errorf("A value of type complex128 is not a valid type to convert to a Value. Acceptable types are map[string]any, []any, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString, bool, and nil"), e)
+		},
 	)
 }
 

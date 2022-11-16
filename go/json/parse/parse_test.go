@@ -46,25 +46,25 @@ func TestParseObject(t *testing.T) {
 	// Case 3
 	assert.Equal(t, util.Of2Error(zv, errObjectRequiresKeyOrBrace), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{{`)))))
 	// Case 4
-	assert.Equal(t, util.Of2Error(zv, fmt.Errorf(errObjectDuplicateKeyMsg, "foo")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo": "bar","foo":"baz"`)))))
+	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("A JSON object cannot have duplicate key \"foo\"")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo": "bar","foo":"baz"`)))))
 	// Case 5
-	assert.Equal(t, util.Of2Error(zv, fmt.Errorf(errObjectKeyRequiresColonMsg, "foo")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo"`)))))
+	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("The JSON object key \"foo\" just be followed by a colon")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo"`)))))
 	// Case 6
 	assert.Equal(t, util.Of2Error(zv, anErr), util.Of2Error(parseObject(lexer(iter.SetError(iter.OfStringAsRunes(`{"foo"`), anErr)))))
 	// Case 7
-	assert.Equal(t, util.Of2Error(zv, fmt.Errorf(errObjectKeyRequiresColonMsg, "foo")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo"{`)))))
+	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("The JSON object key \"foo\" just be followed by a colon")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo"{`)))))
 	// Case 8
-	assert.Equal(t, util.Of2Error(zv, fmt.Errorf(errObjectKeyRequiresValueMsg, "foo")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":`)))))
+	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("The JSON object key \"foo\" must be have a value that is an object, arrray, string, number, boolean, or null")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":`)))))
 	// Case 9
 	assert.Equal(t, util.Of2Error(zv, anErr), util.Of2Error(parseObject(lexer(iter.SetError(iter.OfStringAsRunes(`{"foo":`), anErr)))))
 	// Case 10
 	assert.Equal(t, util.Of2Error(zv, anErr), util.Of2Error(parseObject(lexer(iter.SetError(iter.OfStringAsRunes(`{"foo":{`), anErr)))))
 	// Case 11
-	assert.Equal(t, util.Of2Error(zv, fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, "foo")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":1`)))))
+	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("The JSON key/value pair \"foo\" must be followed by a colon or closing brace")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":1`)))))
 	// Case 12 - need space after key value so that error occurs after successfully returning number
 	assert.Equal(t, util.Of2Error(zv, anErr), util.Of2Error(parseObject(lexer(iter.SetError(iter.OfStringAsRunes(`{"foo":1 `), anErr)))))
 	// Case 13
-	assert.Equal(t, util.Of2Error(zv, fmt.Errorf(errObjectKeyValueRequiresCommaOrBraceMsg, "foo")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":1{`)))))
+	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("The JSON key/value pair \"foo\" must be followed by a colon or closing brace")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":1{`)))))
 }
 
 func TestParseArray(t *testing.T) {

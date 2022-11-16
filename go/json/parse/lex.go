@@ -29,10 +29,8 @@ const (
 
 // error constants
 var (
-	errIncompleteArray                = fmt.Errorf("An array must be terminated by a ]")
-	errIncompleteObject               = fmt.Errorf("An object must be terminated by a }")
 	errIncompleteStringMsg            = "Incomplete string %s: a string must be terminated by a \""
-	errControlCharInStringMsg         = "The ascii control character %x is not valid in a string"
+	errControlCharInStringMsg         = "The ascii control character 0x%02x is not valid in a string"
 	errIncompleteStringEscapeMsg      = "Incomplete string escape in %s"
 	errIllegalStringEscapeMsg         = "Illegal string escape %s"
 	errOneSurrogateEscapeMsg          = "The surrogate string escape %s must be followed by another surrogate escape to form valid UTF-16"
@@ -104,7 +102,7 @@ func lexString(it iter.Iter[rune]) (token, error) {
 	for {
 		if val, err = it.Next(); err != nil {
 			if err == iter.EOI {
-				return zv, fmt.Errorf(errIncompleteStringMsg, string(str))
+				return zv, fmt.Errorf(errIncompleteStringMsg, "\""+string(str))
 			}
 			return zv, err
 		}
@@ -452,7 +450,7 @@ func lex(it iter.Iter[rune]) (token, error) {
 	}
 
 	// Anything except the above is an illegal character
-	return zv, fmt.Errorf(errInvalidCharMsg, val)
+	return zv, fmt.Errorf(errInvalidCharMsg, string(val))
 }
 
 // lexer uses lex and converts an iter[rune] into an iter[token]

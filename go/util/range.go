@@ -37,6 +37,8 @@ type Range[T constraint.IntegerAndFloat] struct {
 // OfRange constructs a range from minimum value and mode, maximum value and mode, and initial value.
 // An initial value is required since min and max could both be open and the type could a float, so there is no sensible
 // default initial value.
+//
+// Panics if the initial value is not in the specified range.
 func OfRange[T constraint.IntegerAndFloat](
 	min T,
 	minMode RangeMode,
@@ -80,7 +82,7 @@ func (r *Range[T]) SetValue(val T) error {
 		errOutsideRangeMsg,
 		val,
 		conv.ToString(val),
-		funcs.Ternary(r.minMode == Open, ">", ">="), r.min,
-		funcs.Ternary(r.maxMode == Open, "<", "<="), r.max,
+		funcs.Ternary(r.minMode == Open, ">", ">="), conv.ToString(r.min),
+		funcs.Ternary(r.maxMode == Open, "<", "<="), conv.ToString(r.max),
 	)
 }

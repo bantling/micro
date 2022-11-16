@@ -76,7 +76,7 @@ func TestIOWriterGen(t *testing.T) {
 	ew = util.NewErrorWriter(-1, err)
 	w = IOWriterGen(ew)
 
-	assert.Equal(t, fmt.Errorf(errIOByteWriterMsg, byte(0x47)), w(0x47))
+	assert.Equal(t, fmt.Errorf("The byte 0x47 could not be written"), w(0x47))
 }
 
 func TestIOWriterAsRunesGen(t *testing.T) {
@@ -118,7 +118,7 @@ func TestIOWriterAsRunesGen(t *testing.T) {
 	ew = util.NewErrorWriter(-1, err)
 	w = IOWriterAsRunesGen(ew)
 
-	assert.Equal(t, fmt.Errorf(errIORuneWriterMsg, rune(0x99)), w(0x99))
+	assert.Equal(t, fmt.Errorf("The rune \\U00000099 could not be written"), w(0x99))
 }
 
 func TestIOWriterAsStringsGen(t *testing.T) {
@@ -160,7 +160,7 @@ func TestIOWriterAsStringsGen(t *testing.T) {
 	ew = util.NewErrorWriter(-1, err)
 	w = IOWriterAsStringsGen(ew)
 
-	assert.Equal(t, fmt.Errorf(errIOStringWriterMsg, 0, 1, 1), w("c"))
+	assert.Equal(t, fmt.Errorf("Only the first 0 bytes were written of a string of 1 runes that is encoded as 1 UTF-8 bytes"), w("c"))
 }
 
 func TestIOWriterAsLinesGen(t *testing.T) {

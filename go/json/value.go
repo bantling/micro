@@ -21,7 +21,6 @@ var (
 	errNotNumber         = fmt.Errorf("The Value is not a number")
 	errNotBoolean        = fmt.Errorf("The Value is not a boolean")
 	errNotStringable     = fmt.Errorf("The Value is not a string, number, or boolean")
-	errNotDocumentMsg    = "A Value of type %s is not a document, it must be an Object or Array"
 )
 
 // ValueType is an enum of value types
