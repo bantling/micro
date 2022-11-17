@@ -50,10 +50,15 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 * util
 ** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
 
+== Dependency Graph
+
+A dependency graph can be generated anytime by running "make depgraph", which produces a file called "depgraph.svg" in
+this directory, which can be viewed by a web browser, and is linked to by this document.
+
+link:depgraph.svg[Dependency Graph]
+
 == TODO
 
-* Resolve issues of cyclic imports by arranging code in tiers
-** Find a way to use go compiler to generate a package dependency graph with dot tool, that can be displayed in README
 * Add math ops to streams - average, sum, max, min. Also add count.
 * Auto convert each JSON object into Go structs and vice-versa
 * Auto write JSON objects to an SQL table that uses individual columns for each field

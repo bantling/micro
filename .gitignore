@@ -1,5 +1,3 @@
-.DS_Store
-.project
-.cache
-coverage.html
+!.gitignore
+.*
 

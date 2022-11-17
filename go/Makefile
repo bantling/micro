@@ -133,11 +133,26 @@ format:
 test:
 	testOpt="-count=$${count:-1}"; \
 	[ -z "$(run)" ] || testOpt="$$testOpt -run $(run)"; \
-	go test -coverprofile=coverage.html -v $$testOpt ./...
+	go test -coverprofile=.coverage.html -v $$testOpt ./...
 
-.PHONY: coverage (host)
+.PHONY: coverage
 coverage:
-	go tool cover -html=coverage.html
+	go tool cover -html=.coverage.html
+
+.PHONY: have-dot
+have-dot:
+	@which dot 2>&1 > /dev/null || echo "The Graphviz package must be installed to generate a dependency graph"
+
+.PHONY: depgraph
+depgraph: have-dot
+	{ \
+		mod="$$(grep module go.mod | awk '{print $$2}')"; \
+		echo "digraph dependencies {"; \
+		for srcDir in $$(find . -type f -name '*.go' | sed -r 's,[.]/(.*)/[^/]*.go,\1,' | sort -u);do \
+			(cd "$$srcDir"; go list -f '{{.Imports}}') | tr -d '[]' | tr ' ' '\n' | sort -u | grep "$$mod" | sed -r "s,$$mod/(.*),\"$$srcDir\" -> \"\\1\","; \
+		done; \
+		echo "}"; \
+	} | dot -Tsvg > depgraph.svg
 
 # Display all vars (host, docker, podman)
 .PHONY: vars
