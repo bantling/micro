@@ -8,6 +8,7 @@ import (
 
 	"github.com/bantling/micro/go/iter"
 	"github.com/bantling/micro/go/json"
+	"github.com/bantling/micro/go/stream"
 )
 
 // Error constants
@@ -44,7 +45,7 @@ func parseValue(it iter.Iter[token]) (json.Value, error) {
 		it.Unread(tok)
 		// Assume this array is not top level document, collect all array elements into a slice and return it
 		var slc []json.Value
-		if slc, err = iter.ReduceToSlice(parseArray(it)).Next(); err != nil {
+		if slc, err = stream.ReduceToSlice(parseArray(it)).Next(); err != nil {
 			return zv, err
 		}
 		return json.FromSliceOfValue(slc), nil

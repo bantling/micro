@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	// "github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/iter"
 	"github.com/bantling/micro/go/json"
+	"github.com/bantling/micro/go/stream"
 	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -68,8 +68,8 @@ func TestParseObject(t *testing.T) {
 }
 
 func TestParseArray(t *testing.T) {
-	assert.Equal(t, util.Of2Error([]json.Value{json.FromString("bar")}, nil), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`["bar"]`))))))
-	assert.Equal(t, util.Of2Error([]json.Value{json.FromString("foo"), json.FromString("bar")}, nil), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`["foo", "bar"]`))))))
+	assert.Equal(t, util.Of2Error([]json.Value{json.FromString("bar")}, nil), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`["bar"]`))))))
+	assert.Equal(t, util.Of2Error([]json.Value{json.FromString("foo"), json.FromString("bar")}, nil), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`["foo", "bar"]`))))))
 
 	var (
 		zv    []json.Value
@@ -77,34 +77,34 @@ func TestParseArray(t *testing.T) {
 	)
 
 	// Case 1
-	assert.Equal(t, util.Of2Error(zv, errArrayRequiresValueOrBracket), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[`))))))
+	assert.Equal(t, util.Of2Error(zv, errArrayRequiresValueOrBracket), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[`))))))
 	// Case 2
-	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[`), anErr))))))
+	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[`), anErr))))))
 	// Case 3
-	assert.Equal(t, util.Of2Error([]json.Value{}, nil), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[]`))))))
+	assert.Equal(t, util.Of2Error([]json.Value{}, nil), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[]`))))))
 	// Case 4
-	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[[`), anErr))))))
+	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[[`), anErr))))))
 	// Case 5
-	assert.Equal(t, util.Of2Error(zv, errArrayRequiresCommaOrBracket), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1`))))))
+	assert.Equal(t, util.Of2Error(zv, errArrayRequiresCommaOrBracket), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1`))))))
 	// Case 6 - Need a space after value so that error occurs after successfully returning number
-	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1 `), anErr))))))
+	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1 `), anErr))))))
 	// Case 7
-	assert.Equal(t, util.Of2Error(zv, errArrayRequiresValue), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1,`))))))
+	assert.Equal(t, util.Of2Error(zv, errArrayRequiresValue), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1,`))))))
 	// Case 8
-	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1,`), anErr))))))
+	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1,`), anErr))))))
 	// Case 9
-	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1,[`), anErr))))))
+	assert.Equal(t, util.Of2Error(zv, anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1,[`), anErr))))))
 	// Case 10 - ordinary success case
-	assert.Equal(t, util.Of2Error([]json.Value{json.FromNumber(1)}, nil), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1]`))))))
+	assert.Equal(t, util.Of2Error([]json.Value{json.FromNumber(1)}, nil), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1]`))))))
 	// Case 11
-	assert.Equal(t, util.Of2Error(zv, errArrayRequiresCommaOrBracket), iter.Maybe(iter.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1}`))))))
+	assert.Equal(t, util.Of2Error(zv, errArrayRequiresCommaOrBracket), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1}`))))))
 }
 
 func TestIterate(t *testing.T) {
-	assert.Equal(t, util.Of2Error([]json.Value{json.FromMap(map[string]any{"foo": "bar"})}, nil), iter.Maybe(iter.ReduceToSlice(Iterate(strings.NewReader(`{"foo": "bar"}`)))))
-	assert.Equal(t, util.Of2Error([]json.Value{json.FromMap(map[string]any{"foo": "bar"})}, nil), iter.Maybe(iter.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar"}]`)))))
+	assert.Equal(t, util.Of2Error([]json.Value{json.FromMap(map[string]any{"foo": "bar"})}, nil), iter.Maybe(stream.ReduceToSlice(Iterate(strings.NewReader(`{"foo": "bar"}`)))))
+	assert.Equal(t, util.Of2Error([]json.Value{json.FromMap(map[string]any{"foo": "bar"})}, nil), iter.Maybe(stream.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar"}]`)))))
 
-	vals, err := iter.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar", "baz": 1}, ["fooey", 2], true, null]`))).Next()
+	vals, err := stream.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar", "baz": 1}, ["fooey", 2], true, null]`))).Next()
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(vals))
 	assert.Equal(t, json.FromMap(map[string]any{"foo": "bar", "baz": 1}), vals[0])

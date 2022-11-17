@@ -148,8 +148,8 @@ depgraph: have-dot
 	{ \
 		mod="$$(grep module go.mod | awk '{print $$2}')"; \
 		echo "digraph dependencies {"; \
-		for srcDir in $$(find . -type f -name '*.go' | sed -r 's,[.]/(.*)/[^/]*.go,\1,' | sort -u);do \
-			(cd "$$srcDir"; go list -f '{{.Imports}}') | tr -d '[]' | tr ' ' '\n' | sort -u | grep "$$mod" | sed -r "s,$$mod/(.*),\"$$srcDir\" -> \"\\1\","; \
+		for srcDir in $$(find . -type f -name '*.go' | sed -r 's,[.]/(.*)/[^/]*,\1,' | sort -u); do \
+			(cd "$$srcDir"; go list -f '{{.Imports}}') | tr -d '[]' | tr ' ' '\n' | sort | grep "$$mod" | sed -r "s,$$mod/(.*),\"$$srcDir\" -> \"\\1\","; \
 		done; \
 		echo "}"; \
 	} | dot -Tsvg > depgraph.svg
