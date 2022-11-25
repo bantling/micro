@@ -295,39 +295,45 @@ func TestFloatToUint(t *testing.T) {
 	assert.Equal(t, "The float64 value of NaN cannot be converted to uint", FloatToUint(math.NaN(), &d).Error())
 }
 
-func TestFloat64ToFloat32(t *testing.T) {
+func TestFloatToFloat(t *testing.T) {
 	var (
 		i float64
 		o float32
 	)
-	assert.Nil(t, Float64ToFloat32(i, &o))
+	assert.Nil(t, FloatToFloat(i, &o))
 	assert.Equal(t, float32(0), o)
 
 	i = 1
-	assert.Nil(t, Float64ToFloat32(i, &o))
+	assert.Nil(t, FloatToFloat(i, &o))
 	assert.Equal(t, float32(1), o)
 
 	i = -1
-	assert.Nil(t, Float64ToFloat32(i, &o))
+	assert.Nil(t, FloatToFloat(i, &o))
 	assert.Equal(t, float32(-1), o)
 
-	assert.Nil(t, Float64ToFloat32(math.SmallestNonzeroFloat32, &o))
+	assert.Nil(t, FloatToFloat(math.SmallestNonzeroFloat32, &o))
 	assert.Equal(t, float32(math.SmallestNonzeroFloat32), o)
 
-	assert.Nil(t, Float64ToFloat32(math.MaxFloat32, &o))
+	assert.Nil(t, FloatToFloat(-math.SmallestNonzeroFloat32, &o))
+	assert.Equal(t, float32(-math.SmallestNonzeroFloat32), o)
+
+	assert.Nil(t, FloatToFloat(math.MaxFloat32, &o))
 	assert.Equal(t, float32(math.MaxFloat32), o)
 
-	assert.Nil(t, Float64ToFloat32(math.Inf(-1), &o))
+	assert.Nil(t, FloatToFloat(math.Inf(-1), &o))
 	assert.Equal(t, float32(math.Inf(-1)), o)
 
-	assert.Nil(t, Float64ToFloat32(math.Inf(1), &o))
+	assert.Nil(t, FloatToFloat(math.Inf(1), &o))
 	assert.Equal(t, float32(math.Inf(1)), o)
 
+	assert.Nil(t, FloatToFloat(math.NaN(), &o))
+	assert.True(t, math.IsNaN(float64(o)))
+
 	i = math.SmallestNonzeroFloat64
-	assert.Equal(t, "The float64 value of 5e-324 cannot be converted to float32", Float64ToFloat32(i, &o).Error())
+	assert.Equal(t, "The float64 value of 5e-324 cannot be converted to float32", FloatToFloat(i, &o).Error())
 
 	i = -math.SmallestNonzeroFloat64
-	assert.Equal(t, "The float64 value of -5e-324 cannot be converted to float32", Float64ToFloat32(i, &o).Error())
+	assert.Equal(t, "The float64 value of -5e-324 cannot be converted to float32", FloatToFloat(i, &o).Error())
 }
 
 // ==== ToInt64
@@ -818,4 +824,816 @@ func TestFloatStringToBigRat(t *testing.T) {
 	assert.Equal(t, "The float string value of +Inf cannot be converted to *big.Rat", FloatStringToBigRat("+Inf", &o).Error())
 	assert.Equal(t, "The float string value of -Inf cannot be converted to *big.Rat", FloatStringToBigRat("-Inf", &o).Error())
 	assert.Equal(t, "The float string value of NaN cannot be converted to *big.Rat", FloatStringToBigRat("NaN", &o).Error())
+}
+
+func TestTo(t *testing.T) {
+	// == int
+	{
+		var i int
+
+		// ints
+		assert.Nil(t, To(-1, &i))
+		assert.Equal(t, -1, i)
+
+		assert.Nil(t, To(int8(-2), &i))
+		assert.Equal(t, -2, i)
+
+		assert.Nil(t, To(int16(-3), &i))
+		assert.Equal(t, -3, i)
+
+		assert.Nil(t, To(int32(-4), &i))
+		assert.Equal(t, -4, i)
+
+		assert.Nil(t, To(int64(-5), &i))
+		assert.Equal(t, -5, i)
+
+		// uints
+		assert.Nil(t, To(uint(1), &i))
+		assert.Equal(t, 1, i)
+
+		assert.Nil(t, To(uint8(2), &i))
+		assert.Equal(t, 2, i)
+
+		assert.Nil(t, To(uint16(3), &i))
+		assert.Equal(t, 3, i)
+
+		assert.Nil(t, To(uint32(4), &i))
+		assert.Equal(t, 4, i)
+
+		assert.Nil(t, To(uint64(5), &i))
+		assert.Equal(t, 5, i)
+
+		// floats
+		assert.Nil(t, To(float32(1), &i))
+		assert.Equal(t, 1, i)
+
+		assert.Nil(t, To(2.0, &i))
+		assert.Equal(t, 2, i)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &i))
+		assert.Equal(t, 1, i)
+
+		assert.Nil(t, To(big.NewFloat(2), &i))
+		assert.Equal(t, 2, i)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &i))
+		assert.Equal(t, 3, i)
+	}
+
+	// == int8
+	{
+		var i8 int8
+
+		// ints
+		assert.Nil(t, To(-1, &i8))
+		assert.Equal(t, int8(-1), i8)
+
+		assert.Nil(t, To(int8(-2), &i8))
+		assert.Equal(t, int8(-2), i8)
+
+		assert.Nil(t, To(int16(-3), &i8))
+		assert.Equal(t, int8(-3), i8)
+
+		assert.Nil(t, To(int32(-4), &i8))
+		assert.Equal(t, int8(-4), i8)
+
+		assert.Nil(t, To(int64(-5), &i8))
+		assert.Equal(t, int8(-5), i8)
+
+		// uints
+		assert.Nil(t, To(uint(1), &i8))
+		assert.Equal(t, int8(1), i8)
+
+		assert.Nil(t, To(uint8(2), &i8))
+		assert.Equal(t, int8(2), i8)
+
+		assert.Nil(t, To(uint16(3), &i8))
+		assert.Equal(t, int8(3), i8)
+
+		assert.Nil(t, To(uint32(4), &i8))
+		assert.Equal(t, int8(4), i8)
+
+		assert.Nil(t, To(uint64(5), &i8))
+		assert.Equal(t, int8(5), i8)
+
+		// floats
+		assert.Nil(t, To(float32(1), &i8))
+		assert.Equal(t, int8(1), i8)
+
+		assert.Nil(t, To(2.0, &i8))
+		assert.Equal(t, int8(2), i8)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &i8))
+		assert.Equal(t, int8(1), i8)
+
+		assert.Nil(t, To(big.NewFloat(2), &i8))
+		assert.Equal(t, int8(2), i8)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &i8))
+		assert.Equal(t, int8(3), i8)
+	}
+
+	// == int16
+	{
+		var i16 int16
+
+		// ints
+		assert.Nil(t, To(-1, &i16))
+		assert.Equal(t, int16(-1), i16)
+
+		assert.Nil(t, To(int8(-2), &i16))
+		assert.Equal(t, int16(-2), i16)
+
+		assert.Nil(t, To(int16(-3), &i16))
+		assert.Equal(t, int16(-3), i16)
+
+		assert.Nil(t, To(int32(-4), &i16))
+		assert.Equal(t, int16(-4), i16)
+
+		assert.Nil(t, To(int64(-5), &i16))
+		assert.Equal(t, int16(-5), i16)
+
+		// uints
+		assert.Nil(t, To(uint(1), &i16))
+		assert.Equal(t, int16(1), i16)
+
+		assert.Nil(t, To(uint8(2), &i16))
+		assert.Equal(t, int16(2), i16)
+
+		assert.Nil(t, To(uint16(3), &i16))
+		assert.Equal(t, int16(3), i16)
+
+		assert.Nil(t, To(uint32(4), &i16))
+		assert.Equal(t, int16(4), i16)
+
+		assert.Nil(t, To(uint64(5), &i16))
+		assert.Equal(t, int16(5), i16)
+
+		// floats
+		assert.Nil(t, To(float32(1), &i16))
+		assert.Equal(t, int16(1), i16)
+
+		assert.Nil(t, To(2.0, &i16))
+		assert.Equal(t, int16(2), i16)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &i16))
+		assert.Equal(t, int16(1), i16)
+
+		assert.Nil(t, To(big.NewFloat(2), &i16))
+		assert.Equal(t, int16(2), i16)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &i16))
+		assert.Equal(t, int16(3), i16)
+	}
+
+	// == int32
+	{
+		var i32 int32
+
+		// ints
+		assert.Nil(t, To(-1, &i32))
+		assert.Equal(t, int32(-1), i32)
+
+		assert.Nil(t, To(int8(-2), &i32))
+		assert.Equal(t, int32(-2), i32)
+
+		assert.Nil(t, To(int16(-3), &i32))
+		assert.Equal(t, int32(-3), i32)
+
+		assert.Nil(t, To(int32(-4), &i32))
+		assert.Equal(t, int32(-4), i32)
+
+		assert.Nil(t, To(int64(-5), &i32))
+		assert.Equal(t, int32(-5), i32)
+
+		// uints
+		assert.Nil(t, To(uint(1), &i32))
+		assert.Equal(t, int32(1), i32)
+
+		assert.Nil(t, To(uint8(2), &i32))
+		assert.Equal(t, int32(2), i32)
+
+		assert.Nil(t, To(uint16(3), &i32))
+		assert.Equal(t, int32(3), i32)
+
+		assert.Nil(t, To(uint32(4), &i32))
+		assert.Equal(t, int32(4), i32)
+
+		assert.Nil(t, To(uint64(5), &i32))
+		assert.Equal(t, int32(5), i32)
+
+		// floats
+		assert.Nil(t, To(float32(1), &i32))
+		assert.Equal(t, int32(1), i32)
+
+		assert.Nil(t, To(2.0, &i32))
+		assert.Equal(t, int32(2), i32)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &i32))
+		assert.Equal(t, int32(1), i32)
+
+		assert.Nil(t, To(big.NewFloat(2), &i32))
+		assert.Equal(t, int32(2), i32)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &i32))
+		assert.Equal(t, int32(3), i32)
+	}
+
+	// == int64
+	{
+		var i64 int64
+
+		// ints
+		assert.Nil(t, To(-1, &i64))
+		assert.Equal(t, int64(-1), i64)
+
+		assert.Nil(t, To(int8(-2), &i64))
+		assert.Equal(t, int64(-2), i64)
+
+		assert.Nil(t, To(int16(-3), &i64))
+		assert.Equal(t, int64(-3), i64)
+
+		assert.Nil(t, To(int32(-4), &i64))
+		assert.Equal(t, int64(-4), i64)
+
+		assert.Nil(t, To(int64(-5), &i64))
+		assert.Equal(t, int64(-5), i64)
+
+		// uints
+		assert.Nil(t, To(uint(1), &i64))
+		assert.Equal(t, int64(1), i64)
+
+		assert.Nil(t, To(uint8(2), &i64))
+		assert.Equal(t, int64(2), i64)
+
+		assert.Nil(t, To(uint16(3), &i64))
+		assert.Equal(t, int64(3), i64)
+
+		assert.Nil(t, To(uint32(4), &i64))
+		assert.Equal(t, int64(4), i64)
+
+		assert.Nil(t, To(uint64(5), &i64))
+		assert.Equal(t, int64(5), i64)
+
+		// floats
+		assert.Nil(t, To(float32(1), &i64))
+		assert.Equal(t, int64(1), i64)
+
+		assert.Nil(t, To(2.0, &i64))
+		assert.Equal(t, int64(2), i64)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &i64))
+		assert.Equal(t, int64(1), i64)
+
+		assert.Nil(t, To(big.NewFloat(2), &i64))
+		assert.Equal(t, int64(2), i64)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &i64))
+		assert.Equal(t, int64(3), i64)
+	}
+
+	// == uint
+	{
+		var ui uint
+
+		// ints
+		assert.Nil(t, To(1, &ui))
+		assert.Equal(t, uint(1), ui)
+
+		assert.Nil(t, To(int8(2), &ui))
+		assert.Equal(t, uint(2), ui)
+
+		assert.Nil(t, To(int16(3), &ui))
+		assert.Equal(t, uint(3), ui)
+
+		assert.Nil(t, To(int32(4), &ui))
+		assert.Equal(t, uint(4), ui)
+
+		assert.Nil(t, To(int64(5), &ui))
+		assert.Equal(t, uint(5), ui)
+
+		// uints
+		assert.Nil(t, To(uint(1), &ui))
+		assert.Equal(t, uint(1), ui)
+
+		assert.Nil(t, To(uint8(2), &ui))
+		assert.Equal(t, uint(2), ui)
+
+		assert.Nil(t, To(uint16(3), &ui))
+		assert.Equal(t, uint(3), ui)
+
+		assert.Nil(t, To(uint32(4), &ui))
+		assert.Equal(t, uint(4), ui)
+
+		assert.Nil(t, To(uint64(5), &ui))
+		assert.Equal(t, uint(5), ui)
+
+		// floats
+		assert.Nil(t, To(float32(1), &ui))
+		assert.Equal(t, uint(1), ui)
+
+		assert.Nil(t, To(2.0, &ui))
+		assert.Equal(t, uint(2), ui)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &ui))
+		assert.Equal(t, uint(1), ui)
+
+		assert.Nil(t, To(big.NewFloat(2), &ui))
+		assert.Equal(t, uint(2), ui)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &ui))
+		assert.Equal(t, uint(3), ui)
+	}
+
+	// == uint8
+	{
+		var ui8 uint8
+
+		// ints
+		assert.Nil(t, To(1, &ui8))
+		assert.Equal(t, uint8(1), ui8)
+
+		assert.Nil(t, To(int8(2), &ui8))
+		assert.Equal(t, uint8(2), ui8)
+
+		assert.Nil(t, To(int16(3), &ui8))
+		assert.Equal(t, uint8(3), ui8)
+
+		assert.Nil(t, To(int32(4), &ui8))
+		assert.Equal(t, uint8(4), ui8)
+
+		assert.Nil(t, To(int64(5), &ui8))
+		assert.Equal(t, uint8(5), ui8)
+
+		// uints
+		assert.Nil(t, To(uint(1), &ui8))
+		assert.Equal(t, uint8(1), ui8)
+
+		assert.Nil(t, To(uint8(2), &ui8))
+		assert.Equal(t, uint8(2), ui8)
+
+		assert.Nil(t, To(uint16(3), &ui8))
+		assert.Equal(t, uint8(3), ui8)
+
+		assert.Nil(t, To(uint32(4), &ui8))
+		assert.Equal(t, uint8(4), ui8)
+
+		assert.Nil(t, To(uint64(5), &ui8))
+		assert.Equal(t, uint8(5), ui8)
+
+		// floats
+		assert.Nil(t, To(float32(1), &ui8))
+		assert.Equal(t, uint8(1), ui8)
+
+		assert.Nil(t, To(2.0, &ui8))
+		assert.Equal(t, uint8(2), ui8)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &ui8))
+		assert.Equal(t, uint8(1), ui8)
+
+		assert.Nil(t, To(big.NewFloat(2), &ui8))
+		assert.Equal(t, uint8(2), ui8)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &ui8))
+		assert.Equal(t, uint8(3), ui8)
+	}
+
+	// == uint16
+	{
+		var ui16 uint16
+
+		// ints
+		assert.Nil(t, To(1, &ui16))
+		assert.Equal(t, uint16(1), ui16)
+
+		assert.Nil(t, To(int8(2), &ui16))
+		assert.Equal(t, uint16(2), ui16)
+
+		assert.Nil(t, To(int16(3), &ui16))
+		assert.Equal(t, uint16(3), ui16)
+
+		assert.Nil(t, To(int32(4), &ui16))
+		assert.Equal(t, uint16(4), ui16)
+
+		assert.Nil(t, To(int64(5), &ui16))
+		assert.Equal(t, uint16(5), ui16)
+
+		// uints
+		assert.Nil(t, To(uint(1), &ui16))
+		assert.Equal(t, uint16(1), ui16)
+
+		assert.Nil(t, To(uint8(2), &ui16))
+		assert.Equal(t, uint16(2), ui16)
+
+		assert.Nil(t, To(uint16(3), &ui16))
+		assert.Equal(t, uint16(3), ui16)
+
+		assert.Nil(t, To(uint32(4), &ui16))
+		assert.Equal(t, uint16(4), ui16)
+
+		assert.Nil(t, To(uint64(5), &ui16))
+		assert.Equal(t, uint16(5), ui16)
+
+		// floats
+		assert.Nil(t, To(float32(1), &ui16))
+		assert.Equal(t, uint16(1), ui16)
+
+		assert.Nil(t, To(2.0, &ui16))
+		assert.Equal(t, uint16(2), ui16)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &ui16))
+		assert.Equal(t, uint16(1), ui16)
+
+		assert.Nil(t, To(big.NewFloat(2), &ui16))
+		assert.Equal(t, uint16(2), ui16)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &ui16))
+		assert.Equal(t, uint16(3), ui16)
+	}
+
+	// == uint32
+	{
+		var ui32 uint32
+
+		// ints
+		assert.Nil(t, To(1, &ui32))
+		assert.Equal(t, uint32(1), ui32)
+
+		assert.Nil(t, To(int8(2), &ui32))
+		assert.Equal(t, uint32(2), ui32)
+
+		assert.Nil(t, To(int16(3), &ui32))
+		assert.Equal(t, uint32(3), ui32)
+
+		assert.Nil(t, To(int32(4), &ui32))
+		assert.Equal(t, uint32(4), ui32)
+
+		assert.Nil(t, To(int64(5), &ui32))
+		assert.Equal(t, uint32(5), ui32)
+
+		// uints
+		assert.Nil(t, To(uint(1), &ui32))
+		assert.Equal(t, uint32(1), ui32)
+
+		assert.Nil(t, To(uint8(2), &ui32))
+		assert.Equal(t, uint32(2), ui32)
+
+		assert.Nil(t, To(uint16(3), &ui32))
+		assert.Equal(t, uint32(3), ui32)
+
+		assert.Nil(t, To(uint32(4), &ui32))
+		assert.Equal(t, uint32(4), ui32)
+
+		assert.Nil(t, To(uint64(5), &ui32))
+		assert.Equal(t, uint32(5), ui32)
+
+		// floats
+		assert.Nil(t, To(float32(1), &ui32))
+		assert.Equal(t, uint32(1), ui32)
+
+		assert.Nil(t, To(2.0, &ui32))
+		assert.Equal(t, uint32(2), ui32)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &ui32))
+		assert.Equal(t, uint32(1), ui32)
+
+		assert.Nil(t, To(big.NewFloat(2), &ui32))
+		assert.Equal(t, uint32(2), ui32)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &ui32))
+		assert.Equal(t, uint32(3), ui32)
+	}
+
+	// == uint64
+	{
+		var ui64 uint64
+
+		// ints
+		assert.Nil(t, To(1, &ui64))
+		assert.Equal(t, uint64(1), ui64)
+
+		assert.Nil(t, To(int8(2), &ui64))
+		assert.Equal(t, uint64(2), ui64)
+
+		assert.Nil(t, To(int16(3), &ui64))
+		assert.Equal(t, uint64(3), ui64)
+
+		assert.Nil(t, To(int32(4), &ui64))
+		assert.Equal(t, uint64(4), ui64)
+
+		assert.Nil(t, To(int64(5), &ui64))
+		assert.Equal(t, uint64(5), ui64)
+
+		// uints
+		assert.Nil(t, To(uint(1), &ui64))
+		assert.Equal(t, uint64(1), ui64)
+
+		assert.Nil(t, To(uint8(2), &ui64))
+		assert.Equal(t, uint64(2), ui64)
+
+		assert.Nil(t, To(uint16(3), &ui64))
+		assert.Equal(t, uint64(3), ui64)
+
+		assert.Nil(t, To(uint32(4), &ui64))
+		assert.Equal(t, uint64(4), ui64)
+
+		assert.Nil(t, To(uint64(5), &ui64))
+		assert.Equal(t, uint64(5), ui64)
+
+		// floats
+		assert.Nil(t, To(float32(1), &ui64))
+		assert.Equal(t, uint64(1), ui64)
+
+		assert.Nil(t, To(2.0, &ui64))
+		assert.Equal(t, uint64(2), ui64)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &ui64))
+		assert.Equal(t, uint64(1), ui64)
+
+		assert.Nil(t, To(big.NewFloat(2), &ui64))
+		assert.Equal(t, uint64(2), ui64)
+
+		assert.Nil(t, To(big.NewRat(3, 1), &ui64))
+		assert.Equal(t, uint64(3), ui64)
+	}
+
+	// == float32
+	{
+		var f32 float32
+
+		// ints
+		assert.Nil(t, To(1, &f32))
+		assert.Equal(t, float32(1), f32)
+
+		assert.Nil(t, To(int8(2), &f32))
+		assert.Equal(t, float32(2), f32)
+
+		assert.Nil(t, To(int16(3), &f32))
+		assert.Equal(t, float32(3), f32)
+
+		assert.Nil(t, To(int32(4), &f32))
+		assert.Equal(t, float32(4), f32)
+
+		assert.Nil(t, To(int64(5), &f32))
+		assert.Equal(t, float32(5), f32)
+
+		// uints
+		assert.Nil(t, To(uint(1), &f32))
+		assert.Equal(t, float32(1), f32)
+
+		assert.Nil(t, To(uint8(2), &f32))
+		assert.Equal(t, float32(2), f32)
+
+		assert.Nil(t, To(uint16(3), &f32))
+		assert.Equal(t, float32(3), f32)
+
+		assert.Nil(t, To(uint32(4), &f32))
+		assert.Equal(t, float32(4), f32)
+
+		assert.Nil(t, To(uint64(5), &f32))
+		assert.Equal(t, float32(5), f32)
+
+		// floats
+		assert.Nil(t, To(float32(1.25), &f32))
+		assert.Equal(t, float32(1.25), f32)
+
+		assert.Nil(t, To(2.5, &f32))
+		assert.Equal(t, float32(2.5), f32)
+
+		// *bigs
+		assert.Nil(t, To(big.NewInt(1), &f32))
+		assert.Equal(t, float32(1), f32)
+
+		assert.Nil(t, To(big.NewFloat(1.25), &f32))
+		assert.Equal(t, float32(1.25), f32)
+
+		assert.Nil(t, To(big.NewRat(250, 100), &f32))
+		assert.Equal(t, float32(2.5), f32)
+	}
+
+	// == float64
+	{
+		var f64 float64
+
+		// ints
+		assert.Nil(t, To(1, &f64))
+		assert.Equal(t, 1.0, f64)
+
+		assert.Nil(t, To(int8(2), &f64))
+		assert.Equal(t, 2.0, f64)
+
+		assert.Nil(t, To(int16(3), &f64))
+		assert.Equal(t, 3.0, f64)
+
+		assert.Nil(t, To(int32(4), &f64))
+		assert.Equal(t, 4.0, f64)
+
+		assert.Nil(t, To(int64(5), &f64))
+		assert.Equal(t, 5.0, f64)
+
+		// uints
+		assert.Nil(t, To(uint(1), &f64))
+		assert.Equal(t, 1.0, f64)
+
+		assert.Nil(t, To(uint8(2), &f64))
+		assert.Equal(t, 2.0, f64)
+
+		assert.Nil(t, To(uint16(3), &f64))
+		assert.Equal(t, 3.0, f64)
+
+		assert.Nil(t, To(uint32(4), &f64))
+		assert.Equal(t, 4.0, f64)
+
+		assert.Nil(t, To(uint64(5), &f64))
+		assert.Equal(t, 5.0, f64)
+
+		// floats
+		assert.Nil(t, To(float32(1.25), &f64))
+		assert.Equal(t, 1.25, f64)
+
+		assert.Nil(t, To(2.5, &f64))
+		assert.Equal(t, 2.5, f64)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &f64))
+		assert.Equal(t, 1.0, f64)
+
+		assert.Nil(t, To(big.NewFloat(1.25), &f64))
+		assert.Equal(t, 1.25, f64)
+
+		assert.Nil(t, To(big.NewRat(250, 100), &f64))
+		assert.Equal(t, 2.5, f64)
+	}
+
+	// == *big.Int
+	{
+		var bi *big.Int
+
+		// ints
+		assert.Nil(t, To(1, &bi))
+		assert.Equal(t, big.NewInt(1), bi)
+
+		assert.Nil(t, To(int8(2), &bi))
+		assert.Equal(t, big.NewInt(2), bi)
+
+		assert.Nil(t, To(int16(3), &bi))
+		assert.Equal(t, big.NewInt(3), bi)
+
+		assert.Nil(t, To(int32(4), &bi))
+		assert.Equal(t, big.NewInt(4), bi)
+
+		assert.Nil(t, To(int64(5), &bi))
+		assert.Equal(t, big.NewInt(5), bi)
+
+		// uints
+		assert.Nil(t, To(uint(1), &bi))
+		assert.Equal(t, big.NewInt(1), bi)
+
+		assert.Nil(t, To(uint8(2), &bi))
+		assert.Equal(t, big.NewInt(2), bi)
+
+		assert.Nil(t, To(uint16(3), &bi))
+		assert.Equal(t, big.NewInt(3), bi)
+
+		assert.Nil(t, To(uint32(4), &bi))
+		assert.Equal(t, big.NewInt(4), bi)
+
+		assert.Nil(t, To(uint64(5), &bi))
+		assert.Equal(t, big.NewInt(5), bi)
+
+		// floats
+		assert.Nil(t, To(float32(125), &bi))
+		assert.Equal(t, big.NewInt(125), bi)
+
+		assert.Nil(t, To(25.0, &bi))
+		assert.Equal(t, big.NewInt(25), bi)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &bi))
+		assert.Equal(t, big.NewInt(1), bi)
+
+		assert.Nil(t, To(big.NewFloat(125), &bi))
+		assert.Equal(t, big.NewInt(125), bi)
+
+		assert.Nil(t, To(big.NewRat(250, 1), &bi))
+		assert.Equal(t, big.NewInt(250), bi)
+	}
+
+	// == *big.Float
+	{
+		var bf *big.Float
+
+		// ints
+		assert.Nil(t, To(1, &bf))
+		assert.Equal(t, big.NewFloat(1), bf)
+
+		assert.Nil(t, To(int8(2), &bf))
+		assert.Equal(t, big.NewFloat(2), bf)
+
+		assert.Nil(t, To(int16(3), &bf))
+		assert.Equal(t, big.NewFloat(3), bf)
+
+		assert.Nil(t, To(int32(4), &bf))
+		assert.Equal(t, big.NewFloat(4), bf)
+
+		assert.Nil(t, To(int64(5), &bf))
+		assert.Equal(t, big.NewFloat(5), bf)
+
+		// uints
+		assert.Nil(t, To(uint(1), &bf))
+		assert.Equal(t, big.NewFloat(1), bf)
+
+		assert.Nil(t, To(uint8(2), &bf))
+		assert.Equal(t, big.NewFloat(2), bf)
+
+		assert.Nil(t, To(uint16(3), &bf))
+		assert.Equal(t, big.NewFloat(3), bf)
+
+		assert.Nil(t, To(uint32(4), &bf))
+		assert.Equal(t, big.NewFloat(4), bf)
+
+		assert.Nil(t, To(uint64(5), &bf))
+		assert.Equal(t, big.NewFloat(5), bf)
+
+		// floats
+		assert.Nil(t, To(float32(1.25), &bf))
+		assert.Equal(t, big.NewFloat(1.25), bf)
+
+		assert.Nil(t, To(2.5, &bf))
+		assert.Equal(t, big.NewFloat(2.5), bf)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &bf))
+		assert.Equal(t, big.NewFloat(1), bf)
+
+		assert.Nil(t, To(big.NewFloat(1.25), &bf))
+		assert.Equal(t, big.NewFloat(1.25), bf)
+
+		assert.Nil(t, To(big.NewRat(250, 100), &bf))
+		assert.Equal(t, big.NewFloat(2.5), bf)
+	}
+
+	// == *big.Rat
+	{
+		var br *big.Rat
+
+		// ints
+		assert.Nil(t, To(1, &br))
+		assert.Equal(t, big.NewRat(1, 1), br)
+
+		assert.Nil(t, To(int8(2), &br))
+		assert.Equal(t, big.NewRat(2, 1), br)
+
+		assert.Nil(t, To(int16(3), &br))
+		assert.Equal(t, big.NewRat(3, 1), br)
+
+		assert.Nil(t, To(int32(4), &br))
+		assert.Equal(t, big.NewRat(4, 1), br)
+
+		assert.Nil(t, To(int64(5), &br))
+		assert.Equal(t, big.NewRat(5, 1), br)
+
+		// uints
+		assert.Nil(t, To(uint(1), &br))
+		assert.Equal(t, big.NewRat(1, 1), br)
+
+		assert.Nil(t, To(uint8(2), &br))
+		assert.Equal(t, big.NewRat(2, 1), br)
+
+		assert.Nil(t, To(uint16(3), &br))
+		assert.Equal(t, big.NewRat(3, 1), br)
+
+		assert.Nil(t, To(uint32(4), &br))
+		assert.Equal(t, big.NewRat(4, 1), br)
+
+		assert.Nil(t, To(uint64(5), &br))
+		assert.Equal(t, big.NewRat(5, 1), br)
+
+		// floats
+		assert.Nil(t, To(float32(1.25), &br))
+		assert.Equal(t, big.NewRat(125, 100), br)
+
+		assert.Nil(t, To(2.5, &br))
+		assert.Equal(t, big.NewRat(25, 10), br)
+
+		// bigs
+		assert.Nil(t, To(big.NewInt(1), &br))
+		assert.Equal(t, big.NewRat(1, 1), br)
+
+		assert.Nil(t, To(big.NewFloat(1.25), &br))
+		assert.Equal(t, big.NewRat(125, 100), br)
+
+		assert.Nil(t, To(big.NewRat(25, 10), &br))
+		assert.Equal(t, big.NewRat(25, 10), br)
+	}
 }

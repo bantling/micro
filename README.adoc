@@ -59,7 +59,9 @@ link:depgraph.svg[Dependency Graph]
 
 == TODO
 
-* Add math ops to streams - average, sum, max, min. Also add count.
+* Handle nil big int/float/rat pointers
+* Add math ops to streams - average, sum, max, min.
+* Alter streaming funcs to be terminal instead of returning an iter of one element
 * Auto convert each JSON object into Go structs and vice-versa
 * Auto write JSON objects to an SQL table that uses individual columns for each field
 ** Auto generate DDL for all free databases

@@ -14,25 +14,873 @@ import (
 )
 
 var (
-	errMsg      = "The %T value of %s cannot be converted to %s"
-	log2Of10    = math.Log2(10)
+	errMsg = "The %T value of %s cannot be converted to %s"
+
+	log2Of10 = math.Log2(10)
+
 	minIntValue = map[int]int{
 		8:  math.MinInt8,
 		16: math.MinInt16,
 		32: math.MinInt32,
 		64: math.MinInt64,
 	}
+
 	maxIntValue = map[int]int{
 		8:  math.MaxInt8,
 		16: math.MaxInt16,
 		32: math.MaxInt32,
 		64: math.MaxInt64,
 	}
+
 	maxUintValue = map[int]uint{
 		8:  math.MaxUint8,
 		16: math.MaxUint16,
 		32: math.MaxUint32,
 		64: math.MaxUint64,
+	}
+
+	// map strings of from/to conversion pairs to func(any, any) error that perform the specified conversion
+	// no map entries are provided for from/to pairs where from and to are the same type.
+	convertFromTo = map[string]func(any, any) error{
+		// ==== To int
+		"int8int": func(t any, u any) error {
+			*(u.(*int)) = int(t.(int8))
+			return nil
+		},
+		"int16int": func(t any, u any) error {
+			*(u.(*int)) = int(t.(int16))
+			return nil
+		},
+		"int32int": func(t any, u any) error {
+			*(u.(*int)) = int(t.(int32))
+			return nil
+		},
+		"int64int": func(t any, u any) error {
+			return IntToInt(t.(int64), u.(*int))
+		},
+		"uintint": func(t any, u any) error {
+			return UintToInt(t.(uint), u.(*int))
+		},
+		"uint8int": func(t any, u any) error {
+			*(u.(*int)) = int(t.(uint8))
+			return nil
+		},
+		"uint16int": func(t any, u any) error {
+			*(u.(*int)) = int(t.(uint16))
+			return nil
+		},
+		"uint32int": func(t any, u any) error {
+			return UintToInt(t.(uint32), u.(*int))
+		},
+		"uint64int": func(t any, u any) error {
+			return UintToInt(t.(uint64), u.(*int))
+		},
+		"float32int": func(t any, u any) error {
+			return FloatToInt(t.(float32), u.(*int))
+		},
+		"float64int": func(t any, u any) error {
+			return FloatToInt(t.(float64), u.(*int))
+		},
+		"*big.Intint": func(t any, u any) error {
+			var inter int64
+			if err := BigIntToInt64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int))
+		},
+		"*big.Floatint": func(t any, u any) error {
+			var inter int64
+			if err := BigFloatToInt64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int))
+		},
+		"*big.Ratint": func(t any, u any) error {
+			var inter int64
+			if err := BigRatToInt64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int))
+		},
+
+		// ==== To int8
+		"intint8": func(t any, u any) error {
+			return IntToInt(t.(int), u.(*int8))
+		},
+		"int16int8": func(t any, u any) error {
+			return IntToInt(t.(int16), u.(*int8))
+		},
+		"int32int8": func(t any, u any) error {
+			return IntToInt(t.(int32), u.(*int8))
+		},
+		"int64int8": func(t any, u any) error {
+			return IntToInt(t.(int64), u.(*int8))
+		},
+		"uintint8": func(t any, u any) error {
+			return UintToInt(t.(uint), u.(*int8))
+		},
+		"uint8int8": func(t any, u any) error {
+			return UintToInt(t.(uint8), u.(*int8))
+		},
+		"uint16int8": func(t any, u any) error {
+			return UintToInt(t.(uint16), u.(*int8))
+		},
+		"uint32int8": func(t any, u any) error {
+			return UintToInt(t.(uint32), u.(*int8))
+		},
+		"uint64int8": func(t any, u any) error {
+			return UintToInt(t.(uint64), u.(*int8))
+		},
+		"float32int8": func(t any, u any) error {
+			return FloatToInt(t.(float32), u.(*int8))
+		},
+		"float64int8": func(t any, u any) error {
+			return FloatToInt(t.(float64), u.(*int8))
+		},
+		"*big.Intint8": func(t any, u any) error {
+			var inter int64
+			if err := BigIntToInt64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int8))
+		},
+		"*big.Floatint8": func(t any, u any) error {
+			var inter int64
+			if err := BigFloatToInt64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int8))
+		},
+		"*big.Ratint8": func(t any, u any) error {
+			var inter int64
+			if err := BigRatToInt64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int8))
+		},
+
+		// ==== To int16
+		"intint16": func(t any, u any) error {
+			return IntToInt(t.(int), u.(*int16))
+		},
+		"int8int16": func(t any, u any) error {
+			*(u.(*int16)) = int16(t.(int8))
+			return nil
+		},
+		"int32int16": func(t any, u any) error {
+			return IntToInt(t.(int32), u.(*int16))
+		},
+		"int64int16": func(t any, u any) error {
+			return IntToInt(t.(int64), u.(*int16))
+		},
+		"uintint16": func(t any, u any) error {
+			return UintToInt(t.(uint), u.(*int16))
+		},
+		"uint8int16": func(t any, u any) error {
+			*(u.(*int16)) = int16(t.(uint8))
+			return nil
+		},
+		"uint16int16": func(t any, u any) error {
+			return UintToInt(t.(uint16), u.(*int16))
+		},
+		"uint32int16": func(t any, u any) error {
+			return UintToInt(t.(uint32), u.(*int16))
+		},
+		"uint64int16": func(t any, u any) error {
+			return UintToInt(t.(uint64), u.(*int16))
+		},
+		"float32int16": func(t any, u any) error {
+			return FloatToInt(t.(float32), u.(*int16))
+		},
+		"float64int16": func(t any, u any) error {
+			return FloatToInt(t.(float64), u.(*int16))
+		},
+		"*big.Intint16": func(t any, u any) error {
+			var inter int64
+			if err := BigIntToInt64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int16))
+		},
+		"*big.Floatint16": func(t any, u any) error {
+			var inter int64
+			if err := BigFloatToInt64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int16))
+		},
+		"*big.Ratint16": func(t any, u any) error {
+			var inter int64
+			if err := BigRatToInt64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int16))
+		},
+
+		// ==== To int32
+		"intint32": func(t any, u any) error {
+			return IntToInt(t.(int), u.(*int32))
+		},
+		"int8int32": func(t any, u any) error {
+			*(u.(*int32)) = int32(t.(int8))
+			return nil
+		},
+		"int16int32": func(t any, u any) error {
+			*(u.(*int32)) = int32(t.(int16))
+			return nil
+		},
+		"int64int32": func(t any, u any) error {
+			return IntToInt(t.(int64), u.(*int32))
+		},
+		"uintint32": func(t any, u any) error {
+			return UintToInt(t.(uint), u.(*int32))
+		},
+		"uint8int32": func(t any, u any) error {
+			*(u.(*int32)) = int32(t.(uint8))
+			return nil
+		},
+		"uint16int32": func(t any, u any) error {
+			*(u.(*int32)) = int32(t.(uint16))
+			return nil
+		},
+		"uint32int32": func(t any, u any) error {
+			return UintToInt(t.(uint32), u.(*int32))
+		},
+		"uint64int32": func(t any, u any) error {
+			return UintToInt(t.(uint64), u.(*int32))
+		},
+		"float32int32": func(t any, u any) error {
+			return FloatToInt(t.(float32), u.(*int32))
+		},
+		"float64int32": func(t any, u any) error {
+			return FloatToInt(t.(float64), u.(*int32))
+		},
+		"*big.Intint32": func(t any, u any) error {
+			var inter int64
+			if err := BigIntToInt64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int32))
+		},
+		"*big.Floatint32": func(t any, u any) error {
+			var inter int64
+			if err := BigFloatToInt64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int32))
+		},
+		"*big.Ratint32": func(t any, u any) error {
+			var inter int64
+			if err := BigRatToInt64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int32))
+		},
+
+		// ==== To int64
+		"intint64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(int))
+			return nil
+		},
+		"int8int64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(int8))
+			return nil
+		},
+		"int16int64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(int16))
+			return nil
+		},
+		"int32int64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(int32))
+			return nil
+		},
+		"uintint64": func(t any, u any) error {
+			return UintToInt(t.(uint), u.(*int64))
+		},
+		"uint8int64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(uint8))
+			return nil
+		},
+		"uint16int64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(uint16))
+			return nil
+		},
+		"uint32int64": func(t any, u any) error {
+			*(u.(*int64)) = int64(t.(uint32))
+			return nil
+		},
+		"uint64int64": func(t any, u any) error {
+			return UintToInt(t.(uint64), u.(*int64))
+		},
+		"float32int64": func(t any, u any) error {
+			return FloatToInt(t.(float32), u.(*int64))
+		},
+		"float64int64": func(t any, u any) error {
+			return FloatToInt(t.(float64), u.(*int64))
+		},
+		"*big.Intint64": func(t any, u any) error {
+			return BigIntToInt64(t.(*big.Int), u.(*int64))
+		},
+		"*big.Floatint64": func(t any, u any) error {
+			return BigFloatToInt64(t.(*big.Float), u.(*int64))
+		},
+		"*big.Ratint64": func(t any, u any) error {
+			return BigRatToInt64(t.(*big.Rat), u.(*int64))
+		},
+
+		// ==== To uint
+		"intuint": func(t any, u any) error {
+			return IntToUint(t.(int), u.(*uint))
+		},
+		"int8uint": func(t any, u any) error {
+			return IntToUint(t.(int8), u.(*uint))
+		},
+		"int16uint": func(t any, u any) error {
+			return IntToUint(t.(int16), u.(*uint))
+		},
+		"int32uint": func(t any, u any) error {
+			return IntToUint(t.(int32), u.(*uint))
+		},
+		"int64uint": func(t any, u any) error {
+			return IntToUint(t.(int64), u.(*uint))
+		},
+		"uint8uint": func(t any, u any) error {
+			*(u.(*uint)) = uint(t.(uint8))
+			return nil
+		},
+		"uint16uint": func(t any, u any) error {
+			*(u.(*uint)) = uint(t.(uint16))
+			return nil
+		},
+		"uint32uint": func(t any, u any) error {
+			*(u.(*uint)) = uint(t.(uint32))
+			return nil
+		},
+		"uint64uint": func(t any, u any) error {
+			return UintToUint(t.(uint64), u.(*uint))
+		},
+		"float32uint": func(t any, u any) error {
+			return FloatToUint(t.(float32), u.(*uint))
+		},
+		"float64uint": func(t any, u any) error {
+			return FloatToUint(t.(float64), u.(*uint))
+		},
+		"*big.Intuint": func(t any, u any) error {
+			var inter uint64
+			if err := BigIntToUint64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint))
+		},
+		"*big.Floatuint": func(t any, u any) error {
+			var inter uint64
+			if err := BigFloatToUint64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint))
+		},
+		"*big.Ratuint": func(t any, u any) error {
+			var inter uint64
+			if err := BigRatToUint64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint))
+		},
+
+		// ==== To uint8
+		"intuint8": func(t any, u any) error {
+			return IntToUint(t.(int), u.(*uint8))
+		},
+		"int8uint8": func(t any, u any) error {
+			return IntToUint(t.(int8), u.(*uint8))
+		},
+		"int16uint8": func(t any, u any) error {
+			return IntToUint(t.(int16), u.(*uint8))
+		},
+		"int32uint8": func(t any, u any) error {
+			return IntToUint(t.(int32), u.(*uint8))
+		},
+		"int64uint8": func(t any, u any) error {
+			return IntToUint(t.(int64), u.(*uint8))
+		},
+		"uintuint8": func(t any, u any) error {
+			return UintToUint(t.(uint), u.(*uint8))
+		},
+		"uint16uint8": func(t any, u any) error {
+			return UintToUint(t.(uint16), u.(*uint8))
+		},
+		"uint32uint8": func(t any, u any) error {
+			return UintToUint(t.(uint32), u.(*uint8))
+		},
+		"uint64uint8": func(t any, u any) error {
+			return UintToUint(t.(uint64), u.(*uint8))
+		},
+		"float32uint8": func(t any, u any) error {
+			return FloatToUint(t.(float32), u.(*uint8))
+		},
+		"float64uint8": func(t any, u any) error {
+			return FloatToUint(t.(float64), u.(*uint8))
+		},
+		"*big.Intuint8": func(t any, u any) error {
+			var inter uint64
+			if err := BigIntToUint64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint8))
+		},
+		"*big.Floatuint8": func(t any, u any) error {
+			var inter uint64
+			if err := BigFloatToUint64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint8))
+		},
+		"*big.Ratuint8": func(t any, u any) error {
+			var inter uint64
+			if err := BigRatToUint64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint8))
+		},
+
+		// ==== To uint16
+		"intuint16": func(t any, u any) error {
+			return IntToUint(t.(int), u.(*uint16))
+		},
+		"int8uint16": func(t any, u any) error {
+			return IntToUint(t.(int8), u.(*uint16))
+		},
+		"int16uint16": func(t any, u any) error {
+			return IntToUint(t.(int16), u.(*uint16))
+		},
+		"int32uint16": func(t any, u any) error {
+			return IntToUint(t.(int32), u.(*uint16))
+		},
+		"int64uint16": func(t any, u any) error {
+			return IntToUint(t.(int64), u.(*uint16))
+		},
+		"uintuint16": func(t any, u any) error {
+			return UintToUint(t.(uint), u.(*uint16))
+		},
+		"uint8uint16": func(t any, u any) error {
+			*(u.(*uint16)) = uint16(t.(uint8))
+			return nil
+		},
+		"uint32uint16": func(t any, u any) error {
+			return UintToUint(t.(uint32), u.(*uint16))
+		},
+		"uint64uint16": func(t any, u any) error {
+			return UintToUint(t.(uint64), u.(*uint16))
+		},
+		"float32uint16": func(t any, u any) error {
+			return FloatToUint(t.(float32), u.(*uint16))
+		},
+		"float64uint16": func(t any, u any) error {
+			return FloatToUint(t.(float64), u.(*uint16))
+		},
+		"*big.Intuint16": func(t any, u any) error {
+			var inter uint64
+			if err := BigIntToUint64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint16))
+		},
+		"*big.Floatuint16": func(t any, u any) error {
+			var inter uint64
+			if err := BigFloatToUint64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint16))
+		},
+		"*big.Ratuint16": func(t any, u any) error {
+			var inter uint64
+			if err := BigRatToUint64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint16))
+		},
+
+		// ==== To uint32
+		"intuint32": func(t any, u any) error {
+			return IntToUint(t.(int), u.(*uint32))
+		},
+		"int8uint32": func(t any, u any) error {
+			return IntToUint(t.(int8), u.(*uint32))
+		},
+		"int16uint32": func(t any, u any) error {
+			return IntToUint(t.(int16), u.(*uint32))
+		},
+		"int32uint32": func(t any, u any) error {
+			return IntToUint(t.(int32), u.(*uint32))
+		},
+		"int64uint32": func(t any, u any) error {
+			return IntToUint(t.(int64), u.(*uint32))
+		},
+		"uintuint32": func(t any, u any) error {
+			return UintToUint(t.(uint), u.(*uint32))
+		},
+		"uint8uint32": func(t any, u any) error {
+			*(u.(*uint32)) = uint32(t.(uint8))
+			return nil
+		},
+		"uint16uint32": func(t any, u any) error {
+			*(u.(*uint32)) = uint32(t.(uint16))
+			return nil
+		},
+		"uint64uint32": func(t any, u any) error {
+			return UintToUint(t.(uint64), u.(*uint32))
+		},
+		"float32uint32": func(t any, u any) error {
+			return FloatToUint(t.(float32), u.(*uint32))
+		},
+		"float64uint32": func(t any, u any) error {
+			return FloatToUint(t.(float64), u.(*uint32))
+		},
+		"*big.Intuint32": func(t any, u any) error {
+			var inter uint64
+			if err := BigIntToUint64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint32))
+		},
+		"*big.Floatuint32": func(t any, u any) error {
+			var inter uint64
+			if err := BigFloatToUint64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint32))
+		},
+		"*big.Ratuint32": func(t any, u any) error {
+			var inter uint64
+			if err := BigRatToUint64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint32))
+		},
+
+		// ==== To uint64
+		"intuint64": func(t any, u any) error {
+			return IntToUint(t.(int), u.(*uint64))
+		},
+		"int8uint64": func(t any, u any) error {
+			return IntToUint(t.(int8), u.(*uint64))
+		},
+		"int16uint64": func(t any, u any) error {
+			return IntToUint(t.(int16), u.(*uint64))
+		},
+		"int32uint64": func(t any, u any) error {
+			return IntToUint(t.(int32), u.(*uint64))
+		},
+		"int64uint64": func(t any, u any) error {
+			return IntToUint(t.(int64), u.(*uint64))
+		},
+		"uintuint64": func(t any, u any) error {
+			*(u.(*uint64)) = uint64(t.(uint))
+			return nil
+		},
+		"uint8uint64": func(t any, u any) error {
+			*(u.(*uint64)) = uint64(t.(uint8))
+			return nil
+		},
+		"uint16uint64": func(t any, u any) error {
+			*(u.(*uint64)) = uint64(t.(uint16))
+			return nil
+		},
+		"uint32uint64": func(t any, u any) error {
+			*(u.(*uint64)) = uint64(t.(uint32))
+			return nil
+		},
+		"float32uint64": func(t any, u any) error {
+			return FloatToUint(t.(float32), u.(*uint64))
+		},
+		"float64uint64": func(t any, u any) error {
+			return FloatToUint(t.(float64), u.(*uint64))
+		},
+		"*big.Intuint64": func(t any, u any) error {
+			return BigIntToUint64(t.(*big.Int), u.(*uint64))
+		},
+		"*big.Floatuint64": func(t any, u any) error {
+			return BigFloatToUint64(t.(*big.Float), u.(*uint64))
+		},
+		"*big.Ratuint64": func(t any, u any) error {
+			return BigRatToUint64(t.(*big.Rat), u.(*uint64))
+		},
+
+		// ==== To float32
+		"intfloat32": func(t any, u any) error {
+			return IntToFloat(t.(int), u.(*float32))
+		},
+		"int8float32": func(t any, u any) error {
+			*(u.(*float32)) = float32(t.(int8))
+			return nil
+		},
+		"int16float32": func(t any, u any) error {
+			*(u.(*float32)) = float32(t.(int16))
+			return nil
+		},
+		"int32float32": func(t any, u any) error {
+			return IntToFloat(t.(int32), u.(*float32))
+		},
+		"int64float32": func(t any, u any) error {
+			return IntToFloat(t.(int64), u.(*float32))
+		},
+		"uintfloat32": func(t any, u any) error {
+			return IntToFloat(t.(uint), u.(*float32))
+		},
+		"uint8float32": func(t any, u any) error {
+			*(u.(*float32)) = float32(t.(uint8))
+			return nil
+		},
+		"uint16float32": func(t any, u any) error {
+			*(u.(*float32)) = float32(t.(uint16))
+			return nil
+		},
+		"uint32float32": func(t any, u any) error {
+			return IntToFloat(t.(uint32), u.(*float32))
+		},
+		"uint64float32": func(t any, u any) error {
+			return IntToFloat(t.(uint64), u.(*float32))
+		},
+		"float64float32": func(t any, u any) error {
+			return FloatToFloat(t.(float64), u.(*float32))
+		},
+		"*big.Intfloat32": func(t any, u any) error {
+			var inter float64
+			if err := BigIntToFloat64(t.(*big.Int), &inter); err != nil {
+				return err
+			}
+			return FloatToFloat(inter, u.(*float32))
+		},
+		"*big.Floatfloat32": func(t any, u any) error {
+			var inter float64
+			if err := BigFloatToFloat64(t.(*big.Float), &inter); err != nil {
+				return err
+			}
+			return FloatToFloat(inter, u.(*float32))
+		},
+		"*big.Ratfloat32": func(t any, u any) error {
+			var inter float64
+			if err := BigRatToFloat64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return FloatToFloat(inter, u.(*float32))
+		},
+
+		// ==== To float64
+		"intfloat64": func(t any, u any) error {
+			return IntToFloat(t.(int), u.(*float64))
+		},
+		"int8float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(int8))
+			return nil
+		},
+		"int16float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(int16))
+			return nil
+		},
+		"int32float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(int32))
+			return nil
+		},
+		"int64float64": func(t any, u any) error {
+			return IntToFloat(t.(int64), u.(*float64))
+		},
+		"uintfloat64": func(t any, u any) error {
+			return IntToFloat(t.(uint), u.(*float64))
+		},
+		"uint8float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(uint8))
+			return nil
+		},
+		"uint16float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(uint16))
+			return nil
+		},
+		"uint32float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(uint32))
+			return nil
+		},
+		"uint64float64": func(t any, u any) error {
+			return IntToFloat(t.(uint64), u.(*float64))
+		},
+		"float32float64": func(t any, u any) error {
+			*(u.(*float64)) = float64(t.(float32))
+			return nil
+		},
+		"*big.Intfloat64": func(t any, u any) error {
+			return BigIntToFloat64(t.(*big.Int), u.(*float64))
+		},
+		"*big.Floatfloat64": func(t any, u any) error {
+			return BigFloatToFloat64(t.(*big.Float), u.(*float64))
+		},
+		"*big.Ratfloat64": func(t any, u any) error {
+			return BigRatToFloat64(t.(*big.Rat), u.(*float64))
+		},
+
+		// ==== To *big.Int
+		"int*big.Int": func(t any, u any) error {
+			IntToBigInt(t.(int), u.(**big.Int))
+			return nil
+		},
+		"int8*big.Int": func(t any, u any) error {
+			IntToBigInt(t.(int8), u.(**big.Int))
+			return nil
+		},
+		"int16*big.Int": func(t any, u any) error {
+			IntToBigInt(t.(int16), u.(**big.Int))
+			return nil
+		},
+		"int32*big.Int": func(t any, u any) error {
+			IntToBigInt(t.(int32), u.(**big.Int))
+			return nil
+		},
+		"int64*big.Int": func(t any, u any) error {
+			IntToBigInt(t.(int64), u.(**big.Int))
+			return nil
+		},
+		"uint*big.Int": func(t any, u any) error {
+			UintToBigInt(t.(uint), u.(**big.Int))
+			return nil
+		},
+		"uint8*big.Int": func(t any, u any) error {
+			UintToBigInt(t.(uint8), u.(**big.Int))
+			return nil
+		},
+		"uint16*big.Int": func(t any, u any) error {
+			UintToBigInt(t.(uint16), u.(**big.Int))
+			return nil
+		},
+		"uint32*big.Int": func(t any, u any) error {
+			UintToBigInt(t.(uint32), u.(**big.Int))
+			return nil
+		},
+		"uint64*big.Int": func(t any, u any) error {
+			UintToBigInt(t.(uint64), u.(**big.Int))
+			return nil
+		},
+		"float32*big.Int": func(t any, u any) error {
+			return FloatToBigInt(t.(float32), u.(**big.Int))
+		},
+		"float64*big.Int": func(t any, u any) error {
+			return FloatToBigInt(t.(float64), u.(**big.Int))
+		},
+		"*big.Float*big.Int": func(t any, u any) error {
+			return BigFloatToBigInt(t.(*big.Float), u.(**big.Int))
+		},
+		"*big.Rat*big.Int": func(t any, u any) error {
+			return BigRatToBigInt(t.(*big.Rat), u.(**big.Int))
+		},
+
+		// ==== To *big.Float
+		"int*big.Float": func(t any, u any) error {
+			IntToBigFloat(t.(int), u.(**big.Float))
+			return nil
+		},
+		"int8*big.Float": func(t any, u any) error {
+			IntToBigFloat(t.(int8), u.(**big.Float))
+			return nil
+		},
+		"int16*big.Float": func(t any, u any) error {
+			IntToBigFloat(t.(int16), u.(**big.Float))
+			return nil
+		},
+		"int32*big.Float": func(t any, u any) error {
+			IntToBigFloat(t.(int32), u.(**big.Float))
+			return nil
+		},
+		"int64*big.Float": func(t any, u any) error {
+			IntToBigFloat(t.(int64), u.(**big.Float))
+			return nil
+		},
+		"uint*big.Float": func(t any, u any) error {
+			UintToBigFloat(t.(uint), u.(**big.Float))
+			return nil
+		},
+		"uint8*big.Float": func(t any, u any) error {
+			UintToBigFloat(t.(uint8), u.(**big.Float))
+			return nil
+		},
+		"uint16*big.Float": func(t any, u any) error {
+			UintToBigFloat(t.(uint16), u.(**big.Float))
+			return nil
+		},
+		"uint32*big.Float": func(t any, u any) error {
+			UintToBigFloat(t.(uint32), u.(**big.Float))
+			return nil
+		},
+		"uint64*big.Float": func(t any, u any) error {
+			UintToBigFloat(t.(uint64), u.(**big.Float))
+			return nil
+		},
+		"float32*big.Float": func(t any, u any) error {
+			return FloatToBigFloat(t.(float32), u.(**big.Float))
+		},
+		"float64*big.Float": func(t any, u any) error {
+			return FloatToBigFloat(t.(float64), u.(**big.Float))
+		},
+		"*big.Int*big.Float": func(t any, u any) error {
+			BigIntToBigFloat(t.(*big.Int), u.(**big.Float))
+			return nil
+		},
+		"*big.Rat*big.Float": func(t any, u any) error {
+			BigRatToBigFloat(t.(*big.Rat), u.(**big.Float))
+			return nil
+		},
+
+		// ==== To *big.Rat
+		"int*big.Rat": func(t any, u any) error {
+			IntToBigRat(t.(int), u.(**big.Rat))
+			return nil
+		},
+		"int8*big.Rat": func(t any, u any) error {
+			IntToBigRat(t.(int8), u.(**big.Rat))
+			return nil
+		},
+		"int16*big.Rat": func(t any, u any) error {
+			IntToBigRat(t.(int16), u.(**big.Rat))
+			return nil
+		},
+		"int32*big.Rat": func(t any, u any) error {
+			IntToBigRat(t.(int32), u.(**big.Rat))
+			return nil
+		},
+		"int64*big.Rat": func(t any, u any) error {
+			IntToBigRat(t.(int64), u.(**big.Rat))
+			return nil
+		},
+		"uint*big.Rat": func(t any, u any) error {
+			UintToBigRat(t.(uint), u.(**big.Rat))
+			return nil
+		},
+		"uint8*big.Rat": func(t any, u any) error {
+			UintToBigRat(t.(uint8), u.(**big.Rat))
+			return nil
+		},
+		"uint16*big.Rat": func(t any, u any) error {
+			UintToBigRat(t.(uint16), u.(**big.Rat))
+			return nil
+		},
+		"uint32*big.Rat": func(t any, u any) error {
+			UintToBigRat(t.(uint32), u.(**big.Rat))
+			return nil
+		},
+		"uint64*big.Rat": func(t any, u any) error {
+			UintToBigRat(t.(uint64), u.(**big.Rat))
+			return nil
+		},
+		"float32*big.Rat": func(t any, u any) error {
+			return FloatToBigRat(t.(float32), u.(**big.Rat))
+		},
+		"float64*big.Rat": func(t any, u any) error {
+			return FloatToBigRat(t.(float64), u.(**big.Rat))
+		},
+		"*big.Int*big.Rat": func(t any, u any) error {
+			BigIntToBigRat(t.(*big.Int), u.(**big.Rat))
+			return nil
+		},
+		"*big.Float*big.Rat": func(t any, u any) error {
+			return BigFloatToBigRat(t.(*big.Float), u.(**big.Rat))
+		},
 	}
 )
 
@@ -84,7 +932,7 @@ func BigRatToNormalizedString(val *big.Rat) string {
 
 // Converts any signed or unsigned int type, any float type, *big.Int, *big.Float, or *big.Rat to a string.
 // The *big.Rat string will be normalized (see BigRatToNormalizedString).
-func ToString[T constraint.Integer | constraint.Float | *big.Int | *big.Float | *big.Rat](val T) string {
+func ToString[T constraint.IntegerAndFloat | *big.Int | *big.Float | *big.Rat](val T) string {
 	if v, isa := any(val).(int); isa {
 		return IntToString(v)
 	} else if v, isa := any(val).(int8); isa {
@@ -235,19 +1083,20 @@ func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval 
 	return nil
 }
 
-// Float64ToFloat32 converts a float64 to a float32
+// FloatToFloat converts a float32 or float64 to a float32 or float64
 // Panics if the float64 is outside the range of a float32
-func Float64ToFloat32(ival float64, oval *float32) error {
-	if math.IsInf(ival, 0) || math.IsNaN(ival) {
-		*oval = float32(ival)
+func FloatToFloat[I constraint.Float, O constraint.Float](ival I, oval *O) error {
+	ival64 := float64(ival)
+	if math.IsInf(ival64, 0) || math.IsNaN(ival64) {
+		*oval = O(ival)
 		return nil
 	}
 
-	if ((ival != 0.0) && (math.Abs(ival) < math.SmallestNonzeroFloat32)) || (ival > math.MaxFloat32) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), "float32")
+	if _, isa := any(oval).(*float32); isa && (((ival64 != 0.0) && (math.Abs(ival64) < math.SmallestNonzeroFloat32)) || (math.Abs(ival64) > math.MaxFloat32)) {
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival64), "float32")
 	}
 
-	*oval = float32(ival)
+	*oval = O(ival)
 	return nil
 }
 
@@ -642,4 +1491,24 @@ func FloatStringToBigRat(ival string, oval **big.Rat) error {
 	// If it is a float string, cannot fail to be parsed by StringToBigRat
 	StringToBigRat(ival, oval)
 	return nil
+}
+
+// To converts any signed integer, float, or big type into any other such type.
+// The actual conversion is performed by other funcs.
+func To[S constraint.Numeric, T constraint.Numeric](src S, tgt *T) error {
+	var (
+		asrc   = any(src)
+		atgt   = any(tgt)
+		typsrc = reflect.TypeOf(src).String()
+		typtgt = reflect.TypeOf(tgt).Elem().String()
+	)
+
+	// No conversion necessary if src and tgt are same type, just copy
+	if typsrc == typtgt {
+		*tgt = asrc.(T)
+		return nil
+	}
+
+	// Lookup conversion and execute it, returning result
+	return convertFromTo[typsrc+typtgt](asrc, atgt)
 }
