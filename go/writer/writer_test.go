@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewWriter(t *testing.T) {
+func TestNewWriter_(t *testing.T) {
 	var (
 		slc []int
 		w   = NewWriter(SliceWriterGen(&slc))
@@ -31,7 +31,7 @@ func TestNewWriter(t *testing.T) {
 	)
 }
 
-func TestOfSliceWriter(t *testing.T) {
+func TestOfSliceWriter_(t *testing.T) {
 	var (
 		slc []int
 		w   = OfSliceWriter(&slc)
@@ -42,7 +42,7 @@ func TestOfSliceWriter(t *testing.T) {
 	assert.Equal(t, []int{2}, slc)
 }
 
-func TestOfMapWriter(t *testing.T) {
+func TestOfMapWriter_(t *testing.T) {
 	var (
 		m = map[int]string{}
 		w = OfMapWriter(m)
@@ -53,7 +53,7 @@ func TestOfMapWriter(t *testing.T) {
 	assert.Equal(t, map[int]string{1: "2"}, m)
 }
 
-func TestOfIOWriterAsBytes(t *testing.T) {
+func TestOfIOWriterAsBytes_(t *testing.T) {
 	var (
 		str strings.Builder
 		w   = OfIOWriterAsBytes(&str)
@@ -64,7 +64,7 @@ func TestOfIOWriterAsBytes(t *testing.T) {
 	assert.Equal(t, "A", str.String())
 }
 
-func TestOfIOWriterAsRunes(t *testing.T) {
+func TestOfIOWriterAsRunes_(t *testing.T) {
 	var (
 		str strings.Builder
 		w   = OfIOWriterAsRunes(&str)
@@ -75,7 +75,7 @@ func TestOfIOWriterAsRunes(t *testing.T) {
 	assert.Equal(t, "A", str.String())
 }
 
-func TestOfIOWriterAsStrings(t *testing.T) {
+func TestOfIOWriterAsStrings_(t *testing.T) {
 	var (
 		str strings.Builder
 		w   = OfIOWriterAsStrings(&str)
@@ -86,7 +86,7 @@ func TestOfIOWriterAsStrings(t *testing.T) {
 	assert.Equal(t, "A", str.String())
 }
 
-func TestOfIOWriterAsLines(t *testing.T) {
+func TestOfIOWriterAsLines_(t *testing.T) {
 	var (
 		str strings.Builder
 		w   = OfIOWriterAsLines(&str)
@@ -97,7 +97,7 @@ func TestOfIOWriterAsLines(t *testing.T) {
 	assert.Equal(t, "A"+osEOLSequence, str.String())
 }
 
-func TestWrite(t *testing.T) {
+func TestWrite_(t *testing.T) {
 	var (
 		err = fmt.Errorf("died")
 		w   = NewWriter(func(any) error { return err })

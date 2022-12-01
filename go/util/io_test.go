@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestErrorReader(t *testing.T) {
+func TestErrorReader_(t *testing.T) {
 	// Read first char, then remaining, then error
 	var (
 		err = fmt.Errorf("an error")
@@ -65,7 +65,7 @@ func TestErrorReader(t *testing.T) {
 	assert.Equal(t, io.EOF, e)
 }
 
-func TestErrorWriter(t *testing.T) {
+func TestErrorWriter_(t *testing.T) {
 	// Write first char, then remaining, then error
 	var (
 		err = fmt.Errorf("an error")

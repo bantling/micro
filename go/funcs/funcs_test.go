@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSliceIndex(t *testing.T) {
+func TestSliceIndex_(t *testing.T) {
 	slc := []int{}
 	assert.Equal(t, 0, SliceIndex(slc, 0))
 	assert.Equal(t, 0, SliceIndex(slc, 1))
@@ -25,7 +25,7 @@ func TestSliceIndex(t *testing.T) {
 	assert.Equal(t, 3, SliceIndex(slc, 2, 3))
 }
 
-func TestMapValue(t *testing.T) {
+func TestMapValue_(t *testing.T) {
 	mp := map[string]int{}
 	assert.Equal(t, 0, MapValue(mp, ""))
 	assert.Equal(t, 0, MapValue(mp, "a"))
@@ -53,7 +53,7 @@ func greaterThan10(i int) bool {
 	return i > 10
 }
 
-func TestAnd(t *testing.T) {
+func TestAnd_(t *testing.T) {
 	lt5_10 := And(lessThan5, lessThan10)
 	assert.True(t, lt5_10(3))
 	assert.False(t, lt5_10(5))
@@ -62,7 +62,7 @@ func TestAnd(t *testing.T) {
 	assert.False(t, lt5_10(12))
 }
 
-func TestOr(t *testing.T) {
+func TestOr_(t *testing.T) {
 	lt5_gt10 := Or(lessThan5, greaterThan10)
 	assert.True(t, lt5_gt10(3))
 	assert.False(t, lt5_gt10(5))
@@ -71,7 +71,7 @@ func TestOr(t *testing.T) {
 	assert.True(t, lt5_gt10(12))
 }
 
-func TestNot(t *testing.T) {
+func TestNot_(t *testing.T) {
 	nlt5 := Not(lessThan5)
 	assert.False(t, nlt5(3))
 	assert.True(t, nlt5(5))
@@ -80,7 +80,7 @@ func TestNot(t *testing.T) {
 	assert.True(t, nlt5(12))
 }
 
-func TestCompose(t *testing.T) {
+func TestCompose_(t *testing.T) {
 	var (
 		fn1 = func(i int) int { return i + 2 }
 		fn2 = func(i int) int { return i * 3 }
@@ -104,7 +104,7 @@ func stringToInt(t string) int {
 	return MustValue(strconv.Atoi(t))
 }
 
-func TestCompose2(t *testing.T) {
+func TestCompose2_(t *testing.T) {
 	fn := Compose2(
 		strconv.Itoa,
 		stringToInt,
@@ -113,7 +113,7 @@ func TestCompose2(t *testing.T) {
 	assert.Equal(t, 1, fn(1))
 }
 
-func TestCompose3(t *testing.T) {
+func TestCompose3_(t *testing.T) {
 	fn := Compose3(
 		strconv.Itoa,
 		stringToInt,
@@ -123,7 +123,7 @@ func TestCompose3(t *testing.T) {
 	assert.Equal(t, "1", fn(1))
 }
 
-func TestCompose4(t *testing.T) {
+func TestCompose4_(t *testing.T) {
 	fn := Compose4(
 		strconv.Itoa,
 		stringToInt,
@@ -134,7 +134,7 @@ func TestCompose4(t *testing.T) {
 	assert.Equal(t, 1, fn(1))
 }
 
-func TestCompose5(t *testing.T) {
+func TestCompose5_(t *testing.T) {
 	fn := Compose5(
 		strconv.Itoa,
 		stringToInt,
@@ -146,7 +146,7 @@ func TestCompose5(t *testing.T) {
 	assert.Equal(t, "1", fn(1))
 }
 
-func TestCompose6(t *testing.T) {
+func TestCompose6_(t *testing.T) {
 	fn := Compose6(
 		strconv.Itoa,
 		stringToInt,
@@ -159,7 +159,7 @@ func TestCompose6(t *testing.T) {
 	assert.Equal(t, 1, fn(1))
 }
 
-func TestCompose7(t *testing.T) {
+func TestCompose7_(t *testing.T) {
 	fn := Compose7(
 		strconv.Itoa,
 		stringToInt,
@@ -173,7 +173,7 @@ func TestCompose7(t *testing.T) {
 	assert.Equal(t, "1", fn(1))
 }
 
-func TestCompose8(t *testing.T) {
+func TestCompose8_(t *testing.T) {
 	fn := Compose8(
 		strconv.Itoa,
 		stringToInt,
@@ -188,7 +188,7 @@ func TestCompose8(t *testing.T) {
 	assert.Equal(t, 1, fn(1))
 }
 
-func TestCompose9(t *testing.T) {
+func TestCompose9_(t *testing.T) {
 	fn := Compose9(
 		strconv.Itoa,
 		stringToInt,
@@ -204,7 +204,7 @@ func TestCompose9(t *testing.T) {
 	assert.Equal(t, "1", fn(1))
 }
 
-func TestCompose10(t *testing.T) {
+func TestCompose10_(t *testing.T) {
 	fn := Compose10(
 		strconv.Itoa,
 		stringToInt,
@@ -221,7 +221,7 @@ func TestCompose10(t *testing.T) {
 	assert.Equal(t, 1, fn(1))
 }
 
-func TestTernary(t *testing.T) {
+func TestTernary_(t *testing.T) {
 	assert.Equal(t, 1, Ternary(1 < 2, 1, 2))
 	assert.Equal(t, 1, TernaryResult(1 < 2, func() int { return 1 }, func() int { return 2 }))
 
@@ -229,7 +229,7 @@ func TestTernary(t *testing.T) {
 	assert.Equal(t, 2, TernaryResult(1 > 2, func() int { return 1 }, func() int { return 2 }))
 }
 
-func TestLessThan(t *testing.T) {
+func TestLessThan_(t *testing.T) {
 	lt5 := LessThan(5)
 	assert.True(t, lt5(3))
 	assert.False(t, lt5(5))
@@ -238,7 +238,7 @@ func TestLessThan(t *testing.T) {
 	assert.False(t, lt5(12))
 }
 
-func TestLessThanEqual(t *testing.T) {
+func TestLessThanEqual_(t *testing.T) {
 	lte5 := LessThanEqual(5)
 	assert.True(t, lte5(3))
 	assert.True(t, lte5(5))
@@ -247,7 +247,7 @@ func TestLessThanEqual(t *testing.T) {
 	assert.False(t, lte5(12))
 }
 
-func TestEqual(t *testing.T) {
+func TestEqual_(t *testing.T) {
 	eq5 := Equal(5)
 	assert.False(t, eq5(3))
 	assert.True(t, eq5(5))
@@ -256,7 +256,7 @@ func TestEqual(t *testing.T) {
 	assert.False(t, eq5(12))
 }
 
-func TestGreaterThan(t *testing.T) {
+func TestGreaterThan_(t *testing.T) {
 	gt5 := GreaterThan(5)
 	assert.False(t, gt5(3))
 	assert.False(t, gt5(5))
@@ -265,7 +265,7 @@ func TestGreaterThan(t *testing.T) {
 	assert.True(t, gt5(12))
 }
 
-func TestGreaterThanEqual(t *testing.T) {
+func TestGreaterThanEqual_(t *testing.T) {
 	gte5 := GreaterThanEqual(5)
 	assert.False(t, gte5(3))
 	assert.True(t, gte5(5))
@@ -274,21 +274,21 @@ func TestGreaterThanEqual(t *testing.T) {
 	assert.True(t, gte5(12))
 }
 
-func TestIsNegative(t *testing.T) {
+func TestIsNegative_(t *testing.T) {
 	neg := IsNegative[int]()
 	assert.True(t, neg(-3))
 	assert.False(t, neg(0))
 	assert.False(t, neg(3))
 }
 
-func TestIsNonNegative(t *testing.T) {
+func TestIsNonNegative_(t *testing.T) {
 	nneg := IsNonNegative[int]()
 	assert.False(t, nneg(-3))
 	assert.True(t, nneg(0))
 	assert.True(t, nneg(3))
 }
 
-func TestIsPositive(t *testing.T) {
+func TestIsPositive_(t *testing.T) {
 	pos := IsPositive[int]()
 	assert.False(t, pos(-3))
 	assert.False(t, pos(0))
@@ -309,7 +309,7 @@ func (t cmp) Cmp(o cmp) int {
 	return 1
 }
 
-func TestMinMax(t *testing.T) {
+func TestMinMax_(t *testing.T) {
 	// Ordered = int
 	func() {
 		i, j := 1, 2
@@ -371,7 +371,7 @@ func TestMinMax(t *testing.T) {
 	}()
 }
 
-func TestFlattenSlice(t *testing.T) {
+func TestFlattenSlice_(t *testing.T) {
 	assert.Equal(t, []int{}, FlattenSlice[int](nil))
 
 	// Check that one dimensional slice is returned as is (same address)
@@ -405,7 +405,7 @@ func TestFlattenSlice(t *testing.T) {
 	)
 }
 
-func TestReverse(t *testing.T) {
+func TestReverse_(t *testing.T) {
 	slc := []int{}
 	Reverse(slc)
 	assert.Equal(t, []int{}, slc)
@@ -427,7 +427,7 @@ func TestReverse(t *testing.T) {
 	assert.Equal(t, []int{4, 3, 2, 1}, slc)
 }
 
-func TestSort(t *testing.T) {
+func TestSort_(t *testing.T) {
 	// Ordered
 	{
 		slc := []int{2, 3, 1}
@@ -457,7 +457,7 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func TestNillable(t *testing.T) {
+func TestNillable_(t *testing.T) {
 	var (
 		cn chan int
 		c  = make(chan int)
@@ -513,7 +513,7 @@ func TestNillable(t *testing.T) {
 	)
 }
 
-func TestMust(t *testing.T) {
+func TestMust_(t *testing.T) {
 	var e error
 	Must(e)
 
@@ -524,7 +524,7 @@ func TestMust(t *testing.T) {
 	)
 }
 
-func TestMustValue(t *testing.T) {
+func TestMustValue_(t *testing.T) {
 	var (
 		e error
 		i int
@@ -538,7 +538,7 @@ func TestMustValue(t *testing.T) {
 	)
 }
 
-func TestMustValue2(t *testing.T) {
+func TestMustValue2_(t *testing.T) {
 	var (
 		e      error
 		p1, p2 = 1, 2
@@ -555,7 +555,7 @@ func TestMustValue2(t *testing.T) {
 	)
 }
 
-func TestMustValue3(t *testing.T) {
+func TestMustValue3_(t *testing.T) {
 	var (
 		e          error
 		p1, p2, p3 = 1, 2, 3
@@ -573,7 +573,7 @@ func TestMustValue3(t *testing.T) {
 	)
 }
 
-func TestSupplier(t *testing.T) {
+func TestSupplier_(t *testing.T) {
 	supplier := SupplierOf(5)
 	assert.Equal(t, 5, supplier())
 	assert.Equal(t, 5, supplier())
@@ -591,21 +591,21 @@ func TestSupplier(t *testing.T) {
 	assert.False(t, called)
 }
 
-func TestIgnoreResult(t *testing.T) {
+func TestIgnoreResult_(t *testing.T) {
 	called := false
 	IgnoreResult(func() int { called = true; return 0 })()
 	assert.True(t, called)
 }
 
-func TestFirstValue2(t *testing.T) {
+func TestFirstValue2_(t *testing.T) {
 	assert.Equal(t, 1, FirstValue2(1, 2))
 }
 
-func TestFirstValue3(t *testing.T) {
+func TestFirstValue3_(t *testing.T) {
 	assert.Equal(t, 1, FirstValue3(1, 2, 3))
 }
 
-func TestTryTo(t *testing.T) {
+func TestTryTo_(t *testing.T) {
 	var (
 		tryCalled     bool
 		panicValue    any

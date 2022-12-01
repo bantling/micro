@@ -3,8 +3,6 @@ package constraint
 
 import (
 	"math/big"
-	"reflect"
-	"strings"
 )
 
 // SPDX-License-Identifier: Apache-2.0
@@ -62,34 +60,18 @@ type Cmp[T any] interface {
 	Cmp(T) int
 }
 
-// IsSignedInt returns true if the value given is an int, int8, int16, int32, or int64
-func IsSignedInt(t any) bool {
-	return strings.HasPrefix(reflect.TypeOf(t).Name(), "int")
-}
-
-// IsUnsignedInt returns true if the value given is a uint, uint8, uint16, uint32, or uint64
-func IsUnsignedInt(t any) bool {
-	return strings.HasPrefix(reflect.TypeOf(t).Name(), "uint")
-}
-
-// IsFloat returns true if the value given is a float64 or float32
-func IsFloat(t any) bool {
-	return strings.HasPrefix(reflect.TypeOf(t).Name(), "float")
-}
-
-// IsBig returns true if the value given is a *big.Int, *big.Float, or *big.Rat
-func IsBig(t any) bool {
-	if _, isa := t.(*big.Int); isa {
-		return true
-	}
-
-	if _, isa := t.(*big.Float); isa {
-		return true
-	}
-
-	if _, isa := t.(*big.Rat); isa {
-		return true
-	}
-
-	return false
+// BigOps is an interface that describes all the common methods of the provided go big types
+type BigOps[T any] interface {
+	Abs(T) T
+	Add(T, T) T
+	Cmp(T) int
+	Mul(T, T) T
+	Neg(T) T
+	Quo(T, T) T
+	Set(T) T
+	SetInt64(int64) T
+	SetUint64(uint64) T
+	Sign() int
+	String() string
+	Sub(T, T) T
 }

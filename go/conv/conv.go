@@ -886,17 +886,17 @@ var (
 
 // ToString
 
-// IntToStrinng converts any signed int type into a string
+// IntToString converts any signed int type into a string
 func IntToString[T constraint.SignedInteger](val T) string {
 	return strconv.FormatInt(int64(val), 10)
 }
 
-// UintToStrinng converts any unsigned int type into a string
+// UintToString converts any unsigned int type into a string
 func UintToString[T constraint.UnsignedInteger](val T) string {
 	return strconv.FormatUint(uint64(val), 10)
 }
 
-// FloatToStrinng converts any float type into a string
+// FloatToString converts any float type into a string
 func FloatToString[T constraint.Float](val T) string {
 	_, is32 := any(val).(float32)
 	return strconv.FormatFloat(float64(val), 'f', -1, funcs.Ternary(is32, 32, 64))
@@ -1374,7 +1374,9 @@ func StringToBigInt(ival string, oval **big.Int) error {
 
 // IntToBigFloat converts any signed int type into a *big.Float
 func IntToBigFloat[T constraint.SignedInteger](ival T, oval **big.Float) {
+	prec := uint(math.Ceil(float64(len(IntToString(ival))) * log2Of10))
 	*oval = big.NewFloat(0)
+	(*oval).SetPrec(prec)
 	(*oval).SetInt64(int64(ival))
 }
 
@@ -1496,6 +1498,25 @@ func FloatStringToBigRat(ival string, oval **big.Rat) error {
 // To converts any signed integer, float, or big type into any other such type.
 // The actual conversion is performed by other funcs.
 func To[S constraint.Numeric, T constraint.Numeric](src S, tgt *T) error {
+	var (
+		asrc   = any(src)
+		atgt   = any(tgt)
+		typsrc = reflect.TypeOf(src).String()
+		typtgt = reflect.TypeOf(tgt).Elem().String()
+	)
+
+	// No conversion necessary if src and tgt are same type, just copy
+	if typsrc == typtgt {
+		*tgt = asrc.(T)
+		return nil
+	}
+
+	// Lookup conversion and execute it, returning result
+	return convertFromTo[typsrc+typtgt](asrc, atgt)
+}
+
+// ToBigOps is the BigOps version of To
+func ToBigOps[S constraint.Numeric, T constraint.BigOps[T]](src S, tgt *T) error {
 	var (
 		asrc   = any(src)
 		atgt   = any(tgt)

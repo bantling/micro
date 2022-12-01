@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLexString(t *testing.T) {
+func TestLexString_(t *testing.T) {
 	assert.Equal(t, util.Of2Error(token{tString, ``}, nil), util.Of2Error(lexString(iter.OfStringAsRunes(`""`))))
 	assert.Equal(t, util.Of2Error(token{tString, `a`}, nil), util.Of2Error(lexString(iter.OfStringAsRunes(`"a"`))))
 	assert.Equal(t, util.Of2Error(token{tString, `a`}, nil), util.Of2Error(lexString(iter.OfStringAsRunes(`"a"b`))))
@@ -68,7 +68,7 @@ func TestLexString(t *testing.T) {
 	}
 }
 
-func TestLexNumber(t *testing.T) {
+func TestLexNumber_(t *testing.T) {
 	assert.Equal(t, util.Of2Error(token{tNumber, "1"}, nil), util.Of2Error(lexNumber(iter.OfStringAsRunes("1"))))
 	assert.Equal(t, util.Of2Error(token{tNumber, "1"}, nil), util.Of2Error(lexNumber(iter.OfStringAsRunes("1a"))))
 	assert.Equal(t, util.Of2Error(token{tNumber, "-1"}, nil), util.Of2Error(lexNumber(iter.OfStringAsRunes("-1"))))
@@ -132,7 +132,7 @@ func TestLexNumber(t *testing.T) {
 	}
 }
 
-func TestLexBooleanNull(t *testing.T) {
+func TestLexBooleanNull_(t *testing.T) {
 	assert.Equal(t, util.Of2Error(token{tBoolean, "true"}, nil), util.Of2Error(lexBooleanNull(iter.OfStringAsRunes("true"))))
 	assert.Equal(t, util.Of2Error(token{tBoolean, "false"}, nil), util.Of2Error(lexBooleanNull(iter.OfStringAsRunes("false"))))
 	assert.Equal(t, util.Of2Error(token{tNull, "null"}, nil), util.Of2Error(lexBooleanNull(iter.OfStringAsRunes("null"))))
@@ -145,7 +145,7 @@ func TestLexBooleanNull(t *testing.T) {
 	assert.Equal(t, util.Of2Error(token{}, anErr), util.Of2Error(lexBooleanNull(iter.SetError(iter.Of([]rune("t")...), anErr))))
 }
 
-func TestLex(t *testing.T) {
+func TestLex_(t *testing.T) {
 	it := iter.OfStringAsRunes(`[]{},:"a"-1,1.25,1e2,1.25e2true,false,null`)
 
 	assert.Equal(t, util.Of2Error(token{tOBracket, "["}, nil), util.Of2Error(lex(it)))
@@ -176,7 +176,7 @@ func TestLex(t *testing.T) {
 	assert.Equal(t, util.Of2Error(token{}, anErr), util.Of2Error(lex(iter.SetError(iter.Of([]rune(" ")...), anErr))))
 }
 
-func TestLexer(t *testing.T) {
+func TestLexer_(t *testing.T) {
 	it := lexer(iter.OfStringAsRunes(`[`))
 	assert.Equal(t, util.Of2Error(tokOBracket, nil), util.Of2Error(it.Next()))
 	assert.Equal(t, util.Of2Error(token{}, iter.EOI), util.Of2Error(it.Next()))

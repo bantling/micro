@@ -19,6 +19,9 @@ count      := 1
 # Pattern for which test(s) to run, default is all of them (no pattern)
 run        :=
 
+# Package for which test(s) to run, default is all packages
+pkg        := ./...
+
 #### Variables required for Makefile
 
 # The absolute path to this Makefile
@@ -128,12 +131,13 @@ format:
 
 # Test go code (host, docker, podman)
 # May pass count=N to run tests n times
-# May pass run=TestX to run only TestX
+# May pass run=X to run only tests that match pattern X
+# May pass pkg=X to run only tests in package X
 .PHONY: test
 test:
 	testOpt="-count=$${count:-1}"; \
 	[ -z "$(run)" ] || testOpt="$$testOpt -run $(run)"; \
-	go test -coverprofile=.coverage.html -v $$testOpt ./...
+	go test -coverprofile=.coverage.html -v $$testOpt $(pkg)
 
 .PHONY: coverage
 coverage:

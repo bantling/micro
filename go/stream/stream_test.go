@@ -4,8 +4,11 @@ package stream
 
 import (
 	"fmt"
+	gomath "math"
+
 	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/iter"
+	"github.com/bantling/micro/go/math"
 	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 	"math/big"
@@ -15,20 +18,31 @@ import (
 
 // ==== Foundation funcs
 
-func TestMap(t *testing.T) {
+func TestMap_(t *testing.T) {
 	it := Map(strconv.Itoa)(iter.Of(1, 2))
 	assert.Equal(t, util.Of2Error("1", nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error("2", nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error("", iter.EOI), iter.Maybe(it))
 }
 
-func TestFilter(t *testing.T) {
+func TestMapError_(t *testing.T) {
+	it := MapError(strconv.Atoi)(iter.Of("1", "2"))
+	assert.Equal(t, util.Of2Error(1, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(2, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	it = MapError(strconv.Atoi)(iter.Of("1", "3.25"))
+	assert.Equal(t, util.Of2Error(1, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, &strconv.NumError{Func: "Atoi", Num: "3.25", Err: strconv.ErrSyntax}), iter.Maybe(it))
+}
+
+func TestFilter_(t *testing.T) {
 	it := Filter(func(val int) bool { return val > 1 })(iter.Of(1, 2))
 	assert.Equal(t, util.Of2Error(2, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 }
 
-func TestReduce(t *testing.T) {
+func TestReduce_(t *testing.T) {
 	// Reeducer func
 	fn := func(i, j int) int { return i + j }
 
@@ -81,7 +95,7 @@ func TestReduce(t *testing.T) {
 	}
 }
 
-func TestReduceTo(t *testing.T) {
+func TestReduceTo_(t *testing.T) {
 	// No identity, () => concat() = ()
 	fn := func(i string, j int) string { return i + strconv.Itoa(j) }
 	it := ReduceTo(fn)(iter.OfEmpty[int]())
@@ -132,7 +146,7 @@ func TestReduceTo(t *testing.T) {
 	}
 }
 
-func TestReduceToBool(t *testing.T) {
+func TestReduceToBool_(t *testing.T) {
 	// And logic (all match): identity = true, stop on false
 	it := ReduceToBool(func(i int) bool { return i < 3 }, true, false)(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(true, nil), iter.Maybe(it))
@@ -167,7 +181,7 @@ func TestReduceToBool(t *testing.T) {
 	}
 }
 
-func TestReduceToSlice(t *testing.T) {
+func TestReduceToSlice_(t *testing.T) {
 	// Reduce into a new generated slice, no error
 	it := ReduceToSlice(iter.Of(1, 2))
 	assert.Equal(t, util.Of2Error([]int{1, 2}, nil), iter.Maybe(it))
@@ -181,7 +195,7 @@ func TestReduceToSlice(t *testing.T) {
 	}
 }
 
-func TestReduceIntoSlice(t *testing.T) {
+func TestReduceIntoSlice_(t *testing.T) {
 	// Reduce into a new generated slice, no error
 	{
 		slc := make([]int, 2)
@@ -217,7 +231,7 @@ func TestReduceIntoSlice(t *testing.T) {
 	}
 }
 
-func TestExpandSlices(t *testing.T) {
+func TestExpandSlices_(t *testing.T) {
 	it := ReduceToSlice(ExpandSlices(iter.Of([]int{1, 2, 3}, nil, []int{}, []int{4, 5})))
 	assert.Equal(t, util.Of2Error([]int{1, 2, 3, 4, 5}, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error([]int(nil), iter.EOI), iter.Maybe(it))
@@ -230,7 +244,7 @@ func TestExpandSlices(t *testing.T) {
 	}
 }
 
-func TestReduceToMap(t *testing.T) {
+func TestReduceToMap_(t *testing.T) {
 	it := ReduceToMap(iter.Of(util.Of2(1, "1"), util.Of2(2, "2"), util.Of2(3, "3")))
 	assert.Equal(t, util.Of2Error(map[int]string{1: "1", 2: "2", 3: "3"}, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(map[int]string(nil), iter.EOI), iter.Maybe(it))
@@ -242,7 +256,7 @@ func TestReduceToMap(t *testing.T) {
 	}
 }
 
-func TestExpandMaps(t *testing.T) {
+func TestExpandMaps_(t *testing.T) {
 	it := ReduceToMap(ExpandMaps(iter.Of(map[int]string{1: "1", 2: "2"}, nil, map[int]string{}, map[int]string{3: "3"})))
 	assert.Equal(t, util.Of2Error(map[int]string{1: "1", 2: "2", 3: "3"}, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(map[int]string(nil), iter.EOI), iter.Maybe(it))
@@ -254,7 +268,7 @@ func TestExpandMaps(t *testing.T) {
 	}
 }
 
-func TestSkip(t *testing.T) {
+func TestSkip_(t *testing.T) {
 	fn := Skip[int](3)
 	it := fn(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error([]int{}, nil), iter.Maybe(ReduceToSlice(it)))
@@ -275,7 +289,7 @@ func TestSkip(t *testing.T) {
 	assert.Equal(t, util.Of2Error([]int{4, 5}, nil), iter.Maybe(ReduceToSlice(it)))
 }
 
-func TestLimit(t *testing.T) {
+func TestLimit_(t *testing.T) {
 	fn := Limit[int](3)
 	it := fn(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error([]int{}, nil), iter.Maybe(ReduceToSlice(it)))
@@ -296,7 +310,7 @@ func TestLimit(t *testing.T) {
 	assert.Equal(t, util.Of2Error([]int{1, 2, 3}, nil), iter.Maybe(ReduceToSlice(it)))
 }
 
-func TestPeek(t *testing.T) {
+func TestPeek_(t *testing.T) {
 	slc := []int{}
 	fn := Peek(func(val int) { slc = append(slc, val) })
 	it := fn(iter.OfEmpty[int]())
@@ -317,7 +331,7 @@ func TestPeek(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3, 4}, slc)
 }
 
-func TestGenerator(t *testing.T) {
+func TestGenerator_(t *testing.T) {
 	called := 0
 	fn := Generator(func() func(iter.Iter[int]) iter.Iter[int] {
 		return func(it iter.Iter[int]) iter.Iter[int] {
@@ -337,36 +351,9 @@ func TestGenerator(t *testing.T) {
 	assert.Equal(t, 2, called)
 }
 
-func TestTransform(t *testing.T) {
-	it := Transform(func(it iter.Iter[int]) (int, error) {
-		// Sum pairs of ints
-		val, err := it.Next()
-		if err != nil {
-			return 0, err
-		}
-
-		res := val
-		val, err = it.Next()
-		if err != nil {
-			if err == iter.EOI {
-				return res, nil
-			}
-			return 0, err
-		}
-		res += val
-
-		return res, nil
-	})(iter.Of(1, 2, 3, 4, 5))
-
-	assert.Equal(t, util.Of2Error(3, nil), iter.Maybe(it))
-	assert.Equal(t, util.Of2Error(7, nil), iter.Maybe(it))
-	assert.Equal(t, util.Of2Error(5, nil), iter.Maybe(it))
-	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
-}
-
 // // ==== Funcs based on foundational funcs
 
-func TestAllMatch(t *testing.T) {
+func TestAllMatch_(t *testing.T) {
 	fn := AllMatch(func(i int) bool { return i < 3 })
 	it := fn(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(true, nil), iter.Maybe(it))
@@ -381,7 +368,7 @@ func TestAllMatch(t *testing.T) {
 	assert.Equal(t, util.Of2Error(false, iter.EOI), iter.Maybe(it))
 }
 
-func TestAnyMatch(t *testing.T) {
+func TestAnyMatch_(t *testing.T) {
 	fn := AnyMatch(func(i int) bool { return i < 3 })
 	it := fn(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(false, nil), iter.Maybe(it))
@@ -396,7 +383,7 @@ func TestAnyMatch(t *testing.T) {
 	assert.Equal(t, util.Of2Error(false, iter.EOI), iter.Maybe(it))
 }
 
-func TestNoneMatch(t *testing.T) {
+func TestNoneMatch_(t *testing.T) {
 	fn := NoneMatch(func(i int) bool { return i < 3 })
 	it := fn(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(true, nil), iter.Maybe(it))
@@ -411,124 +398,117 @@ func TestNoneMatch(t *testing.T) {
 	assert.Equal(t, util.Of2Error(false, iter.EOI), iter.Maybe(it))
 }
 
-func TestCount(t *testing.T) {
-	fn := Count[int]()
-	it := fn(iter.OfEmpty[int]())
+func TestCount_(t *testing.T) {
+	it := Count(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(0, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1))
+	it = Count(iter.Of(1))
 	assert.Equal(t, util.Of2Error(1, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1, 2, 3))
+	it = Count(iter.Of(1, 2, 3))
 	assert.Equal(t, util.Of2Error(3, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 }
 
-func TestDistinct(t *testing.T) {
+func TestDistinct_(t *testing.T) {
 	// Distinct
-	fn := Distinct[int]()
-	it := fn(iter.OfEmpty[int]())
+	it := Distinct(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.OfOne(1))
+	it = Distinct(iter.OfOne(1))
 	assert.Equal(t, util.Of2Error(1, nil), iter.Maybe(it))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1, 3, 2, 3, 2, 1))
+	it = Distinct(iter.Of(1, 3, 2, 3, 2, 1))
 	assert.Equal(t, util.Of2Error([]int{1, 3, 2}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
 	// Distinct across multiple iters via iter.Concat
-	it = fn(iter.Concat(iter.OfEmpty[int](), iter.OfOne(1), iter.Of(1, 2, 3, 3, 2, 1), iter.Of(1, 4)))
+	it = Distinct(iter.Concat(iter.OfEmpty[int](), iter.OfOne(1), iter.Of(1, 2, 3, 3, 2, 1), iter.Of(1, 4)))
 	assert.Equal(t, util.Of2Error([]int{1, 2, 3, 4}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 }
 
-func TestDuplicate(t *testing.T) {
+func TestDuplicate_(t *testing.T) {
 	// Duplicate
-	fn := Duplicate[int]()
-	it := fn(iter.OfEmpty[int]())
+	it := Duplicate(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.OfOne(1))
+	it = Duplicate(iter.OfOne(1))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1, 2, 3, 3, 2))
+	it = Duplicate(iter.Of(1, 2, 3, 3, 2))
 	assert.Equal(t, util.Of2Error([]int{3, 2}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
 	// Duplicate across multiple iters via iter.Concat
-	it = fn(iter.Concat(iter.OfEmpty[int](), iter.OfOne(1), iter.Of(1, 2, 3, 3, 2), iter.Of(1, 4)))
+	it = Duplicate(iter.Concat(iter.OfEmpty[int](), iter.OfOne(1), iter.Of(1, 2, 3, 3, 2), iter.Of(1, 4)))
 	assert.Equal(t, util.Of2Error([]int{1, 3, 2}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 }
 
-func TestReverse(t *testing.T) {
-	fn := Reverse[int]()
-	it := fn(iter.OfEmpty[int]())
+func TestReverse_(t *testing.T) {
+	it := Reverse(iter.OfEmpty[int]())
 	assert.Equal(t, util.Of2Error([]int{}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.OfOne(1))
+	it = Reverse(iter.OfOne(1))
 	assert.Equal(t, util.Of2Error([]int{1}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1, 2))
+	it = Reverse(iter.Of(1, 2))
 	assert.Equal(t, util.Of2Error([]int{2, 1}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1, 2, 3))
+	it = Reverse(iter.Of(1, 2, 3))
 	assert.Equal(t, util.Of2Error([]int{3, 2, 1}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
-	it = fn(iter.Of(1, 2, 3, 4))
+	it = Reverse(iter.Of(1, 2, 3, 4))
 	assert.Equal(t, util.Of2Error([]int{4, 3, 2, 1}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
 	anErr := fmt.Errorf("An err")
-	it = fn(iter.SetError(iter.OfEmpty[int](), anErr))
+	it = Reverse(iter.SetError(iter.OfEmpty[int](), anErr))
 	assert.Equal(t, util.Of2Error([]int(nil), anErr), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, anErr), iter.Maybe(it))
 }
 
-func TestSortOrdered(t *testing.T) {
-	fn := SortOrdered[int]()
-	it := fn(iter.Of(1, 3, 2))
+func TestSortOrdered_(t *testing.T) {
+	it := SortOrdered(iter.Of(1, 3, 2))
 	assert.Equal(t, util.Of2Error([]int{1, 2, 3}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
 
 	anErr := fmt.Errorf("An err")
-	it = fn(iter.SetError(iter.OfEmpty[int](), anErr))
+	it = SortOrdered(iter.SetError(iter.OfEmpty[int](), anErr))
 	assert.Equal(t, util.Of2Error([]int(nil), anErr), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0, anErr), iter.Maybe(it))
 }
 
-func TestSortComplex(t *testing.T) {
-	fn := SortComplex[complex128]()
-	it := fn(iter.Of(1+0i, 3+1i, 2+0i))
+func TestSortComplex_(t *testing.T) {
+	it := SortComplex(iter.Of(1+0i, 3+1i, 2+0i))
 	assert.Equal(t, util.Of2Error([]complex128{1 + 0i, 2 + 0i, 3 + 1i}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0+0i, iter.EOI), iter.Maybe(it))
 
 	anErr := fmt.Errorf("An err")
-	it = fn(iter.SetError(iter.OfEmpty[complex128](), anErr))
+	it = SortComplex(iter.SetError(iter.OfEmpty[complex128](), anErr))
 	assert.Equal(t, util.Of2Error([]complex128(nil), anErr), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error(0+0i, anErr), iter.Maybe(it))
 }
 
-func TestSortCmp(t *testing.T) {
-	fn := SortCmp[*big.Int]()
-	it := fn(iter.Of(big.NewInt(2), big.NewInt(3), big.NewInt(1)))
+func TestSortCmp_(t *testing.T) {
+	it := SortCmp(iter.Of(big.NewInt(2), big.NewInt(3), big.NewInt(1)))
 	assert.Equal(t, util.Of2Error([]*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}, nil), iter.Maybe(ReduceToSlice(it)))
 	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
 
 	anErr := fmt.Errorf("An err")
-	it = fn(iter.SetError(iter.OfEmpty[*big.Int](), anErr))
+	it = SortCmp(iter.SetError(iter.OfEmpty[*big.Int](), anErr))
 	assert.Equal(t, util.Of2Error([]*big.Int(nil), anErr), iter.Maybe(ReduceToSlice(it)))
 }
 
-func TestSortBy(t *testing.T) {
+func TestSortBy_(t *testing.T) {
 	fn := SortBy(func(i, j int) bool { return j < i })
 	it := fn(iter.Of(1, 3, 2))
 	assert.Equal(t, util.Of2Error([]int{3, 2, 1}, nil), iter.Maybe(ReduceToSlice(it)))
@@ -539,7 +519,131 @@ func TestSortBy(t *testing.T) {
 	assert.Equal(t, util.Of2Error([]int(nil), anErr), iter.Maybe(ReduceToSlice(it)))
 }
 
-func TestGenerateRanges(t *testing.T) {
+// ==== Math
+
+func TestAbs_(t *testing.T) {
+	it := Abs(iter.Of(-1, 5, gomath.MinInt))
+	assert.Equal(t, util.Of2Error(1, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(5, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, fmt.Errorf("Absolute value error for -9223372036854775808: there is no corresponding positive value in type int")), iter.Maybe(it))
+}
+
+func TestAbsBigOps_(t *testing.T) {
+	it := AbsBigOps(iter.Of(big.NewInt(-1), big.NewInt(5)))
+	assert.Equal(t, util.Of2Error(big.NewInt(1), nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(big.NewInt(5), nil), iter.Maybe(it))
+}
+
+func TestAvgInt_(t *testing.T) {
+	it := AvgInt(iter.Of(-1, 5))
+	assert.Equal(t, util.Of2Error(2, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	it = AvgInt(iter.Of(1, gomath.MaxInt))
+	assert.Equal(t, util.Of2Error(0, math.OverflowErr), iter.Maybe(it))
+
+	it = AvgInt(iter.OfEmpty[int]())
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = AvgInt(iter.SetError(iter.Of(1), err))
+	assert.Equal(t, util.Of2Error(0, err), iter.Maybe(it))
+}
+
+func TestAvgUint_(t *testing.T) {
+	it := AvgUint(iter.Of(uint(1), uint(5)))
+	assert.Equal(t, util.Of2Error(uint(3), nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(uint(0), iter.EOI), iter.Maybe(it))
+
+	it = AvgUint(iter.Of(uint(1), gomath.MaxUint))
+	assert.Equal(t, util.Of2Error(uint(0), math.OverflowErr), iter.Maybe(it))
+
+	it = AvgUint(iter.OfEmpty[uint]())
+	assert.Equal(t, util.Of2Error(uint(0), iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = AvgUint(iter.SetError(iter.Of(uint(1)), err))
+	assert.Equal(t, util.Of2Error(uint(0), err), iter.Maybe(it))
+}
+
+func TestAvgBigOps_(t *testing.T) {
+	it := AvgBigOps(iter.Of(big.NewInt(-1), big.NewInt(5)))
+	assert.Equal(t, util.Of2Error(big.NewInt(2), nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+
+	it = AvgBigOps(iter.OfEmpty[*big.Int]())
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = AvgBigOps(iter.SetError(iter.Of(big.NewInt(1)), err))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), err), iter.Maybe(it))
+}
+
+func TestMax_(t *testing.T) {
+	it := Max(iter.Of(2, 3, 1))
+	assert.Equal(t, util.Of2Error(3, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	it = Max(iter.OfEmpty[int]())
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = Max(iter.SetError(iter.Of(1), err))
+	assert.Equal(t, util.Of2Error(0, err), iter.Maybe(it))
+}
+
+func TestMaxCmp_(t *testing.T) {
+	it := MaxCmp(iter.Of(big.NewInt(2), big.NewInt(3), big.NewInt(1)))
+	assert.Equal(t, util.Of2Error(big.NewInt(3), nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+
+	it = MaxCmp(iter.OfEmpty[*big.Int]())
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = MaxCmp(iter.SetError(iter.Of(big.NewInt(1)), err))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), err), iter.Maybe(it))
+}
+
+func TestMin_(t *testing.T) {
+	it := Min(iter.Of(2, 3, 1))
+	assert.Equal(t, util.Of2Error(1, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	it = Min(iter.OfEmpty[int]())
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = Min(iter.SetError(iter.Of(1), err))
+	assert.Equal(t, util.Of2Error(0, err), iter.Maybe(it))
+}
+
+func TestMinCmp_(t *testing.T) {
+	it := MinCmp(iter.Of(big.NewInt(2), big.NewInt(3), big.NewInt(1)))
+	assert.Equal(t, util.Of2Error(big.NewInt(1), nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+
+	it = MinCmp(iter.OfEmpty[*big.Int]())
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+
+	err := fmt.Errorf("An err")
+	it = MinCmp(iter.SetError(iter.Of(big.NewInt(1)), err))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), err), iter.Maybe(it))
+}
+
+func TestSum_(t *testing.T) {
+	it := Sum(iter.Of(-1, 5))
+	assert.Equal(t, util.Of2Error(4, nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error(0, iter.EOI), iter.Maybe(it))
+}
+
+func TestSumBigOps_(t *testing.T) {
+	it := SumBigOps(iter.Of(big.NewInt(-1), big.NewInt(5)))
+	assert.Equal(t, util.Of2Error(big.NewInt(4), nil), iter.Maybe(it))
+	assert.Equal(t, util.Of2Error((*big.Int)(nil), iter.EOI), iter.Maybe(it))
+}
+
+func TestGenerateRanges_(t *testing.T) {
 	// ==== square root method
 	assert.Equal(t, [][]uint{{0, 1}, {1, 2}}, generateRanges(2, []PInfo{}))
 	assert.Equal(t, [][]uint{{0, 2}, {2, 3}}, generateRanges(3, []PInfo{}))
@@ -578,7 +682,7 @@ func TestGenerateRanges(t *testing.T) {
 	assert.Equal(t, [][]uint{{0, 3}, {3, 6}, {6, 9}, {9, 12}, {12, 15}}, generateRanges(15, []PInfo{{3, Items}}))
 }
 
-func TestParallel(t *testing.T) {
+func TestParallel_(t *testing.T) {
 	var (
 		infoThreads = PInfo{5, Threads}
 		infoItems   = PInfo{5, Items}
@@ -627,7 +731,7 @@ func TestParallel(t *testing.T) {
 
 // // ==== Composition
 
-func TestStreamCompose(t *testing.T) {
+func TestStreamCompose_(t *testing.T) {
 	{
 		fn := funcs.Compose2(Skip[int](1), Limit[int](3))
 		it := fn(iter.OfEmpty[int]())

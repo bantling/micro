@@ -3,14 +3,17 @@ package stream
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"math"
+	"fmt"
+	gomath "math"
 	"math/bits"
 	"reflect"
 	"sync"
 
 	"github.com/bantling/micro/go/constraint"
+	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/iter"
+	"github.com/bantling/micro/go/math"
 	"github.com/bantling/micro/go/util"
 )
 
@@ -28,6 +31,11 @@ type PInfo struct {
 	PUnit
 }
 
+// Constants
+var (
+	absErrMsg = "Absolute value error for %d: there is no corresponding positive value in type %T"
+)
+
 // ==== Functions that provide the foundation for all other functions
 
 // Map constructs a new Iter[U] from an Iter[T] and a func that transforms a T to a U.
@@ -39,6 +47,27 @@ func Map[T, U any](mapper func(T) U) func(iter.Iter[T]) iter.Iter[U] {
 			val, err := it.Next()
 			if err == nil {
 				return mapper(val), nil
+			}
+
+			var zv U
+			return zv, err
+		})
+	}
+}
+
+// MapError is similar to Map, except the mapper function returns (U, error), and the first element that returns a non-nil
+// error results in iteration being cut short.
+//
+// The resulting iter can return any kind of error from source iter, or EOI.
+func MapError[T, U any](mapper func(T) (U, error)) func(iter.Iter[T]) iter.Iter[U] {
+	return func(it iter.Iter[T]) iter.Iter[U] {
+		return iter.NewIter(func() (U, error) {
+			val, err := it.Next()
+			if err == nil {
+				var mval U
+				if mval, err = mapper(val); err == nil {
+					return mval, nil
+				}
 			}
 
 			var zv U
@@ -692,25 +721,6 @@ func Generator[T, U any](gen func() func(iter.Iter[T]) iter.Iter[U]) func(iter.I
 	}
 }
 
-// Transform allows for an arbitrary transform of an Iter[T] to an Iter[U], where:
-// - type T may or may not be the same as type U
-// - a single U value may require iterating multiple T values (reduction)
-// - a single T value may result in multiple U values (expansion)
-//
-// A simple example is reducing a set of integers into the sum of pairs of integers, so that an
-// iter of 1,2,3,4,5 is reduced to an iter of 3,7,5.
-//
-// All iteration logic is handled by the transformer function, it can iterate as many elements as necessary.
-// A transformer should only be used for cases where using other provided functions like Map, Filter, and Reduce(To)
-// either won't work, or result in a process nobody understands.
-func Transform[T, U any](transformer func(iter.Iter[T]) (U, error)) func(iter.Iter[T]) iter.Iter[U] {
-	return func(it iter.Iter[T]) iter.Iter[U] {
-		return iter.NewIter(func() (U, error) {
-			return transformer(it)
-		})
-	}
-}
-
 // ==== Functions based on foundational functions
 
 // AllMatch reduces Iter[T] to an Iter[bool] with a single value that is true if the Iter[T] is empty or all elements
@@ -735,8 +745,8 @@ func NoneMatch[T any](filter func(T) bool) func(iter.Iter[T]) iter.Iter[bool] {
 }
 
 // Count reduces Iter[T] to an Iter[int] with a single value that is the number of elements in the Iter[T].
-func Count[T any]() func(iter.Iter[T]) iter.Iter[int] {
-	return ReduceTo[T, int](func(c int, _ T) int { return c + 1 }, 0)
+func Count[T any](it iter.Iter[T]) iter.Iter[int] {
+	return ReduceTo[T, int](func(c int, _ T) int { return c + 1 }, 0)(it)
 }
 
 // Distinct reduces Iter[T] to an Iter[T] with distinct values.
@@ -746,7 +756,7 @@ func Count[T any]() func(iter.Iter[T]) iter.Iter[int] {
 // values is generated. This allows a composition to be stored in a variable and reused across data sets correctly.
 //
 // If you want Distinct to have one state across multiple Iters, use Concat to create a single Iter that traverses them.
-func Distinct[T comparable]() func(iter.Iter[T]) iter.Iter[T] {
+func Distinct[T comparable](it iter.Iter[T]) iter.Iter[T] {
 	return Generator(func() func(iter.Iter[T]) iter.Iter[T] {
 		vals := map[T]bool{}
 
@@ -758,7 +768,7 @@ func Distinct[T comparable]() func(iter.Iter[T]) iter.Iter[T] {
 
 			return !haveIt
 		})
-	})
+	})(it)
 }
 
 // Duplicate reduces Iter[T] to an Iter[T] with duplicate values.
@@ -766,7 +776,7 @@ func Distinct[T comparable]() func(iter.Iter[T]) iter.Iter[T] {
 // The order of the elements is the order in which the second occurence of each value appears.
 // Eg, for the input 1,2,2,1 the result is 2,1 since the second value of 2 appears before the second value of 1.
 // See Distinct for an explanation of statefulness and the usage of Generator.
-func Duplicate[T comparable]() func(iter.Iter[T]) iter.Iter[T] {
+func Duplicate[T comparable](it iter.Iter[T]) iter.Iter[T] {
 	return Generator(func() func(iter.Iter[T]) iter.Iter[T] {
 		vals := map[T]int{}
 
@@ -779,87 +789,79 @@ func Duplicate[T comparable]() func(iter.Iter[T]) iter.Iter[T] {
 
 			return count == 2
 		})
-	})
+	})(it)
 }
 
 // Reverse reverse all the elements.
 // The input iter must have a finite size.
-func Reverse[T any]() func(iter.Iter[T]) iter.Iter[T] {
-	return func(it iter.Iter[T]) iter.Iter[T] {
-		// Get values into a slice
-		slc, err := ReduceToSlice(it).Next()
+func Reverse[T any](it iter.Iter[T]) iter.Iter[T] {
+	// Get values into a slice
+	slc, err := ReduceToSlice(it).Next()
 
-		if err != nil {
-			// Unable to get any values to reverse
-			return iter.SetError[T](iter.OfEmpty[T](), err)
-		}
-
-		// Reverse elements
-		funcs.Reverse(slc)
-
-		// Successfully return reversed iter
-		return iter.Of(slc...)
+	if err != nil {
+		// Unable to get any values to reverse
+		return iter.SetError(iter.OfEmpty[T](), err)
 	}
+
+	// Reverse elements
+	funcs.Reverse(slc)
+
+	// Return iterator of reversed elements
+	return iter.Of(slc...)
 }
 
 // SortOrdered sorts an Ordered type that is implicitly sortable.
 // The input iter must have a finite size.
-func SortOrdered[T constraint.Ordered]() func(iter.Iter[T]) iter.Iter[T] {
-	return func(it iter.Iter[T]) iter.Iter[T] {
-		// Get values into a slice
-		slc, err := ReduceToSlice(it).Next()
+func SortOrdered[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
+	// Get values into a slice
+	slc, err := ReduceToSlice(it).Next()
 
-		if err != nil {
-			// Unable to get any values to sort
-			return iter.SetError(iter.OfEmpty[T](), err)
-		}
-
-		// Sort elements
-		funcs.SortOrdered(slc)
-
-		// Successfully return sorted iter
-		return iter.Of(slc...)
+	if err != nil {
+		// Unable to get any values to sort
+		return iter.SetError(iter.OfEmpty[T](), err)
 	}
+
+	// Sort elements
+	funcs.SortOrdered(slc)
+
+	// Successfully return sorted iter
+	return iter.Of(slc...)
 }
 
 // SortComplex sorts a Complex type using funcs.SortComplex.
 // The input iter must have a finite size.
-func SortComplex[T constraint.Complex]() func(iter.Iter[T]) iter.Iter[T] {
-	return func(it iter.Iter[T]) iter.Iter[T] {
-		// Get values into a slice
-		slc, err := ReduceToSlice(it).Next()
+func SortComplex[T constraint.Complex](it iter.Iter[T]) iter.Iter[T] {
+	// Get values into a slice
+	slc, err := ReduceToSlice(it).Next()
 
-		if err != nil {
-			// Unable to get any values to sort
-			return iter.SetError(iter.OfEmpty[T](), err)
-		}
-
-		// Sort elements
-		funcs.SortComplex(slc)
-
-		// Successfully return sorted iter
-		return iter.Of(slc...)
+	if err != nil {
+		// Unable to get any values to sort
+		return iter.SetError(iter.OfEmpty[T](), err)
 	}
+
+	// Sort elements
+	funcs.SortComplex(slc)
+
+	// Successfully return sorted iter
+	return iter.Of(slc...)
 }
 
 // SortCmp sorts a Cmp type using funcs.SortCmp.
 // The input iter must have a finite size.
-func SortCmp[T constraint.Cmp[T]]() func(iter.Iter[T]) iter.Iter[T] {
-	return func(it iter.Iter[T]) iter.Iter[T] {
-		// Get values into a slice
-		slc, err := ReduceToSlice(it).Next()
+func SortCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
+	// Get values into a slice
+	slc, err := ReduceToSlice(it).Next()
 
-		if err != nil {
-			// Unable to get any values to sort
-			return iter.SetError(iter.OfEmpty[T](), err)
-		}
-
-		// Sort elements
-		funcs.SortCmp(slc)
-
-		// Successfully return sorted iter
-		return iter.Of(slc...)
+	if err != nil {
+		// Unable to get any values to sort
+		return iter.SetError(iter.OfEmpty[T](), err)
 	}
+
+	// Sort elements
+	funcs.SortCmp(slc)
+
+	// Successfully return sorted iter
+	return iter.Of(slc...)
 }
 
 // SortBy sorts any type using funcs.SortBy and the given comparator.
@@ -884,44 +886,216 @@ func SortBy[T any](less func(T, T) bool) func(iter.Iter[T]) iter.Iter[T] {
 
 // ==== Math
 
-// Average reduces Iter[T] to an Iter[int] with a single T value that is an average of all the T values.
-// See conv.Div.
-// func Average[T constraint.Numeric](it iter.Iter[T]) iter.Iter[T] {
-//   var done bool
-//   return iter.NewIter(func() (T, bool) {
-//     var zv T
-//     if done {
-//       return zv, iter.EOI
-//     }
-//
-//     done = true
-//
-//     var (
-//       count uint64
-//       sum = Reduce[T](func(a T, b T) T { count++; return a + b }, zv).Next()
-//
-//     if constraint.IsFloat(zv) {
-//       // Floats can just divide sum by count.
-//       // If the sum is too large for the floating point type, an approximation is fine.
-//
-//       var sum T
-//       sum, _ =
-//
-//       return sum / count
-//     }
-//
-//     // Integers need a rounded value.
-//     // If the sum does not fit into the desired type, the return an error, which requires handling signed and unsigned separately.
-//     if constraint.IsSignedInt(zv) {
-//       var sum int64
-//       sum, _ = Reduce[T](func(a T, b T) T { count++; return a + b }, zv).Next()
-//       var avg T =
-//
-//
-//       return iter.OfOne(T(sum / count)
-//     }
-//   }
-// }
+// Abs converts all elements into their absolute values
+func Abs[T constraint.SignedInteger](it iter.Iter[T]) iter.Iter[T] {
+	return MapError(func(v T) (T, error) {
+		if v < 0 {
+			if v = -v; v < 0 {
+				var zv T
+				return zv, fmt.Errorf(absErrMsg, v, v)
+			}
+		}
+
+		return v, nil
+	})(it)
+}
+
+// AbsBigOps is the *big.Int, *big.Float, *big.Rat specialization of Abs
+func AbsBigOps[T constraint.BigOps[T]](it iter.Iter[T]) iter.Iter[T] {
+	return Map(func(v T) T {
+		return v.Abs(v)
+	})(it)
+}
+
+// AvgInt reduces all signed integer elements in the input set to their average. If the input set is empty, the result is empty.
+// The average is rounded.
+// See math.Add, math.Div.
+func AvgInt[T constraint.SignedInteger](it iter.Iter[T]) iter.Iter[T] {
+	return iter.NewIter(
+		func() (T, error) {
+			var (
+				sum   T
+				count int64
+				val   T
+				avg   T
+				zv    T
+				err   error
+			)
+
+			for {
+				if val, err = it.Next(); err == nil {
+					// Sum all values and count them, checking for over/underflow
+					if err = math.AddInt(val, &sum); err != nil {
+						return zv, err
+					}
+					count++
+				} else if err == iter.EOI {
+					if count == 0 {
+						// Empty result
+						return zv, err
+					}
+
+					// Non-empty result - divisor = zero handled above, so Div will never fail
+					var de, q int64
+					conv.To(sum, &de)
+					math.Div(de, count, &q)
+					conv.To(q, &avg)
+					break
+				} else {
+					return zv, err
+				}
+			}
+
+			return avg, nil
+		},
+	)
+}
+
+// AvgUint reduces all unsigned integer elements in the input set to their average. If the input set is empty, the result is empty.
+// The average is rounded.
+// See math.Add, math.Div.
+func AvgUint[T constraint.UnsignedInteger](it iter.Iter[T]) iter.Iter[T] {
+	return iter.NewIter(
+		func() (T, error) {
+			var (
+				sum   T
+				count uint64
+				val   T
+				avg   T
+				zv    T
+				err   error
+			)
+
+			for {
+				if val, err = it.Next(); err == nil {
+					// Sum all values and count them, checking for overflow
+					if err = math.AddUint(val, &sum); err != nil {
+						return zv, err
+					}
+					count++
+				} else if err == iter.EOI {
+					if count == 0 {
+						// Empty result
+						return zv, err
+					}
+
+					// Non-empty result - divisor = zero handled above, so Div will never fail
+					var de, q uint64
+					conv.To(sum, &de)
+					math.Div(de, count, &q)
+					conv.To(q, &avg)
+					break
+				} else {
+					return zv, err
+				}
+			}
+
+			return avg, nil
+		},
+	)
+}
+
+// AvgBigOps reduces all *big.Int, *big.Float, or *big.Rat elements in the input set to their average.
+// If the input set is empty, the result is empty. The average is rounded only for *big.Int.
+// See math.DivBigOps
+func AvgBigOps[T constraint.BigOps[T]](it iter.Iter[T]) iter.Iter[T] {
+	return iter.NewIter(
+		func() (T, error) {
+			var (
+				sum   T
+				count T
+				one   T
+				val   T
+				avg   T
+				zv    T
+				err   error
+			)
+			conv.ToBigOps(0, &sum)
+			conv.ToBigOps(0, &count)
+			conv.ToBigOps(1, &one)
+
+			for {
+				if val, err = it.Next(); err == nil {
+					// Sum all values and count them
+					sum.Add(sum, val)
+					count.Add(count, one)
+				} else if err == iter.EOI {
+					if count.Sign() == 0 {
+						// Empty result
+						return zv, err
+					}
+
+					// Non-empty result - divisor = zero handled above, so Div will never fail
+					math.DivBigOps(sum, count, &avg)
+					break
+				} else {
+					return zv, err
+				}
+			}
+
+			return avg, nil
+		},
+	)
+}
+
+// Max calculates the maximum value of any primitive numeric type or string. If the input set is empty, the result is empty.
+func Max[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
+	return Reduce(
+		func(a, b T) T {
+			return funcs.Ternary(a > b, a, b)
+		},
+	)(it)
+}
+
+// MaxCmp calculates the maximum value of any type implementing the Cmp interface, which includes all the big types.
+// If the input set is empty, the result is empty.
+func MaxCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
+	return Reduce(
+		func(a, b T) T {
+			return funcs.Ternary(a.Cmp(b) > 0, a, b)
+		},
+	)(it)
+}
+
+// Min calculates the minimum value of any primitive numeric type or string. If the input set is empty, the result is empty.
+func Min[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
+	return Reduce(
+		func(a, b T) T {
+			return funcs.Ternary(a < b, a, b)
+		},
+	)(it)
+}
+
+// MaxCmp calculates the maximum value of any type implementing the Cmp interface, which includes all the big types.
+// If the input set is empty, the result is empty.
+func MinCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
+	return Reduce(
+		func(a, b T) T {
+			return funcs.Ternary(a.Cmp(b) < 0, a, b)
+		},
+	)(it)
+}
+
+// Sum reduces all elements in the input set to their sum. If the input set is empty, the result is empty.
+func Sum[T constraint.IntegerAndFloat](it iter.Iter[T]) iter.Iter[T] {
+	return Reduce(
+		func(a, b T) T {
+			return a + b
+		},
+	)(it)
+}
+
+// SumBigOps is the *big.Int, *big.Float, *big.Rat specialization of Sum
+func SumBigOps[T constraint.BigOps[T]](it iter.Iter[T]) iter.Iter[T] {
+	var sum T
+	conv.ToBigOps(0, &sum)
+
+	return Reduce(
+		func(a, b T) T {
+			return sum.Add(a, b)
+		},
+	)(it)
+}
 
 // ==== Parallel
 
@@ -933,7 +1107,7 @@ func generateRanges(numItems uint, info []PInfo) [][]uint {
 
 	if len(info) == 0 {
 		// Use square root when no PInfo given
-		bucketSize := uint(math.Round(math.Sqrt(float64(numItems))))
+		bucketSize := uint(gomath.Round(gomath.Sqrt(float64(numItems))))
 		numThreads, remainder := bits.Div(0, numItems, bucketSize)
 
 		// Algorithm has int sqrt number of threads + additional thread if remainder > 0
@@ -952,7 +1126,7 @@ func generateRanges(numItems uint, info []PInfo) [][]uint {
 		if inf.PUnit == Threads {
 			// User specified number of threads, calculate bucket size
 			// Number of threads cannot exceed number of items
-			numThreads := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
+			numThreads := uint(gomath.Min(float64(numItems), gomath.Max(1, float64(inf.N))))
 			bucketSize, remainder := bits.Div(0, numItems, numThreads)
 
 			// Algorithm has number of threads given where first remainder threads have 1 additional item
@@ -967,7 +1141,7 @@ func generateRanges(numItems uint, info []PInfo) [][]uint {
 		} else {
 			// User specified bucket size, calculate number of threads
 			// Bucket size cannot exceed number of items
-			bucketSize := uint(math.Min(float64(numItems), math.Max(1, float64(inf.N))))
+			bucketSize := uint(gomath.Min(float64(numItems), gomath.Max(1, float64(inf.N))))
 			numThreads, remainder := bits.Div(0, numItems, bucketSize)
 
 			// Algorithm has bucket size given where remainder is an additional thread

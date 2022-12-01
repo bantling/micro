@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseValue(t *testing.T) {
+func TestParseValue_(t *testing.T) {
 	assert.Equal(t, util.Of2Error(json.FromMap(map[string]any{"foo": "bar"}), nil), util.Of2Error(parseValue(lexer(iter.OfStringAsRunes(`{"foo": "bar"}`)))))
 	assert.Equal(t, util.Of2Error(json.FromSlice([]any{"bar"}), nil), util.Of2Error(parseValue(lexer(iter.OfStringAsRunes(`["bar"]`)))))
 	assert.Equal(t, util.Of2Error(json.FromString("bar"), nil), util.Of2Error(parseValue(lexer(iter.OfStringAsRunes(`"bar"`)))))
@@ -30,7 +30,7 @@ func TestParseValue(t *testing.T) {
 	assert.Equal(t, util.Of2Error(json.Value{}, nil), util.Of2Error(parseValue(lexer(iter.OfStringAsRunes("}")))))
 }
 
-func TestParseObject(t *testing.T) {
+func TestParseObject_(t *testing.T) {
 	assert.Equal(t, util.Of2Error(json.FromMap(map[string]any{}), nil), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{}`)))))
 	assert.Equal(t, util.Of2Error(json.FromMap(map[string]any{"foo": "bar"}), nil), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo": "bar"}`)))))
 
@@ -67,7 +67,7 @@ func TestParseObject(t *testing.T) {
 	assert.Equal(t, util.Of2Error(zv, fmt.Errorf("The JSON key/value pair \"foo\" must be followed by a colon or closing brace")), util.Of2Error(parseObject(lexer(iter.OfStringAsRunes(`{"foo":1{`)))))
 }
 
-func TestParseArray(t *testing.T) {
+func TestParseArray_(t *testing.T) {
 	assert.Equal(t, util.Of2Error([]json.Value{json.FromString("bar")}, nil), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`["bar"]`))))))
 	assert.Equal(t, util.Of2Error([]json.Value{json.FromString("foo"), json.FromString("bar")}, nil), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`["foo", "bar"]`))))))
 
@@ -100,7 +100,7 @@ func TestParseArray(t *testing.T) {
 	assert.Equal(t, util.Of2Error(zv, errArrayRequiresCommaOrBracket), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1}`))))))
 }
 
-func TestIterate(t *testing.T) {
+func TestIterate_(t *testing.T) {
 	assert.Equal(t, util.Of2Error([]json.Value{json.FromMap(map[string]any{"foo": "bar"})}, nil), iter.Maybe(stream.ReduceToSlice(Iterate(strings.NewReader(`{"foo": "bar"}`)))))
 	assert.Equal(t, util.Of2Error([]json.Value{json.FromMap(map[string]any{"foo": "bar"})}, nil), iter.Maybe(stream.ReduceToSlice(Iterate(strings.NewReader(`[{"foo": "bar"}]`)))))
 
@@ -127,7 +127,7 @@ func TestIterate(t *testing.T) {
 	assert.Equal(t, util.Of2Error(zv, errObjectOrArrayRequired), iter.Maybe(Iterate(strings.NewReader(`:`))))
 }
 
-func TestParse(t *testing.T) {
+func TestParse_(t *testing.T) {
 	assert.Equal(t, util.Of2Error(json.FromMap(map[string]any{"foo": "bar"}), nil), util.Of2Error(Parse(strings.NewReader(`{"foo": "bar"}`))))
 	assert.Equal(t, util.Of2Error(json.FromSlice([]any{map[string]any{"foo": "bar"}}), nil), util.Of2Error(Parse(strings.NewReader(`[{"foo": "bar"}]`))))
 

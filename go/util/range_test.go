@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOpenRange(t *testing.T) {
+func TestOpenRange_(t *testing.T) {
 	r := OfRange(1, Open, 3, Closed, 2)
 
 	// Die with nonsensical min/max values in constructor

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSliceIterGen(t *testing.T) {
+func TestSliceIterGen_(t *testing.T) {
 	// nil
 	var slc []int
 	assert.Nil(t, slc)
@@ -77,7 +77,7 @@ func TestSliceIterGen(t *testing.T) {
 	assert.Equal(t, EOI, err)
 }
 
-func TestMapIterGen(t *testing.T) {
+func TestMapIterGen_(t *testing.T) {
 	// nil
 	var src map[string]int
 	assert.Nil(t, src)
@@ -143,7 +143,7 @@ func TestMapIterGen(t *testing.T) {
 	assert.Equal(t, EOI, err)
 }
 
-func TestNoValueIterGen(t *testing.T) {
+func TestNoValueIterGen_(t *testing.T) {
 	iter := NoValueIterGen[int]()
 
 	val, err := iter()
@@ -155,7 +155,7 @@ func TestNoValueIterGen(t *testing.T) {
 	assert.Equal(t, EOI, err)
 }
 
-func TestSingleValueIterGen(t *testing.T) {
+func TestSingleValueIterGen_(t *testing.T) {
 	iter := SingleValueIterGen(1)
 
 	val, err := iter()
@@ -171,7 +171,7 @@ func TestSingleValueIterGen(t *testing.T) {
 	assert.Equal(t, EOI, err)
 }
 
-func TestInfiniteIterGen(t *testing.T) {
+func TestInfiniteIterGen_(t *testing.T) {
 	// Func to return (seed + 1, seed + 2, seed + 3, ...
 	fn := func(prev int) int {
 		return prev + 1
@@ -223,7 +223,7 @@ func TestInfiniteIterGen(t *testing.T) {
 	}
 }
 
-func TestFibonnaciIterGen(t *testing.T) {
+func TestFibonnaciIterGen_(t *testing.T) {
 	// Fibonnaci
 	iter := FibonnaciIterGen()
 
@@ -234,7 +234,7 @@ func TestFibonnaciIterGen(t *testing.T) {
 	}
 }
 
-func TestReaderIterGen(t *testing.T) {
+func TestReaderIterGen_(t *testing.T) {
 	// nil
 	var src io.Reader
 	assert.Zero(t, src)
@@ -290,7 +290,7 @@ func TestReaderIterGen(t *testing.T) {
 	assert.Equal(t, anErr, err)
 }
 
-func TestReaderAsRunesIterGen(t *testing.T) {
+func TestReaderAsRunesIterGen_(t *testing.T) {
 	// nil
 	var src io.Reader
 	assert.Zero(t, src)
@@ -393,7 +393,7 @@ func TestReaderAsRunesIterGen(t *testing.T) {
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
-func TestStringAsRunesIterGen(t *testing.T) {
+func TestStringAsRunesIterGen_(t *testing.T) {
 	// nil
 	var src string
 	assert.Zero(t, src)
@@ -483,7 +483,7 @@ func TestStringAsRunesIterGen(t *testing.T) {
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
-func TestReaderAsLinesIterGen(t *testing.T) {
+func TestReaderAsLinesIterGen_(t *testing.T) {
 	var (
 		inputs = []string{
 			"oneline",
@@ -528,7 +528,7 @@ func TestReaderAsLinesIterGen(t *testing.T) {
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
-func TestStringAsLinesIterGen(t *testing.T) {
+func TestStringAsLinesIterGen_(t *testing.T) {
 	var (
 		inputs = []string{
 			"oneline",
@@ -573,7 +573,7 @@ func TestStringAsLinesIterGen(t *testing.T) {
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 }
 
-func TestConcatIterGen(t *testing.T) {
+func TestConcatIterGen_(t *testing.T) {
 	iter := ConcatIterGen(
 		[]Iter[string]{
 			NewIter(NoValueIterGen[string]()),

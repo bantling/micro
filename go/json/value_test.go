@@ -49,7 +49,7 @@ func TestString(t *testing.T) {
 	assert.Equal(t, "Null", fmt.Sprintf("%s", Null))
 }
 
-func TestFromNumberInternal(t *testing.T) {
+func TestFromNumberInternal_(t *testing.T) {
 	assertNumber(t, NumberString("1"), fromNumberInternal(int(1)))
 	assertNumber(t, NumberString("2"), fromNumberInternal(int8(2)))
 	assertNumber(t, NumberString("3"), fromNumberInternal(int16(3)))
@@ -85,7 +85,7 @@ func TestFromNumberInternal(t *testing.T) {
 	assert.Equal(t, Value{}, fromNumberInternal(""))
 }
 
-func TestFromValue(t *testing.T) {
+func TestFromValue_(t *testing.T) {
 	// Object
 	assertObject(t, map[string]Value{"foo": FromString("bar")}, FromValue(map[string]any{"foo": "bar"}))
 
@@ -148,37 +148,37 @@ func TestFromValue(t *testing.T) {
 	)
 }
 
-func TestFromMap(t *testing.T) {
+func TestFromMap_(t *testing.T) {
 	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromMap(map[string]any{"foo": "bar"}))
 }
 
-func TestFromMapOfValue(t *testing.T) {
+func TestFromMapOfValue_(t *testing.T) {
 	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromMapOfValue(map[string]Value{"foo": {typ: String, value: "bar"}}))
 }
 
-func TestFromSlice(t *testing.T) {
+func TestFromSlice_(t *testing.T) {
 	assertArray(t, []Value{{typ: String, value: "bar"}}, FromSlice([]any{"bar"}))
 }
 
-func TestFromSliceOfValue(t *testing.T) {
+func TestFromSliceOfValue_(t *testing.T) {
 	assertArray(t, []Value{{typ: String, value: "bar"}}, FromSliceOfValue([]Value{{typ: String, value: "bar"}}))
 }
 
-func TestFromDocument(t *testing.T) {
+func TestFromDocument_(t *testing.T) {
 	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromDocument(map[string]any{"foo": "bar"}))
 	assertArray(t, []Value{{typ: String, value: "bar"}}, FromDocument([]any{"bar"}))
 }
 
-func TestFromDocumentOfValue(t *testing.T) {
+func TestFromDocumentOfValue_(t *testing.T) {
 	assertObject(t, map[string]Value{"foo": {typ: String, value: "bar"}}, FromDocumentOfValue(map[string]Value{"foo": {typ: String, value: "bar"}}))
 	assertArray(t, []Value{{typ: String, value: "bar"}}, FromDocumentOfValue([]Value{{typ: String, value: "bar"}}))
 }
 
-func TestFromString(t *testing.T) {
+func TestFromString_(t *testing.T) {
 	assertString(t, "bar", FromString("bar"))
 }
 
-func TestFromSignedInt(t *testing.T) {
+func TestFromSignedInt_(t *testing.T) {
 	assertNumber(t, NumberString("1"), FromSignedInt(int(1)))
 	assertNumber(t, NumberString("2"), FromSignedInt(int8(2)))
 	assertNumber(t, NumberString("3"), FromSignedInt(int16(3)))
@@ -186,7 +186,7 @@ func TestFromSignedInt(t *testing.T) {
 	assertNumber(t, NumberString("5"), FromSignedInt(int64(5)))
 }
 
-func TestFromUnsignedInt(t *testing.T) {
+func TestFromUnsignedInt_(t *testing.T) {
 	assertNumber(t, NumberString("1"), FromUnsignedInt(uint(1)))
 	assertNumber(t, NumberString("2"), FromUnsignedInt(uint8(2)))
 	assertNumber(t, NumberString("3"), FromUnsignedInt(uint16(3)))
@@ -194,35 +194,35 @@ func TestFromUnsignedInt(t *testing.T) {
 	assertNumber(t, NumberString("5"), FromUnsignedInt(uint64(5)))
 }
 
-func TestFromFloat(t *testing.T) {
+func TestFromFloat_(t *testing.T) {
 	assertNumber(t, NumberString("1.25"), FromFloat(float32(1.25)))
 	assertNumber(t, NumberString("2.5"), FromFloat(float64(2.5)))
 }
 
-func TestFromBigInt(t *testing.T) {
+func TestFromBigInt_(t *testing.T) {
 	var bi *big.Int
 	conv.IntToBigInt(3, &bi)
 	assertNumber(t, NumberString("3"), FromBigInt(bi))
 }
 
-func TestFromBigFloat(t *testing.T) {
+func TestFromBigFloat_(t *testing.T) {
 	var bf *big.Float
 	conv.FloatToBigFloat(3.75, &bf)
 	assertNumber(t, NumberString("3.75"), FromBigFloat(bf))
 }
 
-func TestFromBigRat(t *testing.T) {
+func TestFromBigRat_(t *testing.T) {
 	var br *big.Rat
 	conv.FloatToBigRat(4.25, &br)
 	assertNumber(t, NumberString("4.25"), FromBigRat(br))
 }
 
-func TestFromNumberString(t *testing.T) {
+func TestFromNumberString_(t *testing.T) {
 	// fromNumberString accepts type NumberString, so implicit conversion allowed
 	assertNumber(t, NumberString("5.75"), FromNumberString("5.75"))
 }
 
-func TestFromNumber(t *testing.T) {
+func TestFromNumber_(t *testing.T) {
 	// Number - int
 	assertNumber(t, NumberString("1"), FromNumber(int(1)))
 	assertNumber(t, NumberString("2"), FromNumber(int8(2)))
@@ -259,17 +259,17 @@ func TestFromNumber(t *testing.T) {
 	assertNumber(t, NumberString("5.75"), FromNumber(NumberString("5.75")))
 }
 
-func TestFromBool(t *testing.T) {
+func TestFromBool_(t *testing.T) {
 	assertBoolean(t, true, FromBool(true))
 	assertBoolean(t, false, FromBool(false))
 }
 
-func TestType(t *testing.T) {
+func TestType_(t *testing.T) {
 	val := FromMap(map[string]any{})
 	assert.Equal(t, Object, val.Type())
 }
 
-func TestAsMap(t *testing.T) {
+func TestAsMap_(t *testing.T) {
 	val := FromMap(map[string]any{})
 	assert.Equal(t, val.value, val.AsMap())
 
@@ -284,7 +284,7 @@ func TestAsMap(t *testing.T) {
 	)
 }
 
-func TestAsSlice(t *testing.T) {
+func TestAsSlice_(t *testing.T) {
 	val := FromSlice([]any{})
 	assert.Equal(t, val.value, val.AsSlice())
 
@@ -299,7 +299,7 @@ func TestAsSlice(t *testing.T) {
 	)
 }
 
-func TestAsString(t *testing.T) {
+func TestAsString_(t *testing.T) {
 	val := FromString("foo")
 	assert.Equal(t, val.value, val.AsString())
 
@@ -319,7 +319,7 @@ func TestAsString(t *testing.T) {
 	)
 }
 
-func TestAsBigRat(t *testing.T) {
+func TestAsBigRat_(t *testing.T) {
 	val := FromNumber(1)
 	assert.Equal(t, NumberString("1"), val.AsNumberString())
 
@@ -334,7 +334,7 @@ func TestAsBigRat(t *testing.T) {
 	)
 }
 
-func TestAsBool(t *testing.T) {
+func TestAsBool_(t *testing.T) {
 	assert.True(t, TrueValue.AsBool())
 
 	funcs.TryTo(
@@ -348,12 +348,12 @@ func TestAsBool(t *testing.T) {
 	)
 }
 
-func TestIsNull(t *testing.T) {
+func TestIsNull_(t *testing.T) {
 	assert.True(t, NullValue.IsNull())
 	assert.False(t, TrueValue.IsNull())
 }
 
-func TestToAny(t *testing.T) {
+func TestToAny_(t *testing.T) {
 	m := map[string]any{"foo": "bar"}
 	assert.Equal(t, m, FromMap(m).ToAny())
 
@@ -366,7 +366,7 @@ func TestToAny(t *testing.T) {
 	assert.Nil(t, NullValue.ToAny())
 }
 
-func TestToMap(t *testing.T) {
+func TestToMap_(t *testing.T) {
 	m := map[string]any{
 		"map": map[string]any{"foo": "bar"},
 		"slc": []any{"foo", "bar"},
@@ -389,7 +389,7 @@ func TestToMap(t *testing.T) {
 	)
 }
 
-func TestToSlice(t *testing.T) {
+func TestToSlice_(t *testing.T) {
 	s := []any{
 		map[string]any{"foo": "bar"},
 		[]any{"foo", "bar"},
@@ -412,7 +412,7 @@ func TestToSlice(t *testing.T) {
 	)
 }
 
-func TestIsDocument(t *testing.T) {
+func TestIsDocument_(t *testing.T) {
 	assert.True(t, FromMap(map[string]any{}).IsDocument())
 	assert.True(t, FromSlice([]any{}).IsDocument())
 	assert.False(t, FromString("").IsDocument())
@@ -421,7 +421,7 @@ func TestIsDocument(t *testing.T) {
 	assert.False(t, NullValue.IsDocument())
 }
 
-func TestWrite(t *testing.T) {
+func TestWrite_(t *testing.T) {
 	var str strings.Builder
 
 	assert.Nil(t, FromMap(map[string]any{}).Write(writer.OfIOWriterAsRunes(&str)))
@@ -448,7 +448,7 @@ func TestWrite(t *testing.T) {
 	assert.Equal(t, "null", str.String())
 }
 
-func TestWriteObject(t *testing.T) {
+func TestWriteObject_(t *testing.T) {
 	var (
 		str strings.Builder
 		m   = map[string]any{
@@ -487,7 +487,7 @@ func TestWriteObject(t *testing.T) {
 	assert.Equal(t, err, FromMap(map[string]any{"foo": "bar"}).Write(writer.OfIOWriterAsRunes(w)))
 }
 
-func TestWriteArray(t *testing.T) {
+func TestWriteArray_(t *testing.T) {
 	var (
 		str strings.Builder
 		s   = []any{

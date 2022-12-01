@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAbs(t *testing.T) {
+func TestAbs_(t *testing.T) {
 	{
 		// ==== int
 		i := -1
@@ -173,7 +173,347 @@ func TestAbs(t *testing.T) {
 	}
 }
 
-func TestDiv(t *testing.T) {
+func TestAddInt_(t *testing.T) {
+	{
+		var i int = 2
+		assert.Nil(t, AddInt(1, &i))
+		assert.Equal(t, 3, i)
+
+		assert.Equal(t, OverflowErr, AddInt(gomath.MaxInt, &i))
+		assert.Equal(t, gomath.MinInt+2, i)
+
+		assert.Equal(t, UnderflowErr, AddInt(-4, &i))
+		assert.Equal(t, gomath.MaxInt-1, i)
+	}
+
+	{
+		var i int8 = 2
+		assert.Nil(t, AddInt(1, &i))
+		assert.Equal(t, int8(3), i)
+
+		assert.Equal(t, OverflowErr, AddInt(gomath.MaxInt8, &i))
+		assert.Equal(t, int8(gomath.MinInt8+2), i)
+
+		assert.Equal(t, UnderflowErr, AddInt(-4, &i))
+		assert.Equal(t, int8(gomath.MaxInt8-1), i)
+	}
+
+	{
+		var i int16 = 2
+		assert.Nil(t, AddInt(1, &i))
+		assert.Equal(t, int16(3), i)
+
+		assert.Equal(t, OverflowErr, AddInt(gomath.MaxInt16, &i))
+		assert.Equal(t, int16(gomath.MinInt16+2), i)
+
+		assert.Equal(t, UnderflowErr, AddInt(-4, &i))
+		assert.Equal(t, int16(gomath.MaxInt16-1), i)
+	}
+
+	{
+		var i int32 = 2
+		assert.Nil(t, AddInt(1, &i))
+		assert.Equal(t, int32(3), i)
+
+		assert.Equal(t, OverflowErr, AddInt(gomath.MaxInt32, &i))
+		assert.Equal(t, int32(gomath.MinInt32+2), i)
+
+		assert.Equal(t, UnderflowErr, AddInt(-4, &i))
+		assert.Equal(t, int32(gomath.MaxInt32-1), i)
+	}
+
+	{
+		var i int64 = 2
+		assert.Nil(t, AddInt(1, &i))
+		assert.Equal(t, int64(3), i)
+
+		assert.Equal(t, OverflowErr, AddInt(gomath.MaxInt64, &i))
+		assert.Equal(t, int64(gomath.MinInt64+2), i)
+
+		assert.Equal(t, UnderflowErr, AddInt(-4, &i))
+		assert.Equal(t, int64(gomath.MaxInt64-1), i)
+	}
+}
+
+func TestAddUint_(t *testing.T) {
+	{
+		var i uint = 2
+		assert.Nil(t, AddUint(1, &i))
+		assert.Equal(t, uint(3), i)
+
+		assert.Equal(t, OverflowErr, AddUint(gomath.MaxUint, &i))
+		assert.Equal(t, uint(2), i)
+	}
+
+	{
+		var i uint8 = 2
+		assert.Nil(t, AddUint(1, &i))
+		assert.Equal(t, uint8(3), i)
+
+		assert.Equal(t, OverflowErr, AddUint(gomath.MaxUint8, &i))
+		assert.Equal(t, uint8(2), i)
+	}
+
+	{
+		var i uint16 = 2
+		assert.Nil(t, AddUint(1, &i))
+		assert.Equal(t, uint16(3), i)
+
+		assert.Equal(t, OverflowErr, AddUint(gomath.MaxUint16, &i))
+		assert.Equal(t, uint16(2), i)
+	}
+
+	{
+		var i uint32 = 2
+		assert.Nil(t, AddUint(1, &i))
+		assert.Equal(t, uint32(3), i)
+
+		assert.Equal(t, OverflowErr, AddUint(gomath.MaxUint32, &i))
+		assert.Equal(t, uint32(2), i)
+	}
+
+	{
+		var i uint64 = 2
+		assert.Nil(t, AddUint(1, &i))
+		assert.Equal(t, uint64(3), i)
+
+		assert.Equal(t, OverflowErr, AddUint(gomath.MaxUint64, &i))
+		assert.Equal(t, uint64(2), i)
+	}
+}
+
+func TestSubInt_(t *testing.T) {
+	{
+		var i int = 2
+		assert.Nil(t, SubInt(1, &i))
+		assert.Equal(t, -1, i)
+
+		i = -1
+		assert.Equal(t, OverflowErr, SubInt(gomath.MaxInt, &i))
+		assert.Equal(t, gomath.MinInt, i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubInt(gomath.MinInt, &i))
+		assert.Equal(t, gomath.MaxInt, i)
+	}
+
+	{
+		var i int8 = 2
+		assert.Nil(t, SubInt(1, &i))
+		assert.Equal(t, int8(-1), i)
+
+		i = -1
+		assert.Equal(t, OverflowErr, SubInt(gomath.MaxInt8, &i))
+		assert.Equal(t, int8(gomath.MinInt8), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubInt(gomath.MinInt8, &i))
+		assert.Equal(t, int8(gomath.MaxInt8), i)
+	}
+
+	{
+		var i int16 = 2
+		assert.Nil(t, SubInt(1, &i))
+		assert.Equal(t, int16(-1), i)
+
+		i = -1
+		assert.Equal(t, OverflowErr, SubInt(gomath.MaxInt16, &i))
+		assert.Equal(t, int16(gomath.MinInt16), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubInt(gomath.MinInt16, &i))
+		assert.Equal(t, int16(gomath.MaxInt16), i)
+	}
+
+	{
+		var i int32 = 2
+		assert.Nil(t, SubInt(1, &i))
+		assert.Equal(t, int32(-1), i)
+
+		i = -1
+		assert.Equal(t, OverflowErr, SubInt(gomath.MaxInt32, &i))
+		assert.Equal(t, int32(gomath.MinInt32), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubInt(gomath.MinInt32, &i))
+		assert.Equal(t, int32(gomath.MaxInt32), i)
+	}
+
+	{
+		var i int64 = 2
+		assert.Nil(t, SubInt(1, &i))
+		assert.Equal(t, int64(-1), i)
+
+		i = -1
+		assert.Equal(t, OverflowErr, SubInt(gomath.MaxInt64, &i))
+		assert.Equal(t, int64(gomath.MinInt64), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubInt(gomath.MinInt64, &i))
+		assert.Equal(t, int64(gomath.MaxInt64), i)
+	}
+}
+
+func TestSubUint_(t *testing.T) {
+	{
+		var i uint = 1
+		assert.Nil(t, SubUint(4, &i))
+		assert.Equal(t, uint(3), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubUint(0, &i))
+		assert.Equal(t, uint(gomath.MaxUint), i)
+	}
+
+	{
+		var i uint8 = 1
+		assert.Nil(t, SubUint(4, &i))
+		assert.Equal(t, uint8(3), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubUint(0, &i))
+		assert.Equal(t, uint8(gomath.MaxUint8), i)
+	}
+
+	{
+		var i uint16 = 1
+		assert.Nil(t, SubUint(4, &i))
+		assert.Equal(t, uint16(3), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubUint(0, &i))
+		assert.Equal(t, uint16(gomath.MaxUint16), i)
+	}
+
+	{
+		var i uint32 = 1
+		assert.Nil(t, SubUint(4, &i))
+		assert.Equal(t, uint32(3), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubUint(0, &i))
+		assert.Equal(t, uint32(gomath.MaxUint32), i)
+	}
+
+	{
+		var i uint64 = 1
+		assert.Nil(t, SubUint(4, &i))
+		assert.Equal(t, uint64(3), i)
+
+		i = 1
+		assert.Equal(t, UnderflowErr, SubUint(0, &i))
+		assert.Equal(t, uint64(gomath.MaxUint64), i)
+	}
+}
+
+func TestMul_(t *testing.T) {
+	{
+		var i int = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, 10, i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxInt, &i))
+		assert.Equal(t, 10, i)
+
+		assert.Equal(t, UnderflowErr, Mul(gomath.MinInt, &i))
+		assert.Equal(t, 10, i)
+	}
+
+	{
+		var i int8 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, int8(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxInt8, &i))
+		assert.Equal(t, int8(10), i)
+
+		assert.Equal(t, UnderflowErr, Mul(gomath.MinInt8, &i))
+		assert.Equal(t, int8(10), i)
+	}
+
+	{
+		var i int16 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, int16(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxInt16, &i))
+		assert.Equal(t, int16(10), i)
+
+		assert.Equal(t, UnderflowErr, Mul(gomath.MinInt16, &i))
+		assert.Equal(t, int16(10), i)
+	}
+
+	{
+		var i int32 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, int32(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxInt32, &i))
+		assert.Equal(t, int32(10), i)
+
+		assert.Equal(t, UnderflowErr, Mul(gomath.MinInt32, &i))
+		assert.Equal(t, int32(10), i)
+	}
+
+	{
+		var i int64 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, int64(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxInt64, &i))
+		assert.Equal(t, int64(10), i)
+
+		assert.Equal(t, UnderflowErr, Mul(gomath.MinInt64, &i))
+		assert.Equal(t, int64(10), i)
+	}
+
+	{
+		var i uint = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, uint(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxUint, &i))
+		assert.Equal(t, uint(10), i)
+	}
+
+	{
+		var i uint8 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, uint8(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxUint8, &i))
+		assert.Equal(t, uint8(10), i)
+	}
+
+	{
+		var i uint16 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, uint16(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxUint16, &i))
+		assert.Equal(t, uint16(10), i)
+	}
+
+	{
+		var i uint32 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, uint32(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxUint32, &i))
+		assert.Equal(t, uint32(10), i)
+	}
+
+	{
+		var i uint64 = 2
+		assert.Nil(t, Mul(5, &i))
+		assert.Equal(t, uint64(10), i)
+
+		assert.Equal(t, OverflowErr, Mul(gomath.MaxUint64, &i))
+		assert.Equal(t, uint64(10), i)
+	}
+}
+
+func TestDiv_(t *testing.T) {
 	{
 		// ==== float32
 		var (
@@ -776,4 +1116,15 @@ func TestDiv(t *testing.T) {
 		assert.Equal(t, big.NewRat(1, 1), dv)
 		assert.Equal(t, big.NewRat(1, 1), q)
 	}
+}
+
+func TestDivBigOps_(t *testing.T) {
+	de, dv := big.NewInt(18), big.NewInt(4)
+	var q *big.Int
+	assert.Nil(t, DivBigOps(de, dv, &q))
+	assert.Equal(t, big.NewInt(5), q)
+
+	dv = big.NewInt(0)
+	assert.Equal(t, DivByZeroErr, DivBigOps(de, dv, &q))
+	assert.Equal(t, big.NewInt(5), q)
 }

@@ -10,11 +10,14 @@ import (
 	"strings"
 
 	"github.com/bantling/micro/go/constraint"
+	"github.com/bantling/micro/go/conv"
 )
 
 // Constants
 var (
 	absErrMsg    = "Absolute value error for %d: there is no corresponding positive value in type %T"
+	OverflowErr  = fmt.Errorf("Overflow error")
+	UnderflowErr = fmt.Errorf("Underflow error")
 	DivByZeroErr = fmt.Errorf("Division by zero error")
 
 	// map strings of type names to func(any) error that perform an abs calculation on a value of the type.
@@ -111,7 +114,7 @@ var (
 		},
 	}
 
-	// map strings of type names to func(any, any, any) error that perform an div calculation on a value of the type
+	// map strings of type names to func(any, any, any) error that perform a div calculation on a value of the type
 	toDiv = map[string]func(any, any, any) error{
 		"int": func(de, dv, q any) error {
 			dvi := any(dv).(int)
@@ -269,6 +272,7 @@ var (
 			}
 			qbi := *qbip
 
+			// *big.Int panics if you divide by zero
 			if dvbi.Sign() == 0 {
 				return DivByZeroErr
 			}
@@ -302,6 +306,7 @@ var (
 			}
 			qbf := *qbfp
 
+			// *big.Float cannot store a NaN, it panics if you try 0/0 or +-Inf/+-Inf
 			if ((debf.Sign() == 0) && (dvbf.Sign() == 0)) || (debf.IsInf() && dvbf.IsInf()) {
 				return big.ErrNaN{}
 			}
@@ -319,6 +324,7 @@ var (
 			qbr := *qbrp
 
 			if dvbr.Sign() == 0 {
+				// *big.Rat panics if you divide by zero
 				return DivByZeroErr
 			}
 
@@ -328,42 +334,47 @@ var (
 	}
 )
 
-// Signed division, for toDiv map above
+// Signed integer division, for toDiv map above
 func divSInt(de, dv int64, q *int64) {
-  *q = de / dv
+	*q = de / dv
 
-  r, halfdv := de%dv, dv/2
-  if r < 0 {
-    r = -r
-  }
-  if halfdv < 0 {
-    halfdv = -halfdv
-  }
+	// Calc abs of remainder and of half divisor
+	r, halfdv := de%dv, dv/2
+	if r < 0 {
+		r = -r
+	}
+	if halfdv < 0 {
+		halfdv = -halfdv
+	}
 
-  if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
-    if *q >= 0 {
-      *q++
-    } else {
-      *q--
-    }
-  }
+	// If divisor is odd and r >= half divisor, or divisor is even and r > half divisor, adjust quotient by one to round
+	if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
+		if *q >= 0 {
+			*q++
+		} else {
+			*q--
+		}
+	}
 }
 
 // Unsigned division, for toDiv map above
-divUInt = func(de, dv uint64, q *uint64) {
-  *q = de / dv
+func divUInt(de, dv uint64, q *uint64) {
+	*q = de / dv
 
-  r, halfdv := de%dv, dv/2
+	// Calc remainder and hald divisor
+	r, halfdv := de%dv, dv/2
 
-  if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
-    *q++
-  }
+	// If divisor is odd and r >= half divisor, or divisor is even and r > half divisor, adjust quotient by one to round
+	if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
+		*q++
+	}
 }
 
 // Abs calculates the absolute value of any numeric type.
 // Integer types have a range of -N ... +(N-1), which means that if you try to calculate abs(-N), the result is -N.
 // The reason for this is that there is no corresponding +N, that would require more bits.
 // In this special case, an error is returned, otherwise nil is returned.
+// Note that while the constraint allows unsigned ints for completeness, no operation is performed.
 func Abs[T constraint.Numeric](val *T) error {
 	typval := reflect.TypeOf(val).Elem().String()
 
@@ -373,6 +384,83 @@ func Abs[T constraint.Numeric](val *T) error {
 	}
 
 	return toAbs[typval](val)
+}
+
+// AddInt adds two signed integers overwriting the second value, and returns an error if over/underflow occurs.
+// Over/underflow occurrs if two numbers of the same sign are added, and the sign of result has changed.
+// EG, two positive ints are added to create a result too large to be represented in the same number of bits,
+//
+//	or two negative ints are added to create a result too small to be represented in the same number of bits.
+func AddInt[T constraint.SignedInteger](ae1 T, ae2 *T) error {
+	sign1, sign2 := ae1 >= 0, *ae2 >= 0
+	*ae2 += ae1
+	newSign := *ae2 >= 0
+
+	if (sign1 == sign2) && (sign2 != newSign) {
+		// Same sign added, sign of result differs
+		if sign2 {
+			// Positive wrapped around to negative
+			return OverflowErr
+		}
+
+		// Negative wrapped around to positive
+		return UnderflowErr
+	}
+
+	return nil
+}
+
+// AddUint adds two unsigned integers overwriting the second value, and returns an error if overflow occurs.
+// Overflow occurs if two numbers are added, and the magnitude of result is smaller.
+func AddUint[T constraint.UnsignedInteger](ae1 T, ae2 *T) error {
+	ae2Orig := *ae2
+	*ae2 += ae1
+
+	if *ae2 < ae2Orig {
+		return OverflowErr
+	}
+
+	return nil
+}
+
+// SubInt subtracts two integers as sed = me - sed, overwriting the second value, and returns an error if over/underflow occurs.
+// See AddInt.
+func SubInt[T constraint.SignedInteger](me T, sed *T) error {
+	// Instead of actually subtracting, just add the additive inverse
+	*sed = -*sed
+
+	return AddInt(me, sed)
+}
+
+// SubUint subtracts two integers as sed = me - sed, overwriting the second value, and returns an error if underflow occurs.
+// Underflow occurs if sed > me before the subtraction is performed.
+func SubUint[T constraint.UnsignedInteger](me T, sed *T) error {
+	*sed = me - *sed
+	if *sed > me {
+		return UnderflowErr
+	}
+
+	return nil
+}
+
+// Mul multiples two integers overwriting the second value, and returns an error if over/underflow occurs.
+// Over/underflow occurs if the magnitude of the result requires more bits than the type provides.
+// Unsigned types can only overflow.
+func Mul[T constraint.Integer](ae1 T, ae2 *T) error {
+	var ae1BI, ae2BI *big.Int
+	conv.To(ae1, &ae1BI)
+	conv.To(*ae2, &ae2BI)
+	ae2BI.Mul(ae1BI, ae2BI)
+
+	if err := conv.To(ae2BI, ae2); err != nil {
+		if ae2BI.Sign() >= 0 {
+			return OverflowErr
+		}
+
+		return UnderflowErr
+	}
+
+	return nil
 }
 
 // Div calculates the quotient of a division operation of a pair of integers or a pair of floating point types.
@@ -389,6 +477,13 @@ func Abs[T constraint.Numeric](val *T) error {
 // 18 / 4 = 4 remainder 2. Since divisor 4 is even and remainder 2 is     >= (4 / 2 = 2), increment quotient to 5 (round 4.5 up).
 // 17 / 5 = 3 remainder 2. Since divisor 5 is odd  and remainder 2 is not >  (5 / 2 = 2), leave quotient as is (round 3.4 down).
 func Div[T constraint.Numeric](dividend T, divisor T, quotient *T) error {
+	// Cast args to any for functions to accept
+	var typ, ade, adv, aq = reflect.TypeOf(dividend).String(), any(dividend), any(divisor), any(quotient)
+	return toDiv[typ](ade, adv, aq)
+}
+
+// DivBigOps is the BigOps version of Div
+func DivBigOps[T constraint.BigOps[T]](dividend T, divisor T, quotient *T) error {
 	// Cast args to any for functions to accept
 	var typ, ade, adv, aq = reflect.TypeOf(dividend).String(), any(dividend), any(divisor), any(quotient)
 	return toDiv[typ](ade, adv, aq)

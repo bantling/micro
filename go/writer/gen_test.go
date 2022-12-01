@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSliceWriterGen(t *testing.T) {
+func TestSliceWriterGen_(t *testing.T) {
 	var (
 		slc = make([]int, 0, 1)
 		w   = SliceWriterGen(&slc)
@@ -28,7 +28,7 @@ func TestSliceWriterGen(t *testing.T) {
 	assert.NotEqual(t, p, fmt.Sprintf("%p", slc)) // address has changed
 }
 
-func TestMapWriterGen(t *testing.T) {
+func TestMapWriterGen_(t *testing.T) {
 	var (
 		m = map[int]string{}
 		w = MapWriterGen(m)
@@ -42,7 +42,7 @@ func TestMapWriterGen(t *testing.T) {
 	}
 }
 
-func TestIOWriterGen(t *testing.T) {
+func TestIOWriterGen_(t *testing.T) {
 	// Write alphabet to a normal writer
 	var (
 		sb strings.Builder
@@ -79,7 +79,7 @@ func TestIOWriterGen(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("The byte 0x47 could not be written"), w(0x47))
 }
 
-func TestIOWriterAsRunesGen(t *testing.T) {
+func TestIOWriterAsRunesGen_(t *testing.T) {
 	var (
 		sb    strings.Builder
 		w     = IOWriterAsRunesGen(&sb)
@@ -121,7 +121,7 @@ func TestIOWriterAsRunesGen(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("The rune \\U00000099 could not be written"), w(0x99))
 }
 
-func TestIOWriterAsStringsGen(t *testing.T) {
+func TestIOWriterAsStringsGen_(t *testing.T) {
 	var (
 		sb      strings.Builder
 		w       = IOWriterAsStringsGen(&sb)
@@ -163,7 +163,7 @@ func TestIOWriterAsStringsGen(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("Only the first 0 bytes were written of a string of 1 runes that is encoded as 1 UTF-8 bytes"), w("c"))
 }
 
-func TestIOWriterAsLinesGen(t *testing.T) {
+func TestIOWriterAsLinesGen_(t *testing.T) {
 	var (
 		sb      strings.Builder
 		w       = IOWriterAsLinesGen(&sb)
