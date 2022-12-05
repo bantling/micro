@@ -204,6 +204,13 @@ func FromString(s string) Value {
 	return Value{typ: String, value: s}
 }
 
+// FromNumeric
+func FromNumeric[T constraint.Numeric](n T) Value {
+	var s NumberString
+	conv.To(n, &s)
+	return Value{typ: Number, value: s}
+}
+
 // FromSignedInt converts any kind of signed int into a Value
 func FromSignedInt[T constraint.SignedInteger](n T) Value {
 	return Value{typ: Number, value: NumberString(conv.IntToString(n))}

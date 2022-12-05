@@ -39,6 +39,23 @@ var (
 		64: math.MaxUint64,
 	}
 
+	// Map kinds to base types to convert to
+	kindToType = map[reflect.Kind]reflect.Type{
+		reflect.Int:     reflect.TypeOf(int(0)),
+		reflect.Int8:    reflect.TypeOf(int8(0)),
+		reflect.Int16:   reflect.TypeOf(int16(0)),
+		reflect.Int32:   reflect.TypeOf(int32(0)),
+		reflect.Int64:   reflect.TypeOf(int64(0)),
+		reflect.Uint:    reflect.TypeOf(uint(0)),
+		reflect.Uint8:   reflect.TypeOf(uint8(0)),
+		reflect.Uint16:  reflect.TypeOf(uint16(0)),
+		reflect.Uint32:  reflect.TypeOf(uint32(0)),
+		reflect.Uint64:  reflect.TypeOf(uint64(0)),
+		reflect.Float32: reflect.TypeOf(float32(0)),
+		reflect.Float64: reflect.TypeOf(float64(0)),
+		reflect.String:  reflect.TypeOf(""),
+	}
+
 	// map strings of from/to conversion pairs to func(any, any) error that perform the specified conversion
 	// no map entries are provided for from/to pairs where from and to are the same type.
 	convertFromTo = map[string]func(any, any) error{
@@ -102,6 +119,13 @@ var (
 			}
 			return IntToInt(inter, u.(*int))
 		},
+		"stringint": func(t any, u any) error {
+			var inter int64
+			if err := StringToInt64(t.(string), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int))
+		},
 
 		// ==== To int8
 		"intint8": func(t any, u any) error {
@@ -154,6 +178,13 @@ var (
 		"*big.Ratint8": func(t any, u any) error {
 			var inter int64
 			if err := BigRatToInt64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int8))
+		},
+		"stringint8": func(t any, u any) error {
+			var inter int64
+			if err := StringToInt64(t.(string), &inter); err != nil {
 				return err
 			}
 			return IntToInt(inter, u.(*int8))
@@ -212,6 +243,13 @@ var (
 		"*big.Ratint16": func(t any, u any) error {
 			var inter int64
 			if err := BigRatToInt64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int16))
+		},
+		"stringint16": func(t any, u any) error {
+			var inter int64
+			if err := StringToInt64(t.(string), &inter); err != nil {
 				return err
 			}
 			return IntToInt(inter, u.(*int16))
@@ -276,6 +314,13 @@ var (
 			}
 			return IntToInt(inter, u.(*int32))
 		},
+		"stringint32": func(t any, u any) error {
+			var inter int64
+			if err := StringToInt64(t.(string), &inter); err != nil {
+				return err
+			}
+			return IntToInt(inter, u.(*int32))
+		},
 
 		// ==== To int64
 		"intint64": func(t any, u any) error {
@@ -326,6 +371,9 @@ var (
 		},
 		"*big.Ratint64": func(t any, u any) error {
 			return BigRatToInt64(t.(*big.Rat), u.(*int64))
+		},
+		"stringint64": func(t any, u any) error {
+			return StringToInt64(t.(string), u.(*int64))
 		},
 
 		// ==== To uint
@@ -386,6 +434,13 @@ var (
 			}
 			return UintToUint(inter, u.(*uint))
 		},
+		"stringuint": func(t any, u any) error {
+			var inter uint64
+			if err := StringToUint64(t.(string), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint))
+		},
 
 		// ==== To uint8
 		"intuint8": func(t any, u any) error {
@@ -438,6 +493,13 @@ var (
 		"*big.Ratuint8": func(t any, u any) error {
 			var inter uint64
 			if err := BigRatToUint64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint8))
+		},
+		"stringuint8": func(t any, u any) error {
+			var inter uint64
+			if err := StringToUint64(t.(string), &inter); err != nil {
 				return err
 			}
 			return UintToUint(inter, u.(*uint8))
@@ -495,6 +557,13 @@ var (
 		"*big.Ratuint16": func(t any, u any) error {
 			var inter uint64
 			if err := BigRatToUint64(t.(*big.Rat), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint16))
+		},
+		"stringuint16": func(t any, u any) error {
+			var inter uint64
+			if err := StringToUint64(t.(string), &inter); err != nil {
 				return err
 			}
 			return UintToUint(inter, u.(*uint16))
@@ -557,6 +626,13 @@ var (
 			}
 			return UintToUint(inter, u.(*uint32))
 		},
+		"stringuint32": func(t any, u any) error {
+			var inter uint64
+			if err := StringToUint64(t.(string), &inter); err != nil {
+				return err
+			}
+			return UintToUint(inter, u.(*uint32))
+		},
 
 		// ==== To uint64
 		"intuint64": func(t any, u any) error {
@@ -604,6 +680,9 @@ var (
 		},
 		"*big.Ratuint64": func(t any, u any) error {
 			return BigRatToUint64(t.(*big.Rat), u.(*uint64))
+		},
+		"stringuint64": func(t any, u any) error {
+			return StringToUint64(t.(string), u.(*uint64))
 		},
 
 		// ==== To float32
@@ -665,6 +744,9 @@ var (
 			}
 			return FloatToFloat(inter, u.(*float32))
 		},
+		"stringfloat32": func(t any, u any) error {
+			return StringToFloat32(t.(string), u.(*float32))
+		},
 
 		// ==== To float64
 		"intfloat64": func(t any, u any) error {
@@ -715,6 +797,9 @@ var (
 		},
 		"*big.Ratfloat64": func(t any, u any) error {
 			return BigRatToFloat64(t.(*big.Rat), u.(*float64))
+		},
+		"stringfloat64": func(t any, u any) error {
+			return StringToFloat64(t.(string), u.(*float64))
 		},
 
 		// ==== To *big.Int
@@ -769,6 +854,9 @@ var (
 		},
 		"*big.Rat*big.Int": func(t any, u any) error {
 			return BigRatToBigInt(t.(*big.Rat), u.(**big.Int))
+		},
+		"string*big.Int": func(t any, u any) error {
+			return StringToBigInt(t.(string), u.(**big.Int))
 		},
 
 		// ==== To *big.Float
@@ -826,6 +914,9 @@ var (
 			BigRatToBigFloat(t.(*big.Rat), u.(**big.Float))
 			return nil
 		},
+		"string*big.Float": func(t any, u any) error {
+			return StringToBigFloat(t.(string), u.(**big.Float))
+		},
 
 		// ==== To *big.Rat
 		"int*big.Rat": func(t any, u any) error {
@@ -881,6 +972,9 @@ var (
 		"*big.Float*big.Rat": func(t any, u any) error {
 			return BigFloatToBigRat(t.(*big.Float), u.(**big.Rat))
 		},
+		"string*big.Rat": func(t any, u any) error {
+			return StringToBigRat(t.(string), u.(**big.Rat))
+		},
 	}
 )
 
@@ -932,7 +1026,7 @@ func BigRatToNormalizedString(val *big.Rat) string {
 
 // Converts any signed or unsigned int type, any float type, *big.Int, *big.Float, or *big.Rat to a string.
 // The *big.Rat string will be normalized (see BigRatToNormalizedString).
-func ToString[T constraint.IntegerAndFloat | *big.Int | *big.Float | *big.Rat](val T) string {
+func ToString[T constraint.Numeric](val T) string {
 	if v, isa := any(val).(int); isa {
 		return IntToString(v)
 	} else if v, isa := any(val).(int8); isa {
@@ -1497,39 +1591,54 @@ func FloatStringToBigRat(ival string, oval **big.Rat) error {
 
 // To converts any signed integer, float, or big type into any other such type.
 // The actual conversion is performed by other funcs.
-func To[S constraint.Numeric, T constraint.Numeric](src S, tgt *T) error {
+func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, tgt *T) error {
 	var (
-		asrc   = any(src)
-		atgt   = any(tgt)
-		typsrc = reflect.TypeOf(src).String()
-		typtgt = reflect.TypeOf(tgt).Elem().String()
+		valsrc = reflect.ValueOf(src)
+		valtgt = reflect.ValueOf(tgt)
 	)
 
-	// No conversion necessary if src and tgt are same type, just copy
-	if typsrc == typtgt {
-		*tgt = asrc.(T)
+	// Is the source value a subtype of a primitive type (eg, type foo int) ?
+	if k := valsrc.Kind(); (k != reflect.Ptr) && (k.String() != valsrc.Type().String()) {
+		// If so, then convert the value to the base type so we can pass it to the conversion function
+		valsrc = valsrc.Convert(kindToType[k])
+	}
+
+	// Is the target pointer pointing to a subtype of a primitive (eg, * type foo int) ?
+	if k := valtgt.Elem().Kind(); (k != reflect.Ptr) && (k.String() != valtgt.Elem().Type().String()) {
+		// If so, the convert the pointer to point to the base type so we can pass it to the conversion
+		valtgt = valtgt.Convert(reflect.PtrTo(kindToType[k]))
+	}
+
+	// No conversion function exists if src and *tgt are the same type
+	if valsrc.Type() == valtgt.Elem().Type() {
+		valtgt.Elem().Set(valsrc)
 		return nil
 	}
 
-	// Lookup conversion and execute it, returning result
-	return convertFromTo[typsrc+typtgt](asrc, atgt)
+	// Types differ, lookup conversion using base types and execute it, returning result
+	return convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()](valsrc.Interface(), valtgt.Interface())
 }
 
 // ToBigOps is the BigOps version of To
-func ToBigOps[S constraint.Numeric, T constraint.BigOps[T]](src S, tgt *T) error {
+func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) error {
 	var (
-		asrc   = any(src)
-		atgt   = any(tgt)
-		typsrc = reflect.TypeOf(src).String()
-		typtgt = reflect.TypeOf(tgt).Elem().String()
+		valsrc = reflect.ValueOf(src)
+		valtgt = reflect.ValueOf(tgt)
 	)
 
-	// No conversion necessary if src and tgt are same type, just copy
-	if typsrc == typtgt {
-		*tgt = asrc.(T)
+	// Is the source value a subtype of a primitive type (eg, type foo int) ?
+	if k := valsrc.Kind(); (k != reflect.Ptr) && (k.String() != valsrc.Type().String()) {
+		// If so, then convert the value to the base type so we can pass it to the conversion function
+		valsrc = valsrc.Convert(kindToType[k])
+	}
+
+	// The target pointer is neccessarily a pointer to a big type, so subtypes are not possible
+	// No conversion function exists if src and *tgt are the same type
+	if valsrc.Type() == valtgt.Elem().Type() {
+		valtgt.Elem().Set(valsrc)
 		return nil
 	}
 
-	// Lookup conversion and execute it, returning result
-	return convertFromTo[typsrc+typtgt](asrc, atgt)
+	// Types differ, lookup conversion using base types and execute it, returning result
+	return convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()](valsrc.Interface(), valtgt.Interface())
 }

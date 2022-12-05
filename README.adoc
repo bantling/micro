@@ -60,6 +60,7 @@ link:depgraph.svg[Dependency Graph]
 == TODO
 
 * Auto convert each JSON object into Go structs and vice-versa
+* JSON look up a string path of key names and indexes, as in "addresses[0].city"
 * Auto write JSON objects to an SQL table that uses individual columns for each field
 ** Auto generate DDL for all free databases
 ** Struct tags to say if indexing is needed
@@ -73,8 +74,15 @@ link:depgraph.svg[Dependency Graph]
    dbvendor is a string like mssql, postgresql, mysql, etc.
    propdef is a union of string coldef and map[string property name]propdef.
    coldef defines a column as just a single string, like 'varchar(max)' for mssql.
+** Handle full text automatically, with different strategies
+*** Default is to have ft handled by each table with at least one field that has a struct tag indicating it contribs to full text
+*** Other is to have one table with a special name like __ft_search__, that has table name, primary key, and description.
+    Each table that contribs to ft has a trigger that will first insert/update to table, then insert/update to __ft_search__.
 * Consider providing simplistic string based arbitrary precision that is not fast, but just does basic operations
 * ETL operations
-** JSON iter of PV pairs for objects, where P is path
-** JSON look up a string path of key names and indexes, as in "addresses[0].city"
+** Mainly operating on streams, with 3 basic operation types:
+*** Combine streams
+*** Split streams
+*** Generate streams
 ** Look at steps Pentaho and Talend provide as a rough guide
+* Document Makefile
