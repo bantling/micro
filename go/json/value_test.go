@@ -3,16 +3,12 @@ package json
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 
 	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/util"
-	"github.com/bantling/micro/go/writer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,20 +46,23 @@ func TestString(t *testing.T) {
 }
 
 func TestFromNumberInternal_(t *testing.T) {
-	assertNumber(t, NumberString("1"), fromNumberInternal(int(1)))
-	assertNumber(t, NumberString("2"), fromNumberInternal(int8(2)))
-	assertNumber(t, NumberString("3"), fromNumberInternal(int16(3)))
-	assertNumber(t, NumberString("4"), fromNumberInternal(int32(4)))
-	assertNumber(t, NumberString("5"), fromNumberInternal(int64(5)))
+	assertNumber(t, "1", fromNumberInternal(int(1)))
+	assertNumber(t, "2", fromNumberInternal(int8(2)))
+	assertNumber(t, "3", fromNumberInternal(int16(3)))
+	assertNumber(t, "4", fromNumberInternal(int32(4)))
+	assertNumber(t, "5", fromNumberInternal(int64(5)))
 
-	assertNumber(t, NumberString("1"), fromNumberInternal(uint(1)))
-	assertNumber(t, NumberString("2"), fromNumberInternal(uint8(2)))
-	assertNumber(t, NumberString("3"), fromNumberInternal(uint16(3)))
-	assertNumber(t, NumberString("4"), fromNumberInternal(uint32(4)))
-	assertNumber(t, NumberString("5"), fromNumberInternal(uint64(5)))
+	assertNumber(t, "1", fromNumberInternal(uint(1)))
+	assertNumber(t, "2", fromNumberInternal(uint8(2)))
+	assertNumber(t, "3", fromNumberInternal(uint16(3)))
+	assertNumber(t, "4", fromNumberInternal(uint32(4)))
+	assertNumber(t, "5", fromNumberInternal(uint64(5)))
 
-	assertNumber(t, NumberString("1.25"), fromNumberInternal(float32(1.25)))
-	assertNumber(t, NumberString("2.5"), fromNumberInternal(float64(2.5)))
+	assertNumber(t, "1.25", fromNumberInternal(float32(1.25)))
+	assertNumber(t, "2.5", fromNumberInternal(float64(2.5)))
+
+	assertNumber(t, "1", fromNumberInternal(byte(1)))
+	assertNumber(t, "2", fromNumberInternal(rune(2)))
 
 	var (
 		bi *big.Int
@@ -72,14 +71,14 @@ func TestFromNumberInternal_(t *testing.T) {
 	)
 	conv.IntToBigInt(3, &bi)
 	assert.Equal(t, big.NewInt(3), bi)
-	assertNumber(t, NumberString("3"), fromNumberInternal(bi))
+	assertNumber(t, "3", fromNumberInternal(bi))
 	conv.FloatToBigFloat(3.75, &bf)
-	assertNumber(t, NumberString("3.75"), fromNumberInternal(bf))
+	assertNumber(t, "3.75", fromNumberInternal(bf))
 	conv.FloatToBigRat(4.25, &br)
-	assertNumber(t, NumberString("4.25"), fromNumberInternal(br))
+	assertNumber(t, "4.25", fromNumberInternal(br))
 
 	// fromNumberInternal accepts type any, so explicit conversion required
-	assertNumber(t, NumberString("5.75"), fromNumberInternal(NumberString("5.75")))
+	assertNumber(t, "5.75", fromNumberInternal(NumberString("5.75")))
 
 	// Any other type results in invalid zero value
 	assert.Equal(t, Value{}, fromNumberInternal(""))
@@ -96,22 +95,22 @@ func TestFromValue_(t *testing.T) {
 	assertString(t, "bar", FromValue("bar"))
 
 	// Number - int
-	assertNumber(t, NumberString("1"), FromValue(int(1)))
-	assertNumber(t, NumberString("2"), FromValue(int8(2)))
-	assertNumber(t, NumberString("3"), FromValue(int16(3)))
-	assertNumber(t, NumberString("4"), FromValue(int32(4)))
-	assertNumber(t, NumberString("5"), FromValue(int64(5)))
+	assertNumber(t, "1", FromValue(int(1)))
+	assertNumber(t, "2", FromValue(int8(2)))
+	assertNumber(t, "3", FromValue(int16(3)))
+	assertNumber(t, "4", FromValue(int32(4)))
+	assertNumber(t, "5", FromValue(int64(5)))
 
 	// Number - uint
-	assertNumber(t, NumberString("1"), FromValue(uint(1)))
-	assertNumber(t, NumberString("2"), FromValue(uint8(2)))
-	assertNumber(t, NumberString("3"), FromValue(uint16(3)))
-	assertNumber(t, NumberString("4"), FromValue(uint32(4)))
-	assertNumber(t, NumberString("5"), FromValue(uint64(5)))
+	assertNumber(t, "1", FromValue(uint(1)))
+	assertNumber(t, "2", FromValue(uint8(2)))
+	assertNumber(t, "3", FromValue(uint16(3)))
+	assertNumber(t, "4", FromValue(uint32(4)))
+	assertNumber(t, "5", FromValue(uint64(5)))
 
 	// Number - float
-	assertNumber(t, NumberString("1.25"), FromValue(float32(1.25)))
-	assertNumber(t, NumberString("2.5"), FromValue(float64(2.5)))
+	assertNumber(t, "1.25", FromValue(float32(1.25)))
+	assertNumber(t, "2.5", FromValue(float64(2.5)))
 
 	// Number - *big.Int, *big.Float, *big.Rat
 	var (
@@ -120,15 +119,15 @@ func TestFromValue_(t *testing.T) {
 		br *big.Rat
 	)
 	conv.IntToBigInt(3, &bi)
-	assertNumber(t, NumberString("3"), FromValue(bi))
+	assertNumber(t, "3", FromValue(bi))
 	conv.FloatToBigFloat(3.75, &bf)
-	assertNumber(t, NumberString("3.75"), FromValue(bf))
+	assertNumber(t, "3.75", FromValue(bf))
 	conv.FloatToBigRat(4.25, &br)
-	assertNumber(t, NumberString("4.25"), FromValue(br))
+	assertNumber(t, "4.25", FromValue(br))
 
 	// Number - NumberString
 	// fromValue accepts type any, so explicit conversion required
-	assertNumber(t, NumberString("5.75"), FromValue(NumberString("5.75")))
+	assertNumber(t, "5.75", FromValue(NumberString("5.75")))
 
 	// Boolean - true
 	assertBoolean(t, true, FromValue(true))
@@ -179,67 +178,67 @@ func TestFromString_(t *testing.T) {
 }
 
 func TestFromSignedInt_(t *testing.T) {
-	assertNumber(t, NumberString("1"), FromSignedInt(int(1)))
-	assertNumber(t, NumberString("2"), FromSignedInt(int8(2)))
-	assertNumber(t, NumberString("3"), FromSignedInt(int16(3)))
-	assertNumber(t, NumberString("4"), FromSignedInt(int32(4)))
-	assertNumber(t, NumberString("5"), FromSignedInt(int64(5)))
+	assertNumber(t, "1", FromSignedInt(int(1)))
+	assertNumber(t, "2", FromSignedInt(int8(2)))
+	assertNumber(t, "3", FromSignedInt(int16(3)))
+	assertNumber(t, "4", FromSignedInt(int32(4)))
+	assertNumber(t, "5", FromSignedInt(int64(5)))
 }
 
 func TestFromUnsignedInt_(t *testing.T) {
-	assertNumber(t, NumberString("1"), FromUnsignedInt(uint(1)))
-	assertNumber(t, NumberString("2"), FromUnsignedInt(uint8(2)))
-	assertNumber(t, NumberString("3"), FromUnsignedInt(uint16(3)))
-	assertNumber(t, NumberString("4"), FromUnsignedInt(uint32(4)))
-	assertNumber(t, NumberString("5"), FromUnsignedInt(uint64(5)))
+	assertNumber(t, "1", FromUnsignedInt(uint(1)))
+	assertNumber(t, "2", FromUnsignedInt(uint8(2)))
+	assertNumber(t, "3", FromUnsignedInt(uint16(3)))
+	assertNumber(t, "4", FromUnsignedInt(uint32(4)))
+	assertNumber(t, "5", FromUnsignedInt(uint64(5)))
 }
 
 func TestFromFloat_(t *testing.T) {
-	assertNumber(t, NumberString("1.25"), FromFloat(float32(1.25)))
-	assertNumber(t, NumberString("2.5"), FromFloat(float64(2.5)))
+	assertNumber(t, "1.25", FromFloat(float32(1.25)))
+	assertNumber(t, "2.5", FromFloat(float64(2.5)))
 }
 
 func TestFromBigInt_(t *testing.T) {
 	var bi *big.Int
 	conv.IntToBigInt(3, &bi)
-	assertNumber(t, NumberString("3"), FromBigInt(bi))
+	assertNumber(t, "3", FromBigInt(bi))
 }
 
 func TestFromBigFloat_(t *testing.T) {
 	var bf *big.Float
 	conv.FloatToBigFloat(3.75, &bf)
-	assertNumber(t, NumberString("3.75"), FromBigFloat(bf))
+	assertNumber(t, "3.75", FromBigFloat(bf))
 }
 
 func TestFromBigRat_(t *testing.T) {
 	var br *big.Rat
 	conv.FloatToBigRat(4.25, &br)
-	assertNumber(t, NumberString("4.25"), FromBigRat(br))
+	assertNumber(t, "4.25", FromBigRat(br))
 }
 
 func TestFromNumberString_(t *testing.T) {
 	// fromNumberString accepts type NumberString, so implicit conversion allowed
-	assertNumber(t, NumberString("5.75"), FromNumberString("5.75"))
+	assertNumber(t, "5.75", FromNumberString("5.75"))
 }
 
 func TestFromNumber_(t *testing.T) {
 	// Number - int
-	assertNumber(t, NumberString("1"), FromNumber(int(1)))
-	assertNumber(t, NumberString("2"), FromNumber(int8(2)))
-	assertNumber(t, NumberString("3"), FromNumber(int16(3)))
-	assertNumber(t, NumberString("4"), FromNumber(int32(4)))
-	assertNumber(t, NumberString("5"), FromNumber(int64(5)))
+	assertNumber(t, "1", FromNumber(int(1)))
+	assertNumber(t, "2", FromNumber(int8(2)))
+	assertNumber(t, "3", FromNumber(int16(3)))
+	assertNumber(t, "4", FromNumber(int32(4)))
+	assertNumber(t, "5", FromNumber(int64(5)))
 
 	// Number - uint
-	assertNumber(t, NumberString("1"), FromNumber(uint(1)))
-	assertNumber(t, NumberString("2"), FromNumber(uint8(2)))
-	assertNumber(t, NumberString("3"), FromNumber(uint16(3)))
-	assertNumber(t, NumberString("4"), FromNumber(uint32(4)))
-	assertNumber(t, NumberString("5"), FromNumber(uint64(5)))
+	assertNumber(t, "1", FromNumber(uint(1)))
+	assertNumber(t, "2", FromNumber(uint8(2)))
+	assertNumber(t, "3", FromNumber(uint16(3)))
+	assertNumber(t, "4", FromNumber(uint32(4)))
+	assertNumber(t, "5", FromNumber(uint64(5)))
 
 	// Number - float
-	assertNumber(t, NumberString("1.25"), FromNumber(float32(1.25)))
-	assertNumber(t, NumberString("2.5"), FromNumber(float64(2.5)))
+	assertNumber(t, "1.25", FromNumber(float32(1.25)))
+	assertNumber(t, "2.5", FromNumber(float64(2.5)))
 
 	// Number - *big.Int, *big.Float, *big.Rat
 	var (
@@ -248,15 +247,15 @@ func TestFromNumber_(t *testing.T) {
 		br *big.Rat
 	)
 	conv.IntToBigInt(3, &bi)
-	assertNumber(t, NumberString("3"), FromNumber(bi))
+	assertNumber(t, "3", FromNumber(bi))
 	conv.FloatToBigFloat(3.75, &bf)
-	assertNumber(t, NumberString("3.75"), FromNumber(bf))
+	assertNumber(t, "3.75", FromNumber(bf))
 	conv.FloatToBigRat(4.25, &br)
-	assertNumber(t, NumberString("4.25"), FromNumber(br))
+	assertNumber(t, "4.25", FromNumber(br))
 
 	// Number - NumberString
 	// FromNumber accepts type any, so explicit conversion required
-	assertNumber(t, NumberString("5.75"), FromNumber(NumberString("5.75")))
+	assertNumber(t, "5.75", FromNumber(NumberString("5.75")))
 }
 
 func TestFromBool_(t *testing.T) {
@@ -419,102 +418,4 @@ func TestIsDocument_(t *testing.T) {
 	assert.False(t, FromNumber(0).IsDocument())
 	assert.False(t, FromBool(true).IsDocument())
 	assert.False(t, NullValue.IsDocument())
-}
-
-func TestWrite_(t *testing.T) {
-	var str strings.Builder
-
-	assert.Nil(t, FromMap(map[string]any{}).Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, "{}", str.String())
-
-	str.Reset()
-	assert.Nil(t, FromSlice([]any{}).Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, "[]", str.String())
-
-	str.Reset()
-	assert.Nil(t, FromString("foo").Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, `"foo"`, str.String())
-
-	str.Reset()
-	assert.Nil(t, FromNumberString("1").Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, "1", str.String())
-
-	str.Reset()
-	assert.Nil(t, TrueValue.Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, "true", str.String())
-
-	str.Reset()
-	assert.Nil(t, NullValue.Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, "null", str.String())
-}
-
-func TestWriteObject_(t *testing.T) {
-	var (
-		str strings.Builder
-		m   = map[string]any{
-			"obj": map[string]any{"foo": "bar"},
-			"arr": []any{"foo"},
-			"str": "foo",
-			"num": NumberString("1"),
-			"bln": false,
-			"nul": nil,
-		}
-	)
-
-	assert.Nil(t, FromMap(m).Write(writer.OfIOWriterAsRunes(&str)))
-
-	// Can't rely on map ordering in string result, and can't use our parser since it imports this package making a cycle.
-	// So use go built in JSON parser to parse string into a map struct. It parses number as a float64 when using a map.
-	var mc map[string]any
-	json.Unmarshal([]byte(str.String()), &mc)
-	mc["num"] = NumberString(conv.FloatToString(mc["num"].(float64)))
-
-	assert.Equal(t, mc, m)
-
-	// Test errors
-	err := fmt.Errorf("An error")
-
-	// Fail to write opening {
-	w := util.NewErrorWriter(0, err)
-	assert.Equal(t, err, FromMap(m).Write(writer.OfIOWriterAsRunes(w)))
-
-	// Fail to write first key
-	w = util.NewErrorWriter(1, err)
-	assert.Equal(t, err, FromMap(m).Write(writer.OfIOWriterAsRunes(w)))
-
-	// Fail to write first value
-	w = util.NewErrorWriter(7, err)
-	assert.Equal(t, err, FromMap(map[string]any{"foo": "bar"}).Write(writer.OfIOWriterAsRunes(w)))
-}
-
-func TestWriteArray_(t *testing.T) {
-	var (
-		str strings.Builder
-		s   = []any{
-			map[string]any{"foo": "bar"},
-			[]any{"foo"},
-			"foo",
-			NumberString("1"),
-			false,
-			nil,
-		}
-	)
-
-	assert.Nil(t, FromSlice(s).Write(writer.OfIOWriterAsRunes(&str)))
-	assert.Equal(t, `[{"foo":"bar"},["foo"],"foo",1,false,null]`, str.String())
-
-	// Test errors
-	err := fmt.Errorf("An error")
-
-	// Fail to write opening [
-	w := util.NewErrorWriter(0, err)
-	assert.Equal(t, err, FromSlice(s).Write(writer.OfIOWriterAsRunes(w)))
-
-	// Fail to write first comma
-	w = util.NewErrorWriter(14, err)
-	assert.Equal(t, err, FromSlice(s).Write(writer.OfIOWriterAsRunes(w)))
-
-	// Fail to write second value
-	w = util.NewErrorWriter(15, err)
-	assert.Equal(t, err, FromSlice(s).Write(writer.OfIOWriterAsRunes(w)))
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/conv"
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/writer"
 )
 
 // Error constants
@@ -21,6 +20,8 @@ var (
 	errNotNumber         = fmt.Errorf("The Value is not a number")
 	errNotBoolean        = fmt.Errorf("The Value is not a boolean")
 	errNotStringable     = fmt.Errorf("The Value is not a string, number, or boolean")
+	errNotAStructMsg     = "The value of type %T is not a struct"
+	errNilPtrMsg         = "The value of type %T has multiple pointers, where one of the leading pointers is nil"
 )
 
 // ValueType is an enum of value types
@@ -59,7 +60,7 @@ type NumberString string
 // NumberType is a constraint of all possible number types
 // int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString
 type NumberType interface {
-	constraint.Signed | constraint.UnsignedInteger | *big.Int | *big.Float | *big.Rat | NumberString
+	constraint.Numeric | NumberString
 }
 
 // Value represents any kind of JSON value - object, array, string, number, boolean, null
@@ -70,9 +71,10 @@ type Value struct {
 
 // Constant values for a true, false, and Null
 var (
-	TrueValue  = Value{typ: Boolean, value: true}
-	FalseValue = Value{typ: Boolean, value: false}
-	NullValue  = Value{typ: Null, value: nil}
+	TrueValue    = Value{typ: Boolean, value: true}
+	FalseValue   = Value{typ: Boolean, value: false}
+	NullValue    = Value{typ: Null, value: nil}
+	InvalidValue = Value{}
 )
 
 // fromNumberInternal converts any kind of number into a Value
@@ -112,7 +114,7 @@ func fromNumberInternal(n any) Value {
 		return FromNumberString(v)
 	}
 
-	return Value{}
+	return InvalidValue
 }
 
 // FromValue converts a Go value into a Value, where the Go value must be as follows:
@@ -120,11 +122,17 @@ func fromNumberInternal(n any) Value {
 // Object: map[string]any
 // Array: []any
 // String: string
-// Number: int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, or NumberString
+// Number: int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float,
+//
+//	*big.Rat, or NumberString
+//
 // Boolean: bool
 // Null: nil
 //
-// Panics if any other kind of Go value is provided
+// To make recursive algorithms whose base case returns calls to functions like FromMap and FromSlice easier and more
+// efficient to implement, the value can also already be a Value, which is used as is.
+//
+// Panics if any other kind of value is provided for a map key
 func FromValue(v any) Value {
 	var jval Value
 
@@ -138,6 +146,8 @@ func FromValue(v any) Value {
 		jval = FromBool(jv)
 	} else if v == nil {
 		jval = NullValue
+	} else if jv, isa := v.(Value); isa {
+		jval = jv
 	} else if jval = fromNumberInternal(v); jval.value == nil {
 		panic(fmt.Errorf(errInvalidGoValueMsg, v))
 	}
@@ -248,7 +258,7 @@ func FromNumberString(n NumberString) Value {
 	return Value{typ: Number, value: n}
 }
 
-// FromNumber converts an int, int8, int16, int32, int64, uint, uin8, uint16, uint32, uint64, float32, float64, *big.Int,
+// FromNumber converts an int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int,
 // *big.Float, *big.Rat, or NumberString into a Value
 func FromNumber[N NumberType](n N) Value {
 	return fromNumberInternal(n)
@@ -378,71 +388,4 @@ func (jv Value) ToSlice(visitor ...func(Value) any) []any {
 // IsDocument returns true if a Value is a document (Object or Array)
 func (jv Value) IsDocument() bool {
 	return (jv.typ == Object) || (jv.typ == Array)
-}
-
-// Write writes any value to a writer
-func (jv Value) Write(dst writer.Writer[rune]) error {
-	switch jv.typ {
-	case Object:
-		return jv.WriteObject(dst)
-	case Array:
-		return jv.WriteArray(dst)
-	case String:
-		return dst.Write(append(append([]rune{'"'}, []rune(jv.value.(string))...), '"')...)
-	case Number:
-		fallthrough
-	case Boolean:
-		return dst.Write([]rune(jv.AsString())...)
-	}
-
-	return dst.Write([]rune("null")...)
-}
-
-// WriteObject writes an object to a writer
-func (jv Value) WriteObject(dst writer.Writer[rune]) error {
-	if err := dst.Write('{'); err != nil {
-		return err
-	}
-
-	var i = 0
-	for k, v := range jv.value.(map[string]Value) {
-		var data []rune
-
-		if i > 0 {
-			data = append(data, ',')
-		}
-		i++
-
-		data = append(append(append(data, '"'), []rune(k)...), '"', ':')
-		if err := dst.Write(data...); err != nil {
-			return err
-		}
-
-		if err := v.Write(dst); err != nil {
-			return err
-		}
-	}
-
-	return dst.Write('}')
-}
-
-// WriteArray writes an array to a writer
-func (jv Value) WriteArray(dst writer.Writer[rune]) error {
-	if err := dst.Write('['); err != nil {
-		return err
-	}
-
-	for i, v := range jv.value.([]Value) {
-		if i > 0 {
-			if err := dst.Write(','); err != nil {
-				return err
-			}
-		}
-
-		if err := v.Write(dst); err != nil {
-			return err
-		}
-	}
-
-	return dst.Write(']')
 }

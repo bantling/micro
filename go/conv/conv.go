@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
+	goreflect "reflect"
 	"strconv"
 
 	"github.com/bantling/micro/go/constraint"
 	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/reflect"
 )
 
 var (
@@ -37,23 +38,6 @@ var (
 		16: math.MaxUint16,
 		32: math.MaxUint32,
 		64: math.MaxUint64,
-	}
-
-	// Map kinds to base types to convert to
-	kindToType = map[reflect.Kind]reflect.Type{
-		reflect.Int:     reflect.TypeOf(int(0)),
-		reflect.Int8:    reflect.TypeOf(int8(0)),
-		reflect.Int16:   reflect.TypeOf(int16(0)),
-		reflect.Int32:   reflect.TypeOf(int32(0)),
-		reflect.Int64:   reflect.TypeOf(int64(0)),
-		reflect.Uint:    reflect.TypeOf(uint(0)),
-		reflect.Uint8:   reflect.TypeOf(uint8(0)),
-		reflect.Uint16:  reflect.TypeOf(uint16(0)),
-		reflect.Uint32:  reflect.TypeOf(uint32(0)),
-		reflect.Uint64:  reflect.TypeOf(uint64(0)),
-		reflect.Float32: reflect.TypeOf(float32(0)),
-		reflect.Float64: reflect.TypeOf(float64(0)),
-		reflect.String:  reflect.TypeOf(""),
 	}
 
 	// map strings of from/to conversion pairs to func(any, any) error that perform the specified conversion
@@ -1065,7 +1049,7 @@ func ToString[T constraint.Numeric](val T) string {
 
 // NumBits provides the number of bits of any integer or float type
 func NumBits[T constraint.Signed | constraint.UnsignedInteger](val T) int {
-	return int(reflect.ValueOf(val).Type().Size() * 8)
+	return int(goreflect.ValueOf(val).Type().Size() * 8)
 }
 
 // IntToInt converts any signed integer type into any signed integer type
@@ -1140,7 +1124,7 @@ func IntToFloat[I constraint.Integer, F constraint.Float](ival I, oval *F) error
 
 	// If converting the float back to the int type is not the same value, rounding occurred
 	if ival != I(inter) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), reflect.TypeOf(inter).Name())
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%d", ival), goreflect.TypeOf(inter).Name())
 	}
 
 	*oval = inter
@@ -1156,7 +1140,7 @@ func FloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I)
 	)
 
 	if math.IsNaN(float64(ival)) || (FloatToBigRat(ival, &inter1) != nil) || (BigRatToInt64(inter1, &inter2) != nil) || (IntToInt(inter2, oval) != nil) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), reflect.TypeOf(*oval).Name())
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), goreflect.TypeOf(*oval).Name())
 	}
 
 	return nil
@@ -1171,7 +1155,7 @@ func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval 
 	)
 
 	if math.IsNaN(float64(ival)) || (FloatToBigRat(ival, &inter1) != nil) || (BigRatToUint64(inter1, &inter2) != nil) || (UintToUint(inter2, oval) != nil) {
-		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), reflect.TypeOf(*oval).Name())
+		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), goreflect.TypeOf(*oval).Name())
 	}
 
 	return nil
@@ -1593,21 +1577,13 @@ func FloatStringToBigRat(ival string, oval **big.Rat) error {
 // The actual conversion is performed by other funcs.
 func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, tgt *T) error {
 	var (
-		valsrc = reflect.ValueOf(src)
-		valtgt = reflect.ValueOf(tgt)
+		valsrc = goreflect.ValueOf(src)
+		valtgt = goreflect.ValueOf(tgt)
 	)
 
-	// Is the source value a subtype of a primitive type (eg, type foo int) ?
-	if k := valsrc.Kind(); (k != reflect.Ptr) && (k.String() != valsrc.Type().String()) {
-		// If so, then convert the value to the base type so we can pass it to the conversion function
-		valsrc = valsrc.Convert(kindToType[k])
-	}
-
-	// Is the target pointer pointing to a subtype of a primitive (eg, * type foo int) ?
-	if k := valtgt.Elem().Kind(); (k != reflect.Ptr) && (k.String() != valtgt.Elem().Type().String()) {
-		// If so, the convert the pointer to point to the base type so we can pass it to the conversion
-		valtgt = valtgt.Convert(reflect.PtrTo(kindToType[k]))
-	}
+	// Convert source and target to base types
+	reflect.ToBaseType(&valsrc)
+	reflect.ToBaseType(&valtgt)
 
 	// No conversion function exists if src and *tgt are the same type
 	if valsrc.Type() == valtgt.Elem().Type() {
@@ -1622,17 +1598,13 @@ func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, t
 // ToBigOps is the BigOps version of To
 func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) error {
 	var (
-		valsrc = reflect.ValueOf(src)
-		valtgt = reflect.ValueOf(tgt)
+		valsrc = goreflect.ValueOf(src)
+		valtgt = goreflect.ValueOf(tgt)
 	)
 
-	// Is the source value a subtype of a primitive type (eg, type foo int) ?
-	if k := valsrc.Kind(); (k != reflect.Ptr) && (k.String() != valsrc.Type().String()) {
-		// If so, then convert the value to the base type so we can pass it to the conversion function
-		valsrc = valsrc.Convert(kindToType[k])
-	}
+	// Convert source to base type
+	reflect.ToBaseType(&valsrc)
 
-	// The target pointer is neccessarily a pointer to a big type, so subtypes are not possible
 	// No conversion function exists if src and *tgt are the same type
 	if valsrc.Type() == valtgt.Elem().Type() {
 		valtgt.Elem().Set(valsrc)

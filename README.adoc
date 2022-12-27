@@ -60,6 +60,7 @@ link:depgraph.svg[Dependency Graph]
 == TODO
 
 * Auto convert each JSON object into Go structs and vice-versa
+* Search for tests involving maps and make sure they user assert.Equal(t, hardcoded map, returned map)
 * JSON look up a string path of key names and indexes, as in "addresses[0].city"
 * Auto write JSON objects to an SQL table that uses individual columns for each field
 ** Auto generate DDL for all free databases
