@@ -154,9 +154,18 @@ func FromStruct(strukt any) (Value, error) {
 		// Deref the max one pointer to get the actual value, if available
 		reflectFld := reflect.DerefValue(reflectFldMaxOnePtr)
 
+    // Check if the field is a big pointer
+    reflectFldMaxOnePtrTyp := reflectFldMaxOnePtr.Type()
+    isBigPtr := (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Int)(nil))) ||
+      (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Float)(nil))) ||
+      (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Rat)(nil)))
+
+    reflectFldTyp := reflect.DerefType(reflectFldMaxOnePtrTyp)
+    reflectFldKind := reflectFldTyp.Kind()
+
 		// See if the field is any type we can work with
-		switch reflect.DerefType(reflectFldMaxOnePtr.Type()).Kind() {
-		case goreflect.Struct:
+		switch {
+		case (reflectFldKind == goreflect.Struct) && (!isBigPtr):
 			// If the field value is nil pointer to struct, map the field name to json null
 			if !reflectFld.IsValid() {
 				jsonMap[jsonKey] = nil
@@ -169,14 +178,14 @@ func FromStruct(strukt any) (Value, error) {
 				return InvalidValue, subErr
 			}
 
-		case goreflect.Slice:
+		case reflectFldKind == goreflect.Slice:
 			if slc, subErr := handleSlice(reflectFld); subErr == nil {
 				jsonMap[jsonKey] = slc
 			} else {
 				return InvalidValue, subErr
 			}
 
-		case goreflect.String:
+		case reflectFldKind == goreflect.String:
 			// If the field value is a nil pointer to string, map the field name to json null
 			if !reflectFld.IsValid() {
 				jsonMap[jsonKey] = nil
@@ -185,7 +194,7 @@ func FromStruct(strukt any) (Value, error) {
 
 			jsonMap[jsonKey] = reflectFld.String()
 
-		case goreflect.Bool:
+		case reflectFldKind == goreflect.Bool:
 			// If the field value is a nil pointer to bool, map the field name to json null
 			if !reflectFld.IsValid() {
 				jsonMap[jsonKey] = NullValue
@@ -194,26 +203,9 @@ func FromStruct(strukt any) (Value, error) {
 
 			jsonMap[jsonKey] = reflectFld.Bool()
 		default:
-			// Is the field a NumberType? Is it a big type (which requires a pointer)?
-			var (
-				derefTyp = reflect.DerefType(reflectFldMaxOnePtr.Type())
-				knd      = derefTyp.Kind()
-				isBig    bool
-			)
-			isNumberType := ((knd >= goreflect.Int) && (knd <= goreflect.Uint64)) ||
-				((knd == goreflect.Float32) || (knd == goreflect.Float64))
-			if !isNumberType {
-				typ := reflectFldMaxOnePtr.Type()
-				if isNumberType = (typ == goreflect.TypeOf((*big.Int)(nil))) ||
-					(typ == goreflect.TypeOf((*big.Float)(nil))) ||
-					(typ == goreflect.TypeOf((*big.Rat)(nil))); isNumberType {
-					isBig = true
-				}
-
-				if !isNumberType {
-					isNumberType = derefTyp == goreflect.TypeOf(NumberString(""))
-				}
-			}
+			// Is the field a NumberType?
+			isNumberType := ((reflectFldKind >= goreflect.Int) && (reflectFldKind <= goreflect.Float64) && (reflectFldKind != goreflect.Uintptr)) ||
+				isBigPtr || reflectFldTyp == goreflect.TypeOf(NumberString(""))
 
 			// If it isn't a NumberType or pointer to it, then it is an unrelated type - skip it, we cannot convert to JSON
 			if !isNumberType {
@@ -227,7 +219,7 @@ func FromStruct(strukt any) (Value, error) {
 			}
 
 			// Must be convertible to json.NumberType
-			jsonMap[jsonKey] = funcs.Ternary(isBig, reflectFldMaxOnePtr.Interface(), reflectFld.Interface())
+			jsonMap[jsonKey] = funcs.Ternary(isBigPtr, reflectFldMaxOnePtr.Interface(), reflectFld.Interface())
 		}
 	}
 
