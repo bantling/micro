@@ -69,15 +69,15 @@ func FromStruct(strukt any) (Value, error) {
 			case goreflect.Struct:
 				// Make a recursive call and add the Value as is
 				if subStruktVal, err := FromStruct(reflectVal.Interface()); err == nil {
-          slc = append(slc, subStruktVal)
-        } else {
+					slc = append(slc, subStruktVal)
+				} else {
 					return nil, err
 				}
 
 			case goreflect.Slice:
 				// Make a recursive call and add the Value as is
 				if subSlice, err := handleSlice(reflectValMaxOnePtr); err == nil {
-          slc = append(slc, subSlice)
+					slc = append(slc, subSlice)
 				} else {
 					return nil, err
 				}
@@ -154,14 +154,14 @@ func FromStruct(strukt any) (Value, error) {
 		// Deref the max one pointer to get the actual value, if available
 		reflectFld := reflect.DerefValue(reflectFldMaxOnePtr)
 
-    // Check if the field is a big pointer
-    reflectFldMaxOnePtrTyp := reflectFldMaxOnePtr.Type()
-    isBigPtr := (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Int)(nil))) ||
-      (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Float)(nil))) ||
-      (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Rat)(nil)))
+		// Check if the field is a big pointer
+		reflectFldMaxOnePtrTyp := reflectFldMaxOnePtr.Type()
+		isBigPtr := (reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Int)(nil))) ||
+			(reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Float)(nil))) ||
+			(reflectFldMaxOnePtrTyp == goreflect.TypeOf((*big.Rat)(nil)))
 
-    reflectFldTyp := reflect.DerefType(reflectFldMaxOnePtrTyp)
-    reflectFldKind := reflectFldTyp.Kind()
+		reflectFldTyp := reflect.DerefType(reflectFldMaxOnePtrTyp)
+		reflectFldKind := reflectFldTyp.Kind()
 
 		// See if the field is any type we can work with
 		switch {
