@@ -11,7 +11,8 @@ import (
 )
 
 func TestFromStruct0Ptr_(t *testing.T) {
-	strukt := struct {
+  // Every supported type (except slice), 0 extra pointers added
+	type Strukt struct {
 		Str   string
 		Bln   bool
 		I     int
@@ -33,7 +34,9 @@ func TestFromStruct0Ptr_(t *testing.T) {
 			Foo string
 			Bar int
 		}
-	}{
+	}
+
+  strukt := Strukt {
 		Str:  "foo",
 		Bln:  true,
 		I:    1,
@@ -85,9 +88,26 @@ func TestFromStruct0Ptr_(t *testing.T) {
 	}
 
 	assert.Equal(t, util.Of2Error(FromMap(m), nil), util.Of2Error(FromStruct(strukt)))
+
+  // A struct containing a slice
+  struktSlice := struct {
+    AnInt int
+    Slc []Strukt
+  }{
+    AnInt: 45,
+    Slc: []Strukt{strukt, strukt},
+  }
+
+  sm := map[string]any{
+    "anInt": 45,
+    "slc": []any{m, m},
+  }
+
+  assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
 }
 
 func TestFromStruct1Ptr_(t *testing.T) {
+  // Every supported type (except slice), 1 extra pointer added
 	type InnerStrukt struct {
 		Foo *string
 		Bar *int
@@ -114,7 +134,7 @@ func TestFromStruct1Ptr_(t *testing.T) {
 		br           = big.NewRat(15, 16)
 	)
 
-	strukt := struct {
+	type Strukt struct {
 		Str   *string
 		Bln   *bool
 		I     *int
@@ -133,7 +153,9 @@ func TestFromStruct1Ptr_(t *testing.T) {
 		BF    **big.Float
 		BR    **big.Rat
 		Inner *InnerStrukt
-	}{
+	}
+
+  strukt := Strukt{
 		Str:  &foo,
 		Bln:  &bln,
 		I:    &i,
@@ -182,9 +204,26 @@ func TestFromStruct1Ptr_(t *testing.T) {
 	}
 
 	assert.Equal(t, util.Of2Error(FromMap(m), nil), util.Of2Error(FromStruct(strukt)))
+
+  // A struct containing a slice
+  struktSlice := struct {
+    AnInt int
+    Slc []Strukt
+  }{
+    AnInt: 45,
+    Slc: []Strukt{strukt, strukt},
+  }
+
+  sm := map[string]any{
+    "anInt": 45,
+    "slc": []any{m, m},
+  }
+
+  assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
 }
 
 func TestFromStruct2Ptr_(t *testing.T) {
+  // Every supported type (except slice), 2 extra pointers added
 	type InnerStrukt struct {
 		Foo **string
 		Bar **int
@@ -236,7 +275,7 @@ func TestFromStruct2Ptr_(t *testing.T) {
 		isp = &is
 	)
 
-	strukt := struct {
+	type Strukt struct {
 		Str   **string
 		Bln   **bool
 		I     **int
@@ -255,7 +294,9 @@ func TestFromStruct2Ptr_(t *testing.T) {
 		BF    ***big.Float
 		BR    ***big.Rat
 		Inner **InnerStrukt
-	}{
+	}
+
+  strukt := Strukt{
 		Str:   &foop,
 		Bln:   &blnp,
 		I:     &ip,
@@ -301,4 +342,20 @@ func TestFromStruct2Ptr_(t *testing.T) {
 	}
 
 	assert.Equal(t, util.Of2Error(FromMap(m), nil), util.Of2Error(FromStruct(strukt)))
+
+  // A struct containing a slice
+  struktSlice := struct {
+    AnInt int
+    Slc []Strukt
+  }{
+    AnInt: 45,
+    Slc: []Strukt{strukt, strukt},
+  }
+
+  sm := map[string]any{
+    "anInt": 45,
+    "slc": []any{m, m},
+  }
+
+  assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
 }
