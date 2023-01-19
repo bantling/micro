@@ -89,6 +89,21 @@ func IsNillable[T KindElem[T]](ke T) bool {
 	return (knd >= goreflect.Chan) && (knd <= goreflect.Slice)
 }
 
+// ResolveValueType resolves a value to the real type of value it contains.
+// The only case where the result is different from the argument is when the argument is typed as interface{}.
+// For example, if the interface{} value is actually an int, then the result will be typed as int.
+// This generally only happens in corner cases like iterating the elements of a slice typed as []interface{} - even though
+// the elements may be strings, ints, etc, each element will be typed as []interface{}.
+func ResolveValueType(val goreflect.Value) goreflect.Value {
+  // Check special case
+  if val.IsValid() && (val.Kind() == goreflect.Interface) {
+    // Return a new wrapper that is typed according to actual value type
+    return goreflect.ValueOf(val.Interface())
+  }
+
+  return val
+}
+
 // DerefValue returns the element of zero or more pointers to a value.
 // If any pointer is nil, an invalid Value is returned.
 func DerefValue(val goreflect.Value) goreflect.Value {

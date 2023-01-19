@@ -48,74 +48,90 @@ func FromStruct(strukt any) (Value, error) {
 		// Each slice element may contain bool | string | constraint.Numeric | Value | struct | slice
 		slc := []any{}
 		for i, l := 0, reflectGiven.Len(); i < l; i++ {
-			reflectValMaxOnePtr := reflect.DerefValueMaxOnePtr(reflectGiven.Index(i))
-
-			// If the element is nil, add a nil value
-			if reflect.IsNillable(reflectValMaxOnePtr) && reflectValMaxOnePtr.IsNil() {
-				slc = append(slc, nil)
-				continue
-			}
+			// In case the element value is one or more pointers, resolve it to no more than one pointer
+			reflectElemMaxOnePtr := reflect.DerefValueMaxOnePtr(reflectGiven.Index(i))
 
 			// Deref the max one pointer to get the actual value, if available
-			reflectVal := reflect.DerefValue(reflectValMaxOnePtr)
+      // Resolve the type in case the slice was typed as []interface{}, causing all elements to be typed as interface{}
+			reflectElem := reflect.ResolveValueType(reflect.DerefValue(reflectElemMaxOnePtr))
 
-			// See if the value is any type we can work with
-			var (
-				derefTyp = reflect.DerefType(reflectValMaxOnePtr.Type())
-				derefKnd = derefTyp.Kind()
-			)
+      // In case the elem was typed as []interface{}, reconstruct the max one ptr from it
+      if reflectElemMaxOnePtr.Kind() == goreflect.Pointer {
+        reflectElemMaxOnePtr = reflectElem.Addr()
+      } else {
+        reflectElemMaxOnePtr = reflectElem
+      }
 
-			switch derefKnd {
-			case goreflect.Struct:
-				// Make a recursive call and add the Value as is
-				if subStruktVal, err := FromStruct(reflectVal.Interface()); err == nil {
-					slc = append(slc, subStruktVal)
-				} else {
-					return nil, err
+			// Check if the field is a big pointer
+			reflectElemMaxOnePtrTyp := reflectElemMaxOnePtr.Type()
+
+			isBigPtr := (reflectElemMaxOnePtrTyp == goreflect.TypeOf((*big.Int)(nil))) ||
+				(reflectElemMaxOnePtrTyp == goreflect.TypeOf((*big.Float)(nil))) ||
+				(reflectElemMaxOnePtrTyp == goreflect.TypeOf((*big.Rat)(nil)))
+
+			reflectElemTyp := reflect.DerefType(reflectElemMaxOnePtrTyp)
+			reflectElemKind := reflectElemTyp.Kind()
+
+			// See if the element is any type we can work with
+			switch {
+			case (reflectElemKind == goreflect.Struct) && (!isBigPtr):
+				// If the element is a nil pointer to struct, map the field name to json null
+				if !reflectElem.IsValid() {
+					slc = append(slc, nil)
+					continue
 				}
 
-			case goreflect.Slice:
 				// Make a recursive call and add the Value as is
-				if subSlice, err := handleSlice(reflectValMaxOnePtr); err == nil {
+				if subJSONVal, subErr := FromStruct(reflectElemMaxOnePtr.Interface()); subErr == nil {
+					slc = append(slc, subJSONVal)
+				} else {
+					return nil, subErr
+				}
+
+			case reflectElemKind == goreflect.Slice:
+				// Make a recursive call and add the Value as is
+				if subSlice, subErr := handleSlice(reflectElem); subErr == nil {
 					slc = append(slc, subSlice)
 				} else {
-					return nil, err
+					return nil, subErr
 				}
 
-			case goreflect.String:
-				// Add string as is
-				slc = append(slc, reflectVal.String())
+			case reflectElemKind == goreflect.String:
+				// If the element value is a nil pointer to string, add a json null
+				if !reflectElem.IsValid() {
+					slc = append(slc, nil)
+					continue
+				}
 
-			case goreflect.Bool:
-				// Add boolean as is
-				slc = append(slc, reflectVal.Bool())
+				slc = append(slc, reflectElem.String())
+
+			case reflectElemKind == goreflect.Bool:
+				// If the element value is a nil pointer to bool, add a json null
+				if !reflectElem.IsValid() {
+					slc = append(slc, nil)
+					continue
+				}
+
+				slc = append(slc, reflectElem.Bool())
 
 			default:
-				// Is the field a NumberType? Is it a big type (which requires a pointer)?
-				var isBig bool
+				// Is the element a NumberType?
+				isNumberType := ((reflectElemKind >= goreflect.Int) && (reflectElemKind <= goreflect.Float64) && (reflectElemKind != goreflect.Uintptr)) ||
+					isBigPtr || reflectElemTyp == goreflect.TypeOf(NumberString(""))
 
-				isNumberType := ((derefKnd >= goreflect.Int) && (derefKnd <= goreflect.Uint64)) ||
-					((derefKnd == goreflect.Float32) || (derefKnd == goreflect.Float64))
+				// If it isn't a NumberType or pointer to it, then it is an unrelated type - skip it, we cannot convert to JSON
 				if !isNumberType {
-					numberTyp := reflectValMaxOnePtr.Type()
-					if isNumberType = (numberTyp == goreflect.TypeOf((*big.Int)(nil))) ||
-						(numberTyp == goreflect.TypeOf((*big.Float)(nil))) ||
-						(numberTyp == goreflect.TypeOf((*big.Rat)(nil))); isNumberType {
-						isBig = true
-					}
-
-					if !isNumberType {
-						isNumberType = derefTyp == goreflect.TypeOf(NumberString(""))
-					}
+					continue
 				}
 
-				// If it isn't a NumberType or pointer to it, then it is not a valid JSON array element, return an error
-				if !isNumberType {
-					return nil, fmt.Errorf(ErrNotValidArrayElementTypeMsg, derefTyp)
+				// If the element value is a nil pointer, add a json null
+				if !reflectElem.IsValid() {
+					slc = append(slc, nil)
+					continue
 				}
 
 				// Must be convertible to json.NumberType
-				slc = append(slc, funcs.Ternary(isBig, reflectValMaxOnePtr.Interface(), reflectVal.Interface()))
+				slc = append(slc, funcs.Ternary(isBigPtr, reflectElemMaxOnePtr.Interface(), reflectElem.Interface()))
 			}
 		}
 
@@ -172,6 +188,7 @@ func FromStruct(strukt any) (Value, error) {
 				continue
 			}
 
+			// Make a recursive call and add the Value as is
 			if subJSONVal, subErr := FromStruct(reflectFldMaxOnePtr.Interface()); subErr == nil {
 				jsonMap[jsonKey] = subJSONVal
 			} else {

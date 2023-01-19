@@ -86,7 +86,7 @@ func TestDerefTypeMaxOnePtr_(t *testing.T) {
 	}
 }
 
-func IsNillable_(t *testing.T) {
+func TestIsNillable_(t *testing.T) {
 	assert.False(t, IsNillable(goreflect.TypeOf(0)))
 	assert.True(t, IsNillable(goreflect.TypeOf((chan int)(nil))))
 	assert.True(t, IsNillable(goreflect.TypeOf((func())(nil))))
@@ -94,6 +94,18 @@ func IsNillable_(t *testing.T) {
 	assert.True(t, IsNillable(goreflect.TypeOf((map[int]any)(nil))))
 	assert.True(t, IsNillable(goreflect.TypeOf((*int)(nil))))
 	assert.True(t, IsNillable(goreflect.TypeOf(([]int)(nil))))
+}
+
+func TestResolveValueType_(t *testing.T) {
+  // Test special case
+  slc := []any{"foo", 1}
+  rslc := goreflect.ValueOf(slc)
+  assert.Equal(t, goreflect.String, ResolveValueType(rslc.Index(0)).Kind())
+  assert.Equal(t, goreflect.Int, ResolveValueType(rslc.Index(1)).Kind())
+
+  // Test normal case
+  assert.Equal(t, goreflect.String, ResolveValueType(goreflect.ValueOf("foo")).Kind())
+  assert.Equal(t, goreflect.Int, ResolveValueType(goreflect.ValueOf(1)).Kind())
 }
 
 func TestDerefValue_(t *testing.T) {

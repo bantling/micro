@@ -11,7 +11,7 @@ import (
 )
 
 func TestFromStruct0Ptr_(t *testing.T) {
-  // Every supported type (except slice), 0 extra pointers added
+	// Every supported type (except slice), 0 extra pointers added
 	type Strukt struct {
 		Str   string
 		Bln   bool
@@ -36,7 +36,7 @@ func TestFromStruct0Ptr_(t *testing.T) {
 		}
 	}
 
-  strukt := Strukt {
+	strukt := Strukt{
 		Str:  "foo",
 		Bln:  true,
 		I:    1,
@@ -63,51 +63,65 @@ func TestFromStruct0Ptr_(t *testing.T) {
 		},
 	}
 
+	inner := map[string]any{
+		"foo": "foo",
+		"bar": 1,
+	}
+
 	m := map[string]any{
-		"str":  "foo",
-		"bln":  true,
-		"i":    1,
-		"i8":   2,
-		"i16":  3,
-		"i32":  4,
-		"i64":  5,
-		"ui":   6,
-		"ui8":  7,
-		"ui16": 8,
-		"ui32": 9,
-		"ui64": 10,
-		"f32":  11.25,
-		"f64":  12.5,
-		"bi":   13,
-		"bf":   14.5,
-		"br":   big.NewRat(15, 16),
-		"inner": map[string]any{
-			"foo": "foo",
-			"bar": 1,
-		},
+		"str":   "foo",
+		"bln":   true,
+		"i":     1,
+		"i8":    2,
+		"i16":   3,
+		"i32":   4,
+		"i64":   5,
+		"ui":    6,
+		"ui8":   7,
+		"ui16":  8,
+		"ui32":  9,
+		"ui64":  10,
+		"f32":   11.25,
+		"f64":   12.5,
+		"bi":    big.NewInt(13),
+		"bf":    big.NewFloat(14.5),
+		"br":    big.NewRat(15, 16),
+		"inner": inner,
 	}
 
 	assert.Equal(t, util.Of2Error(FromMap(m), nil), util.Of2Error(FromStruct(strukt)))
 
-  // A struct containing a slice
-  struktSlice := struct {
-    AnInt int
-    Slc []Strukt
-  }{
-    AnInt: 45,
-    Slc: []Strukt{strukt, strukt},
-  }
+	// A struct containing a couple of slices
+	slc2 := []any{
+		"foo",
+		// true, 1, int8(2), int16(3), int32(4), int64(5),
+		// uint(6), uint8(7), uint16(8), uint32(9), uint64(10),
+		// float32(11.25), float64(12.5),
+		// big.NewInt(13), big.NewFloat(14.5), big.NewRat(15, 16),
+		// inner,
+	}
 
-  sm := map[string]any{
-    "anInt": 45,
-    "slc": []any{m, m},
-  }
+	struktSlice := struct {
+		AnInt int
+		// Slc   []Strukt
+		Slc2 []any
+	}{
+		AnInt: 45,
+		// Slc:   []Strukt{strukt, strukt},
+		Slc2: slc2,
+	}
 
-  assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
+	sm := map[string]any{
+		"anInt": 45,
+		// "slc":   []any{m, m},
+		"slc2": slc2,
+	}
+
+	assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
 }
 
 func TestFromStruct1Ptr_(t *testing.T) {
-  // Every supported type (except slice), 1 extra pointer added
+	// Every supported type (except slice), 1 extra pointer added
 	type InnerStrukt struct {
 		Foo *string
 		Bar *int
@@ -155,7 +169,7 @@ func TestFromStruct1Ptr_(t *testing.T) {
 		Inner *InnerStrukt
 	}
 
-  strukt := Strukt{
+	strukt := Strukt{
 		Str:  &foo,
 		Bln:  &bln,
 		I:    &i,
@@ -205,25 +219,25 @@ func TestFromStruct1Ptr_(t *testing.T) {
 
 	assert.Equal(t, util.Of2Error(FromMap(m), nil), util.Of2Error(FromStruct(strukt)))
 
-  // A struct containing a slice
-  struktSlice := struct {
-    AnInt int
-    Slc []Strukt
-  }{
-    AnInt: 45,
-    Slc: []Strukt{strukt, strukt},
-  }
+	// A struct containing a slice
+	struktSlice := struct {
+		AnInt int
+		Slc   []Strukt
+	}{
+		AnInt: 45,
+		Slc:   []Strukt{strukt, strukt},
+	}
 
-  sm := map[string]any{
-    "anInt": 45,
-    "slc": []any{m, m},
-  }
+	sm := map[string]any{
+		"anInt": 45,
+		"slc":   []any{m, m},
+	}
 
-  assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
+	assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
 }
 
 func TestFromStruct2Ptr_(t *testing.T) {
-  // Every supported type (except slice), 2 extra pointers added
+	// Every supported type (except slice), 2 extra pointers added
 	type InnerStrukt struct {
 		Foo **string
 		Bar **int
@@ -296,7 +310,7 @@ func TestFromStruct2Ptr_(t *testing.T) {
 		Inner **InnerStrukt
 	}
 
-  strukt := Strukt{
+	strukt := Strukt{
 		Str:   &foop,
 		Bln:   &blnp,
 		I:     &ip,
@@ -343,19 +357,19 @@ func TestFromStruct2Ptr_(t *testing.T) {
 
 	assert.Equal(t, util.Of2Error(FromMap(m), nil), util.Of2Error(FromStruct(strukt)))
 
-  // A struct containing a slice
-  struktSlice := struct {
-    AnInt int
-    Slc []Strukt
-  }{
-    AnInt: 45,
-    Slc: []Strukt{strukt, strukt},
-  }
+	// A struct containing a slice
+	struktSlice := struct {
+		AnInt int
+		Slc   []Strukt
+	}{
+		AnInt: 45,
+		Slc:   []Strukt{strukt, strukt},
+	}
 
-  sm := map[string]any{
-    "anInt": 45,
-    "slc": []any{m, m},
-  }
+	sm := map[string]any{
+		"anInt": 45,
+		"slc":   []any{m, m},
+	}
 
-  assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
+	assert.Equal(t, util.Of2Error(FromMap(sm), nil), util.Of2Error(FromStruct(struktSlice)))
 }
