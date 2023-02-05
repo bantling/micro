@@ -4,12 +4,13 @@ package reflect
 
 import (
 	"github.com/bantling/micro/go/funcs"
+	"math/big"
 	goreflect "reflect"
 )
 
-// Map kinds to base types to convert to
 var (
-	KindToType = map[goreflect.Kind]goreflect.Type{
+	// Map kinds to base types to convert to
+	kindToType = map[goreflect.Kind]goreflect.Type{
 		goreflect.Bool:       goreflect.TypeOf(false),
 		goreflect.Int:        goreflect.TypeOf(int(0)),
 		goreflect.Int8:       goreflect.TypeOf(int8(0)),
@@ -27,6 +28,13 @@ var (
 		goreflect.Complex128: goreflect.TypeOf(complex128(0)),
 		goreflect.String:     goreflect.TypeOf(""),
 	}
+
+	// Map big type pointers to true for testing if a pointer is a big type
+	bigPtrTypes = map[goreflect.Type]bool{
+		goreflect.TypeOf((*big.Int)(nil)):   true,
+		goreflect.TypeOf((*big.Float)(nil)): true,
+		goreflect.TypeOf((*big.Rat)(nil)):   true,
+	}
 )
 
 // KindElem describes the Kind and Elem methods common to both Value and Type objects
@@ -36,7 +44,7 @@ type KindElem[T any] interface {
 }
 
 func IsPrimitive[T KindElem[T]](val T) bool {
-	_, hasIt := KindToType[val.Kind()]
+	_, hasIt := kindToType[val.Kind()]
 	return hasIt
 }
 
@@ -44,14 +52,14 @@ func IsPrimitive[T KindElem[T]](val T) bool {
 func ToBaseType(val *goreflect.Value) {
 	// Check if val is a primitive subtype
 	k := val.Kind()
-	pt := KindToType[k]
+	pt := kindToType[k]
 	if (pt != nil) && (k.String() != val.Type().String()) {
 		// If so, then convert the value to the base type so we can pass it to the conversion function
 		*val = val.Convert(pt)
 		// Check if val is a pointer to a primitive subtype
 	} else if k == goreflect.Ptr {
 		k = val.Elem().Kind()
-		pt = KindToType[k]
+		pt = kindToType[k]
 		if (pt != nil) && (k.String() != val.Elem().Type().String()) {
 			*val = val.Convert(goreflect.PtrTo(pt))
 		}
@@ -83,10 +91,19 @@ func DerefTypeMaxOnePtr(typ goreflect.Type) goreflect.Type {
 	return res
 }
 
-// IsNillable returns true if T.Kind() is nillable, which means it is Chan, Func, Interface, Map, Pointer, or Slice.
+// IsNillable returns true if ke.Kind() is nillable, which means it is Chan, Func, Interface, Map, Pointer, or Slice.
+//
+// If ke is nil, it means ke is reflect.TypeOf(a nil value of some interface type).
+// If ke.Kind() is Invalid, it means ke is reflect.ValueOf(a nil value of any type).
+//
+// If ke is nil or Invalid, the result is true.
 func IsNillable[T KindElem[T]](ke T) bool {
+	if any(ke) == nil {
+		return true
+	}
+
 	knd := ke.Kind()
-	return (knd >= goreflect.Chan) && (knd <= goreflect.Slice)
+	return (knd == goreflect.Invalid) || ((knd >= goreflect.Chan) && (knd <= goreflect.Slice))
 }
 
 // ResolveValueType resolves a value to the real type of value it contains.
@@ -95,13 +112,13 @@ func IsNillable[T KindElem[T]](ke T) bool {
 // This generally only happens in corner cases like iterating the elements of a slice typed as []interface{} - even though
 // the elements may be strings, ints, etc, each element will be typed as []interface{}.
 func ResolveValueType(val goreflect.Value) goreflect.Value {
-  // Check special case
-  if val.IsValid() && (val.Kind() == goreflect.Interface) {
-    // Return a new wrapper that is typed according to actual value type
-    return goreflect.ValueOf(val.Interface())
-  }
+	// Check special case
+	if val.IsValid() && (val.Kind() == goreflect.Interface) {
+		// Return a new wrapper that is typed according to actual value type
+		return goreflect.ValueOf(val.Interface())
+	}
 
-  return val
+	return val
 }
 
 // DerefValue returns the element of zero or more pointers to a value.
@@ -191,4 +208,10 @@ func FieldsByName(typ goreflect.Type) map[string]goreflect.StructField {
 	}
 
 	return fields
+}
+
+// IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
+func IsBigPtr(typ goreflect.Type) bool {
+	_, isBig := bigPtrTypes[typ]
+	return isBig
 }

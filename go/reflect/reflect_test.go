@@ -3,6 +3,7 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"math/big"
 	goreflect "reflect"
 	"testing"
 
@@ -94,18 +95,26 @@ func TestIsNillable_(t *testing.T) {
 	assert.True(t, IsNillable(goreflect.TypeOf((map[int]any)(nil))))
 	assert.True(t, IsNillable(goreflect.TypeOf((*int)(nil))))
 	assert.True(t, IsNillable(goreflect.TypeOf(([]int)(nil))))
+
+	assert.False(t, IsNillable(goreflect.ValueOf(0)))
+	assert.True(t, IsNillable(goreflect.ValueOf((chan int)(nil))))
+	assert.True(t, IsNillable(goreflect.ValueOf((func())(nil))))
+	assert.True(t, IsNillable(goreflect.ValueOf((goreflect.Type)(nil))))
+	assert.True(t, IsNillable(goreflect.ValueOf((map[int]any)(nil))))
+	assert.True(t, IsNillable(goreflect.ValueOf((*int)(nil))))
+	assert.True(t, IsNillable(goreflect.ValueOf(([]int)(nil))))
 }
 
 func TestResolveValueType_(t *testing.T) {
-  // Test special case
-  slc := []any{"foo", 1}
-  rslc := goreflect.ValueOf(slc)
-  assert.Equal(t, goreflect.String, ResolveValueType(rslc.Index(0)).Kind())
-  assert.Equal(t, goreflect.Int, ResolveValueType(rslc.Index(1)).Kind())
+	// Test special case
+	slc := []any{"foo", 1}
+	rslc := goreflect.ValueOf(slc)
+	assert.Equal(t, goreflect.String, ResolveValueType(rslc.Index(0)).Kind())
+	assert.Equal(t, goreflect.Int, ResolveValueType(rslc.Index(1)).Kind())
 
-  // Test normal case
-  assert.Equal(t, goreflect.String, ResolveValueType(goreflect.ValueOf("foo")).Kind())
-  assert.Equal(t, goreflect.Int, ResolveValueType(goreflect.ValueOf(1)).Kind())
+	// Test normal case
+	assert.Equal(t, goreflect.String, ResolveValueType(goreflect.ValueOf("foo")).Kind())
+	assert.Equal(t, goreflect.Int, ResolveValueType(goreflect.ValueOf(1)).Kind())
 }
 
 func TestDerefValue_(t *testing.T) {
@@ -199,4 +208,11 @@ func TestFieldsByName_(t *testing.T) {
 
 		assert.Equal(t, map[string]goreflect.StructField{"Foo": fooFld, "Bar": barFld}, FieldsByName(typ))
 	}
+}
+
+func TestIsBigPtr_(t *testing.T) {
+	assert.True(t, IsBigPtr(goreflect.TypeOf((*big.Int)(nil))))
+	assert.True(t, IsBigPtr(goreflect.TypeOf((*big.Float)(nil))))
+	assert.True(t, IsBigPtr(goreflect.TypeOf((*big.Rat)(nil))))
+	assert.False(t, IsBigPtr(goreflect.TypeOf(0)))
 }
