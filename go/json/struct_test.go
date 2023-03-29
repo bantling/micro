@@ -25,7 +25,7 @@ func TestJSONKeyToName_(t *testing.T) {
 	assert.Equal(t, "FirstName", JSONKeyToName("FirstName"))
 }
 
-func TestHandleValue_(t *testing.T) {
+func TestHandleValueBaseCases_(t *testing.T) {
   type strukt struct {}
 
   var (
@@ -39,6 +39,7 @@ func TestHandleValue_(t *testing.T) {
     nullBI *big.Int
     nullBF *big.Float
     nullBR *big.Rat
+    nullNS *NumberString
     // str = "abc"
     // bln = true
     // num = 0
@@ -83,6 +84,10 @@ func TestHandleValue_(t *testing.T) {
   assert.Equal(t, util.Of2Error(zv, nil), res)
 
   val = goreflect.ValueOf(nullBR)
+  handleValue(val, callback)
+  assert.Equal(t, util.Of2Error(zv, nil), res)
+
+  val = goreflect.ValueOf(nullNS)
   handleValue(val, callback)
   assert.Equal(t, util.Of2Error(zv, nil), res)
 }
