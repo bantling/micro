@@ -59,26 +59,37 @@ link:depgraph.svg[Dependency Graph]
 
 == TODO
 
-* Auto convert each JSON object into Go structs and vice-versa
+* Remove all code that tries to convert json to a struct/array or vice-versa
+* Complete convert coverage
+* Modify JSON parser
+** Move funcs out of lexnumber, move tests out
+** Provide line number, character number, and path in error messages
+** JSONValue look up a string path of key names and indexes in objects and arrays, as in "addresses[0].city"
 * Search for tests involving maps and make sure they user assert.Equal(t, hardcoded map, returned map)
-* JSON look up a string path of key names and indexes, as in "addresses[0].city"
-* Auto write JSON objects to an SQL table that uses individual columns for each field
-** Auto generate DDL for all free databases
-** Struct tags to say if indexing is needed
-** detect db by driver struct name
-** Work with whole database or schema
-** Different strategies for joins:
-*** Embedded struct by default is flat table, with parent and child columns together (disambiguate name conflicts with struct tag)
-    Can embedded struct have a tag to say make it separate or bridged?
-*** Child struct by default is separate table, tag can make it flat or bridged
-** requirements can be specd as a map[string db vendor]map[string object name]map[string property name]propdef, or by reading a struct.
-   dbvendor is a string like mssql, postgresql, mysql, etc.
-   propdef is a union of string coldef and map[string property name]propdef.
-   coldef defines a column as just a single string, like 'varchar(max)' for mssql.
-** Handle full text automatically, with different strategies
-*** Default is to have ft handled by each table with at least one field that has a struct tag indicating it contribs to full text
-*** Other is to have one table with a special name like __ft_search__, that has table name, primary key, and description.
-    Each table that contribs to ft has a trigger that will first insert/update to table, then insert/update to __ft_search__.
+* Use funcs.Ternary and TernaryFunc more often
+* Document Makefile
+** Ensure 3 dependency graphs: full, iter and down only, iter and up only
+* Create a code generator
+** Low level fluent API knows Go switches, var blocks, imports, etc
+** Mid level fluent API is more general, not specific to Go
+** High level API translates an input file into mid level api calls
+*** Define data types (eg, DTO objects) where id is a UUID
+*** Convert data type fields to/from a map[string]any
+*** DAO objects that CRUD DTOs to all supported free databases
+*** queries stored in sql files, where some files are generated, some can be handwritten
+*** associate handwritten queries with a name
+*** handwritten in a separate dir from generated, so that generated can be cleared and regenerated
+*** versioned so that a single code base can handle different versions of data structures and persistence
+*** DDL generator that can reconcile current database structure with desired structure
+*** One to one: parent has child id
+*** One to many: child has parent id
+*** Many to many: bridge table of unique (parent id, child id) rows
+*** Surrogate key called relid that uses auto generated values from a sequence
+*** Option for change columns (last_changed timestamp, last_changed_by string)
+*** Full text support
+*** Some auto trigger support (eg, deletes cause an insert to a delete tracking table, insert/update puts full text in a separate full text table)
+*** Generate new columns on the fly, not just during reconcile (eg, users can define a new column to store)
+*** Generate HTTP handling, default CRUD = PUT, GET, PUT, DELETE (can specify POST for C)
 * Consider providing simplistic string based arbitrary precision that is not fast, but just does basic operations
 * ETL operations
 ** Mainly operating on streams, with 3 basic operation types:
@@ -86,4 +97,3 @@ link:depgraph.svg[Dependency Graph]
 *** Split streams
 *** Generate streams
 ** Look at steps Pentaho and Talend provide as a rough guide
-* Document Makefile
