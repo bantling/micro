@@ -94,6 +94,18 @@ func TestFromValue_(t *testing.T) {
 	// String
 	assertString(t, "bar", FromValue("bar"))
 
+	// Boolean - true
+	assertBoolean(t, true, FromValue(true))
+
+	// Boolean - false
+	assertBoolean(t, false, FromValue(false))
+
+	// Null
+	assertNull(t, FromValue(nil))
+
+  // Value
+  assertString(t, "bar", FromValue(FromValue("bar")))
+
 	// Number - int
 	assertNumber(t, "1", FromValue(int(1)))
 	assertNumber(t, "2", FromValue(int8(2)))
@@ -128,15 +140,6 @@ func TestFromValue_(t *testing.T) {
 	// Number - NumberString
 	// fromValue accepts type any, so explicit conversion required
 	assertNumber(t, "5.75", FromValue(NumberString("5.75")))
-
-	// Boolean - true
-	assertBoolean(t, true, FromValue(true))
-
-	// Boolean - false
-	assertBoolean(t, false, FromValue(false))
-
-	// Null
-	assertNull(t, FromValue(nil))
 
 	// Error
 	funcs.TryTo(
@@ -175,6 +178,10 @@ func TestFromDocumentOfValue_(t *testing.T) {
 
 func TestFromString_(t *testing.T) {
 	assertString(t, "bar", FromString("bar"))
+}
+
+func TestFromNumeric_(t *testing.T) {
+	assertNumber(t, "1", FromNumeric(int(1)))
 }
 
 func TestFromSignedInt_(t *testing.T) {

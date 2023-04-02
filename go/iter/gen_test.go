@@ -391,27 +391,27 @@ func TestReaderAsRunesIterGen_(t *testing.T) {
 	assert.Zero(t, val)
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 
-  // decoding error when two bytes required, only one provided
-  // 110 00000 = C0
-  src = strings.NewReader("\xc0")
+	// decoding error when two bytes required, only one provided
+	// 110 00000 = C0
+	src = strings.NewReader("\xc0")
 	iter = ReaderAsRunesIterGen(src)
 
 	val, err = iter()
 	assert.Zero(t, val)
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 
-  // decoding error if an extra byte does not begin with 10
-  // 110 00000, 11 000000 = C0 C0
-  src = strings.NewReader("\xc0\xc0")
+	// decoding error if an extra byte does not begin with 10
+	// 110 00000, 11 000000 = C0 C0
+	src = strings.NewReader("\xc0\xc0")
 	iter = ReaderAsRunesIterGen(src)
 
 	val, err = iter()
 	assert.Zero(t, val)
 	assert.Equal(t, InvalidUTF8EncodingError, err)
 
-  // decoding error if value > max allowed 10FFFF
-  // 11FFFF = 11110 100, 10 011111, 10 111111, 10 111111
-  src = strings.NewReader("\xf4\x9f\xbf\xbf")
+	// decoding error if value > max allowed 10FFFF
+	// 11FFFF = 11110 100, 10 011111, 10 111111, 10 111111
+	src = strings.NewReader("\xf4\x9f\xbf\xbf")
 	iter = ReaderAsRunesIterGen(src)
 
 	val, err = iter()

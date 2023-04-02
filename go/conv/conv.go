@@ -959,6 +959,68 @@ var (
 		"string*big.Rat": func(t any, u any) error {
 			return StringToBigRat(t.(string), u.(**big.Rat))
 		},
+
+		// ==== To string
+		"intstring": func(t any, u any) error {
+			*(u.(*string)) = IntToString(t.(int))
+			return nil
+		},
+		"int8string": func(t any, u any) error {
+			*(u.(*string)) = IntToString(t.(int8))
+			return nil
+		},
+		"int16string": func(t any, u any) error {
+			*(u.(*string)) = IntToString(t.(int16))
+			return nil
+		},
+		"int32string": func(t any, u any) error {
+			*(u.(*string)) = IntToString(t.(int32))
+			return nil
+		},
+		"int64string": func(t any, u any) error {
+			*(u.(*string)) = IntToString(t.(int64))
+			return nil
+		},
+		"uintstring": func(t any, u any) error {
+			*(u.(*string)) = UintToString(t.(uint))
+			return nil
+		},
+		"uint8string": func(t any, u any) error {
+			*(u.(*string)) = UintToString(t.(uint8))
+			return nil
+		},
+		"uint16string": func(t any, u any) error {
+			*(u.(*string)) = UintToString(t.(uint16))
+			return nil
+		},
+		"uint32string": func(t any, u any) error {
+			*(u.(*string)) = UintToString(t.(uint32))
+			return nil
+		},
+		"uint64string": func(t any, u any) error {
+			*(u.(*string)) = UintToString(t.(uint64))
+			return nil
+		},
+		"float32string": func(t any, u any) error {
+			*(u.(*string)) = FloatToString(t.(float32))
+			return nil
+		},
+		"float64string": func(t any, u any) error {
+			*(u.(*string)) = FloatToString(t.(float64))
+			return nil
+		},
+		"*big.Intstring": func(t any, u any) error {
+			*(u.(*string)) = BigIntToString(t.(*big.Int))
+			return nil
+		},
+		"*big.Floatstring": func(t any, u any) error {
+			*(u.(*string)) = BigFloatToString(t.(*big.Float))
+			return nil
+		},
+		"*big.Ratstring": func(t any, u any) error {
+			*(u.(*string)) = BigRatToString(t.(*big.Rat))
+			return nil
+		},
 	}
 )
 

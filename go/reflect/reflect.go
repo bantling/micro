@@ -3,7 +3,6 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"github.com/bantling/micro/go/funcs"
 	"math/big"
 	goreflect "reflect"
 )
@@ -56,7 +55,6 @@ func ToBaseType(val *goreflect.Value) {
 	if (pt != nil) && (k.String() != val.Type().String()) {
 		// If so, then convert the value to the base type so we can pass it to the conversion function
 		*val = val.Convert(pt)
-		// Check if val is a pointer to a primitive subtype
 	} else if k == goreflect.Ptr {
 		k = val.Elem().Kind()
 		pt = kindToType[k]
@@ -187,10 +185,22 @@ func DerefValueMaxOnePtr(val goreflect.Value) goreflect.Value {
 // ValueMaxOnePtrType(reflect.ValueOf(p)) == reflect.TypeOf(0)
 //
 // var p2 **int
-// ValueMaxOnePtrIsType(reflect.ValueOf(p2)) == nil
+// ValueMaxOnePtrType(reflect.ValueOf(p2)) == nil
 func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
-	adjustedVal := funcs.Ternary(val.Kind() == goreflect.Pointer, val.Elem(), val)
-	return funcs.Ternary(adjustedVal.Kind() == goreflect.Pointer, nil, adjustedVal.Type())
+  if !val.IsValid() {
+    return nil
+  }
+
+  typ := val.Type()
+  if typ.Kind() == goreflect.Pointer {
+    typ = typ.Elem()
+    if typ.Kind() == goreflect.Pointer {
+      // ** is not a valid parameter
+      return nil
+    }
+  }
+
+	return typ
 }
 
 // FieldsByName collects the fields of a struct into a map.

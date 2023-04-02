@@ -15,6 +15,8 @@ func TestIsPrimitive_(t *testing.T) {
 	assert.False(t, IsPrimitive(goreflect.PtrTo(goreflect.TypeOf(0))))
 }
 
+type subString string
+
 func TestToBaseType_(t *testing.T) {
 	{
 		// int
@@ -29,6 +31,21 @@ func TestToBaseType_(t *testing.T) {
 		ToBaseType(&val)
 		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(0)), val.Type())
 		assert.Equal(t, &i, val.Interface())
+	}
+
+	{
+		// subString
+		val := goreflect.ValueOf(subString("foo"))
+		ToBaseType(&val)
+		assert.Equal(t, goreflect.TypeOf("foo"), val.Type())
+		assert.Equal(t, "foo", val.Interface())
+
+		// *subString
+		i := subString("foo")
+		val = goreflect.ValueOf(&i)
+		ToBaseType(&val)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf("foo")), val.Type())
+		assert.Equal(t, "foo", *(val.Interface().(*string)))
 	}
 
 	{
@@ -177,6 +194,43 @@ func TestDerefValueMaxOnePtr_(t *testing.T) {
 	{
 		var p **int
 		assert.False(t, DerefValueMaxOnePtr(goreflect.ValueOf(p)).IsValid())
+	}
+}
+
+func TestValueMaxOnePtrType_(t *testing.T) {
+  {
+      var v goreflect.Value
+  		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(v))
+  }
+
+	{
+		v := goreflect.ValueOf(0)
+		assert.Equal(t, goreflect.TypeOf(0), ValueMaxOnePtrType(v))
+	}
+
+	{
+		var p *int
+		v := goreflect.ValueOf(p)
+		assert.Equal(t, goreflect.TypeOf(0), ValueMaxOnePtrType(v))
+	}
+
+	{
+		var p *int
+		p2 := &p
+		v := goreflect.ValueOf(p2)
+		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(v))
+	}
+
+	{
+		var i = 1
+    p := &i
+		v := goreflect.ValueOf(&p)
+		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(v))
+	}
+
+	{
+		var p **int
+		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(goreflect.ValueOf(p)))
 	}
 }
 

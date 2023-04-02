@@ -202,37 +202,37 @@ func ReaderIterGen(src io.Reader) func() (byte, error) {
 // If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
 // If the iter is called again after returning a non-nil error, it returns (0, same error).
 func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
-// UTF-8 encodes the bytes as follows:
-//
-// +==============================================================================================+
-// | First code point | Last code point | Byte 1   | Byte 2   | Byte 3   | Byte 4   | Code points |
-// | U+0000           | U+007F          | 0xxxxxxx |          |          |          | 128         |
-// | U+0080           | U+07FF          | 110xxxxx | 10xxxxxx |          |          | 1920        |
-// | U+0800           | U+FFFF          | 1110xxxx | 10xxxxxx | 10xxxxxx |          | 61440       |
-// | U+10000          | U+10FFFF        | 11110xxx | 10xxxxxx | 10xxxxxx | 10xxxxxx | 1048576     |
-// +==============================================================================================+
-//
-// Minimum and maximum values for each byte of encoding
-// Two byte encodings:
-// - range from 0000 0000 1000 0000 thru 0000 0111 1111 1111
-// - encoded as 1100 0aaa bbbb cccc thru 1100 0aaa bbbb cccc
-// +==============================================================================================+
-// | Byte 1                | Byte 2                | Byte 3                | Byte 4               |
-// | 0 0000000 - 0 1111111 |                       |                       |                      |
-// | 110 00000 - 110 11111 | 10 000000 - 10 111111 |                       |                      |
-// | 1110 0000 - 1110 1111 | 10 000000 - 10 111111 | 10 000000 - 10 111111 |                      |
-// | 11110 000 - 11110 100 | 10 000000 - 10 001111 | 10 000000 - 10 111111 | 10 00000 - 10 111111 |
-// +==============================================================================================+
-//
-// See https://en.wikipedia.org/wiki/UTF-8 for further details
+	// UTF-8 encodes the bytes as follows:
+	//
+	// +==============================================================================================+
+	// | First code point | Last code point | Byte 1   | Byte 2   | Byte 3   | Byte 4   | Code points |
+	// | U+0000           | U+007F          | 0xxxxxxx |          |          |          | 128         |
+	// | U+0080           | U+07FF          | 110xxxxx | 10xxxxxx |          |          | 1920        |
+	// | U+0800           | U+FFFF          | 1110xxxx | 10xxxxxx | 10xxxxxx |          | 61440       |
+	// | U+10000          | U+10FFFF        | 11110xxx | 10xxxxxx | 10xxxxxx | 10xxxxxx | 1048576     |
+	// +==============================================================================================+
+	//
+	// Minimum and maximum values for each byte of encoding
+	// Two byte encodings:
+	// - range from 0000 0000 1000 0000 thru 0000 0111 1111 1111
+	// - encoded as 1100 0aaa bbbb cccc thru 1100 0aaa bbbb cccc
+	// +==============================================================================================+
+	// | Byte 1                | Byte 2                | Byte 3                | Byte 4               |
+	// | 0 0000000 - 0 1111111 |                       |                       |                      |
+	// | 110 00000 - 110 11111 | 10 000000 - 10 111111 |                       |                      |
+	// | 1110 0000 - 1110 1111 | 10 000000 - 10 111111 | 10 000000 - 10 111111 |                      |
+	// | 11110 000 - 11110 100 | 10 000000 - 10 001111 | 10 000000 - 10 111111 | 10 00000 - 10 111111 |
+	// +==============================================================================================+
+	//
+	// See https://en.wikipedia.org/wiki/UTF-8 for further details
 
 	var (
-		done = src == nil
-		err = EOI
+		done  = src == nil
+		err   = EOI
 		n, eb int
-		buf = make([]byte, 3)
-		b byte
-		r rune
+		buf   = make([]byte, 3)
+		b     byte
+		r     rune
 	)
 
 	return func() (rune, error) {
@@ -242,22 +242,22 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 
 		// Read up to next 4 bytes from reader, depending on bit pattern of first byte
 		eb = 0
- 		if n, err = src.Read(buf[0:1]); (n == 0) || (err != nil) {
-      done = true
+		if n, err = src.Read(buf[0:1]); (n == 0) || (err != nil) {
+			done = true
 
- 			// Should be a non-nil error if 0 bytes were returned, but don't assume
-      // Translate EOF to EOI
-      if ((n == 0) && (err == nil)) || (err == io.EOF) {
-        err = EOI
-      }
+			// Should be a non-nil error if 0 bytes were returned, but don't assume
+			// Translate EOF to EOI
+			if ((n == 0) && (err == nil)) || (err == io.EOF) {
+				err = EOI
+			}
 
- 			return 0, err
-    }
+			return 0, err
+		}
 
-    // First byte indicates how many more bytes are needed, if any
+		// First byte indicates how many more bytes are needed, if any
 		b = buf[0]
 		switch {
-    case (b & 0b1_0000000) == 0b0_0000000:
+		case (b & 0b1_0000000) == 0b0_0000000:
 			// One byte
 			return rune(b), nil
 		case (b & 0b111_00000) == 0b110_00000:
@@ -278,20 +278,20 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 			return 0, err
 		}
 
- 		// Multiple bytes
- 		if n, err = src.Read(buf[0:eb]); (n != eb) || (err != nil) {
- 			// Not enough extra bytes exist or some other error
-      if (err == nil) || (err == io.EOF) {
-		     err = InvalidUTF8EncodingError
-      }
+		// Multiple bytes
+		if n, err = src.Read(buf[0:eb]); (n != eb) || (err != nil) {
+			// Not enough extra bytes exist or some other error
+			if (err == nil) || (err == io.EOF) {
+				err = InvalidUTF8EncodingError
+			}
 
 			return 0, err
-    }
+		}
 
 		// We have read all required extra bytes
 		// Ensure they all start with 10
 		for i := 0; i < eb; i++ {
-			if buf[i] & 0b11_000000 != 0b10_000000 {
+			if buf[i]&0b11_000000 != 0b10_000000 {
 				// Invalid extra byte
 				err = InvalidUTF8EncodingError
 				return 0, err
@@ -301,18 +301,18 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 		// At least two bytes in the encoding
 		switch eb {
 		case 1: // Two bytes
-			r = (rune(b & 0b000_11111) << 6) |
+			r = (rune(b&0b000_11111) << 6) |
 				(rune(buf[0] & 0b00_111111))
 
 		case 2: // Three bytes
-			r = (rune(b & 0b0000_1111) << (6 + 6)) |
-				(rune(buf[0] & 0b00_111111) << 6) |
+			r = (rune(b&0b0000_1111) << (6 + 6)) |
+				(rune(buf[0]&0b00_111111) << 6) |
 				(rune(buf[1] & 0b00_111111))
 
 		default: // Four bytes
-			r = (rune(b & 0b00000_111) << (6 + 6 + 6)) |
-				(rune(buf[0] & 0b00_111111) << (6 + 6)) |
-				(rune(buf[1] & 0b00_111111) << 6) |
+			r = (rune(b&0b00000_111) << (6 + 6 + 6)) |
+				(rune(buf[0]&0b00_111111) << (6 + 6)) |
+				(rune(buf[1]&0b00_111111) << 6) |
 				(rune(buf[2] & 0b00_111111))
 
 			// Cannot exceed maximum value
@@ -322,8 +322,8 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 			}
 		}
 
- 		// Valid multiple bytes
- 		return r, nil
+		// Valid multiple bytes
+		return r, nil
 	}
 }
 

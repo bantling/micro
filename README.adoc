@@ -59,8 +59,6 @@ link:depgraph.svg[Dependency Graph]
 
 == TODO
 
-* Remove all code that tries to convert json to a struct/array or vice-versa
-* Complete convert coverage
 * Search for tests involving maps and make sure they user assert.Equal(t, hardcoded map, returned map)
 * Use funcs.Ternary and TernaryFunc more often
 * Document Makefile - generate 3 dependency graphs: full, iter and down only, iter and up only
