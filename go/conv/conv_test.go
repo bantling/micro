@@ -894,7 +894,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &i))
 		assert.Equal(t, 1, i)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i))
 		assert.Equal(t, 1, i)
 	}
 
@@ -961,7 +961,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &i8))
 		assert.Equal(t, int8(1), i8)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i8))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i8))
 		assert.Equal(t, int8(1), i8)
 	}
 
@@ -1028,7 +1028,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &i16))
 		assert.Equal(t, int16(1), i16)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i16))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i16))
 		assert.Equal(t, int16(1), i16)
 	}
 
@@ -1095,7 +1095,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &i32))
 		assert.Equal(t, int32(1), i32)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i32))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i32))
 		assert.Equal(t, int32(1), i32)
 	}
 
@@ -1156,7 +1156,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &i64))
 		assert.Equal(t, int64(1), i64)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i64))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "int64"), To("a", &i64))
 		assert.Equal(t, int64(0), i64)
 	}
 
@@ -1223,7 +1223,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &ui))
 		assert.Equal(t, uint(1), ui)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui))
 		assert.Equal(t, uint(1), ui)
 	}
 
@@ -1290,7 +1290,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &ui8))
 		assert.Equal(t, uint8(1), ui8)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui8))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui8))
 		assert.Equal(t, uint8(1), ui8)
 	}
 
@@ -1357,7 +1357,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &ui16))
 		assert.Equal(t, uint16(1), ui16)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui16))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui16))
 		assert.Equal(t, uint16(1), ui16)
 	}
 
@@ -1424,7 +1424,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &ui32))
 		assert.Equal(t, uint32(1), ui32)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui32))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui32))
 		assert.Equal(t, uint32(1), ui32)
 	}
 
@@ -1485,7 +1485,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &ui64))
 		assert.Equal(t, uint64(1), ui64)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui64))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "uint64"), To("a", &ui64))
 		assert.Equal(t, uint64(0), ui64)
 	}
 
@@ -1552,7 +1552,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1.25", &f32))
 		assert.Equal(t, float32(1.25), f32)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "float32"), To("a", &f32))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "float32"), To("a", &f32))
 		assert.Equal(t, float32(1.25), f32)
 	}
 
@@ -1613,7 +1613,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1.25", &f64))
 		assert.Equal(t, 1.25, f64)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "float64"), To("a", &f64))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "float64"), To("a", &f64))
 		assert.Equal(t, 1.25, f64)
 	}
 
@@ -1674,7 +1674,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1", &bi))
 		assert.Equal(t, big.NewInt(1), bi)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "*big.Int"), To("a", &bi))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "*big.Int"), To("a", &bi))
 		assert.Equal(t, big.NewInt(0), bi)
 	}
 
@@ -1745,7 +1745,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("1.25", &bf))
 		assert.Equal(t, big.NewFloat(1.25), bf)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "*big.Float"), To("a", &bf))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "*big.Float"), To("a", &bf))
 		assert.Equal(t, (*big.Float)(nil), bf)
 	}
 
@@ -1806,7 +1806,7 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To("5/4", &br))
 		assert.Equal(t, big.NewRat(5, 4), br)
 
-    assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "*big.Rat"), To("a", &br))
+		assert.Equal(t, fmt.Errorf(errMsg, "a", "a", "*big.Rat"), To("a", &br))
 		assert.Equal(t, (*big.Rat)(nil), br)
 	}
 

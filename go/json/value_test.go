@@ -103,8 +103,8 @@ func TestFromValue_(t *testing.T) {
 	// Null
 	assertNull(t, FromValue(nil))
 
-  // Value
-  assertString(t, "bar", FromValue(FromValue("bar")))
+	// Value
+	assertString(t, "bar", FromValue(FromValue("bar")))
 
 	// Number - int
 	assertNumber(t, "1", FromValue(int(1)))

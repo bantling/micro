@@ -42,28 +42,6 @@ type KindElem[T any] interface {
 	Elem() T
 }
 
-func IsPrimitive[T KindElem[T]](val T) bool {
-	_, hasIt := kindToType[val.Kind()]
-	return hasIt
-}
-
-// ToBaseType converts a reflect.Value that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
-func ToBaseType(val *goreflect.Value) {
-	// Check if val is a primitive subtype
-	k := val.Kind()
-	pt := kindToType[k]
-	if (pt != nil) && (k.String() != val.Type().String()) {
-		// If so, then convert the value to the base type so we can pass it to the conversion function
-		*val = val.Convert(pt)
-	} else if k == goreflect.Ptr {
-		k = val.Elem().Kind()
-		pt = kindToType[k]
-		if (pt != nil) && (k.String() != val.Elem().Type().String()) {
-			*val = val.Convert(goreflect.PtrTo(pt))
-		}
-	}
-}
-
 // DerefType returns the element type of zero or more pointers to a type.
 func DerefType(typ goreflect.Type) goreflect.Type {
 	for typ.Kind() == goreflect.Pointer {
@@ -87,36 +65,6 @@ func DerefTypeMaxOnePtr(typ goreflect.Type) goreflect.Type {
 	}
 
 	return res
-}
-
-// IsNillable returns true if ke.Kind() is nillable, which means it is Chan, Func, Interface, Map, Pointer, or Slice.
-//
-// If ke is nil, it means ke is reflect.TypeOf(a nil value of some interface type).
-// If ke.Kind() is Invalid, it means ke is reflect.ValueOf(a nil value of any type).
-//
-// If ke is nil or Invalid, the result is true.
-func IsNillable[T KindElem[T]](ke T) bool {
-	if any(ke) == nil {
-		return true
-	}
-
-	knd := ke.Kind()
-	return (knd == goreflect.Invalid) || ((knd >= goreflect.Chan) && (knd <= goreflect.Slice))
-}
-
-// ResolveValueType resolves a value to the real type of value it contains.
-// The only case where the result is different from the argument is when the argument is typed as interface{}.
-// For example, if the interface{} value is actually an int, then the result will be typed as int.
-// This generally only happens in corner cases like iterating the elements of a slice typed as []interface{} - even though
-// the elements may be strings, ints, etc, each element will be typed as []interface{}.
-func ResolveValueType(val goreflect.Value) goreflect.Value {
-	// Check special case
-	if val.IsValid() && (val.Kind() == goreflect.Interface) {
-		// Return a new wrapper that is typed according to actual value type
-		return goreflect.ValueOf(val.Interface())
-	}
-
-	return val
 }
 
 // DerefValue returns the element of zero or more pointers to a value.
@@ -175,34 +123,6 @@ func DerefValueMaxOnePtr(val goreflect.Value) goreflect.Value {
 	return res
 }
 
-// ValueMaxOnePtrType returns the underlying type of zero or one pointers to a value.
-// If the value given has multiple pointers, the value is not a valid parameter value, and the result is nil.
-//
-// Examples:
-// ValueMaxOnePtrType(reflect.ValueOf(0)) == reflect.TypeOf(0)
-//
-// var p *int
-// ValueMaxOnePtrType(reflect.ValueOf(p)) == reflect.TypeOf(0)
-//
-// var p2 **int
-// ValueMaxOnePtrType(reflect.ValueOf(p2)) == nil
-func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
-  if !val.IsValid() {
-    return nil
-  }
-
-  typ := val.Type()
-  if typ.Kind() == goreflect.Pointer {
-    typ = typ.Elem()
-    if typ.Kind() == goreflect.Pointer {
-      // ** is not a valid parameter
-      return nil
-    }
-  }
-
-	return typ
-}
-
 // FieldsByName collects the fields of a struct into a map.
 // Returns the zero value if the type provided does not represent a struct, or a struct that does not have any fields.
 func FieldsByName(typ goreflect.Type) map[string]goreflect.StructField {
@@ -224,4 +144,85 @@ func FieldsByName(typ goreflect.Type) map[string]goreflect.StructField {
 func IsBigPtr(typ goreflect.Type) bool {
 	_, isBig := bigPtrTypes[typ]
 	return isBig
+}
+
+// IsNillable returns true if ke.Kind() is nillable, which means it is Chan, Func, Interface, Map, Pointer, or Slice.
+//
+// If ke is nil, it means ke is reflect.TypeOf(a nil value of some interface type).
+// If ke.Kind() is Invalid, it means ke is reflect.ValueOf(a nil value of any type).
+//
+// If ke is nil or Invalid, the result is true.
+func IsNillable[T KindElem[T]](ke T) bool {
+	if any(ke) == nil {
+		return true
+	}
+
+	knd := ke.Kind()
+	return (knd == goreflect.Invalid) || ((knd >= goreflect.Chan) && (knd <= goreflect.Slice))
+}
+
+func IsPrimitive[T KindElem[T]](val T) bool {
+	_, hasIt := kindToType[val.Kind()]
+	return hasIt
+}
+
+// ResolveValueType resolves a value to the real type of value it contains.
+// The only case where the result is different from the argument is when the argument is typed as interface{}.
+// For example, if the interface{} value is actually an int, then the result will be typed as int.
+// This generally only happens in corner cases like iterating the elements of a slice typed as []interface{} - even though
+// the elements may be strings, ints, etc, each element will be typed as []interface{}.
+func ResolveValueType(val goreflect.Value) goreflect.Value {
+	// Check special case
+	if val.IsValid() && (val.Kind() == goreflect.Interface) {
+		// Return a new wrapper that is typed according to actual value type
+		return goreflect.ValueOf(val.Interface())
+	}
+
+	return val
+}
+
+// ToBaseType converts a reflect.Value that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
+// If the value is a pointer to a primitive subtype, the value is converted to a pointer to the underlying type.
+func ToBaseType(val *goreflect.Value) {
+	// Check if val is a primitive subtype
+	k := val.Kind()
+	pt := kindToType[k]
+	if (pt != nil) && (k.String() != val.Type().String()) {
+		// If so, then convert the value to the base type so we can pass it to the conversion function
+		*val = val.Convert(pt)
+	} else if k == goreflect.Ptr {
+		k = val.Elem().Kind()
+		pt = kindToType[k]
+		if (pt != nil) && (k.String() != val.Elem().Type().String()) {
+			*val = val.Convert(goreflect.PtrTo(pt))
+		}
+	}
+}
+
+// ValueMaxOnePtrType returns the underlying type of zero or one pointers to a value.
+// If the value given has multiple pointers, the value is not a valid parameter value, and the result is nil.
+//
+// Examples:
+// ValueMaxOnePtrType(reflect.ValueOf(0)) == reflect.TypeOf(0)
+//
+// var p *int
+// ValueMaxOnePtrType(reflect.ValueOf(p)) == reflect.TypeOf(0)
+//
+// var p2 **int
+// ValueMaxOnePtrType(reflect.ValueOf(p2)) == nil
+func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
+	if !val.IsValid() {
+		return nil
+	}
+
+	typ := val.Type()
+	if typ.Kind() == goreflect.Pointer {
+		typ = typ.Elem()
+		if typ.Kind() == goreflect.Pointer {
+			// ** is not a valid parameter
+			return nil
+		}
+	}
+
+	return typ
 }

@@ -5,6 +5,74 @@
 
 This file describes the Go port of micro.
 
+=== Packages
+
+* constraint
+** defines generic type constraints, some are similar to golang.org/x/exp/constraints
+* conv
+** converts between numeric types, panicking if any loss of precision would occur
+* funcs
+** slices:
+*** access elements safely
+*** flatten multiple dimensions into one
+*** reverse elements
+*** sort elements
+** maps: access keys safely
+** filter - func(T) bool:
+*** compose with and, or, not
+*** generate filters for comparisons (<, <=, ==, >=, >)
+*** generate filters for is negative, is non-negative, is positive, is nil, is non nil
+** compose any number of funcs that accept and receive same type
+** compose up to 10 funcs that accept and return different types
+** ternary - take a bool, true value or supplier, false value or supplier, and return true or false value
+** min/max
+** nil handling
+** supplier generators
+** generate a func that ignores result of another func
+** TryTo is a replacement for hard to write idiomatic go code that acts like a Java try/catch/finally block:
+   Accepts a func for a try block, a func for a catch block (only invoked if try block panics), and any number of
+   closer funcs that close resources regardless of whether the try func panics.
+* iter
+** defines Iter type that can iterate anything
+** based on iterating funcs, a func of no args that returns (value, bool), where the value is only relevant if the bool
+   is true
+** A number of constructors are provided for hard-coded values, slices, maps, io.reader, concat multiple iters
+** Next, value, unread, and Must funcs to retrieve values
+** Provides streaming functionality (similar to that of Java 8 streams).
+    Most functions accept ands return an Iter, providing some kind of transform.
+*** funcs for first, map, filter, reduce, expand, skip, limit, peek, generate infinite series, all match, any match,
+   none match, count, distinct, duplicate, reverse, sort, and parallel
+*** control over how and when parallel execution occurs, default algorithm provided
+* json
+** Value type that describes any kind of JSON value
+** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
+** default numeric type is NumberString, but custom conversion functions can be used for some other numeric type
+* math
+** absolute value calculation that returns an error for lowest negative value of integers
+   (eg for int8, abs(-128) = -128 because highest positive value is 127)
+** add/subtract/multiply integers and return an error if over/underflow occurs
+** integer division that rounds quotient up when remainder >= half way point
+* reflect
+** utilities to make reflection usage easier
+** DerefValue derefs a Value until it is not a pointer. If any pointer is nil, an invalid Value is returned.
+** DerefValueMaxOnePtr derefs a Value until it is zero or one pointers (eg, two or more pointers get derefd to one pointer)
+   If any pointer except the last one is nil, an invalid Value is returned.
+** DerefType derefs a Type until it is not a pointer
+** DerefTypeMaxOnePtr derefs a Type until it is zero or one pointers (eg, two or more pointers get derefd to one pointer)
+** FieldsByName collects the fields of a struct into a map
+** IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
+** IsNillable returns true if a Value or Type represents a type that can be assigned nil
+** IsPrimitive returns true if a Value or Type represents a primitive value
+** ResolveValueType resolves the type of a value so it is not interface{} (eg, an interface{} that is really an int resolves to int).
+   If the value is already not interface{}, it is returned as is
+** ToBaseType converts zero or one pointers to a primitive subtypes to the underlying type (eg rune -> int32, or *rune to *int32)
+** ValueMaxOnePtrType returns the underlying type of zero or one pointers to a value.
+   If the value given has multiple pointers, the value is not a valid parameter value, and the result is nil.
+* stream
+* util
+** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
+* writer
+
 === Dependency Graph
 
 A dependency graph can be generated anytime by running `make depgraph`, which produces several files:
@@ -92,3 +160,51 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 | Removes docker and podman caches from host
 |
 |===
+
+=== TODO
+
+* Update this README feature list
+* Create a code generator
+** Low level fluent API knows Go switches, var blocks, imports, etc
+** Eventually support other languages (Java first - already has map, list, etc, then C - provide list, map, etc)
+** Mid level fluent API is more general, not specific to language
+** High level API translates an input file into mid level api calls for specific purposes (eg, generate REST HTTP handling)
+** Define data types
+*** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
+*** Self-referencing types (eg animal contains animal)
+*** Use a set of pre-defined types (including arbitrary precision) and adapt to/from actual types supported by language(s)
+*** Predefined operations like convert string to/from UTF-8 bytes
+* Update this README feature list
+* Rewrite UTF-8 streaming decoder using code generator
+* Rewrite JSON streaming lexer/parser using code generator - provide line number, character number, and path in error messages
+** JSONValue look up a string path of key names and indexes in objects and arrays, as in "addresses[0].city"
+* Provide BCD arbitrary precision using code generator - look at Java BigDecimal for various operations
+* Update this README feature list
+* Create an rc style event handling system using code generator
+** Event types may be defined to come before and/or after other event types
+** System resolves an acceptable system or rejects it as unobtainable (eg x is before y is before x)
+** Event objects can be a union
+* Update this README feature list
+** Generate code to convert data types to/from a map[string]any
+** DAO objects that CRUD DTOs to all supported free databases
+** queries stored in sql files, where some files are generated, some can be handwritten
+** associate handwritten queries with a name
+** handwritten in a separate dir from generated, so that generated can be cleared and regenerated
+** versioned so that a single code base can handle different versions of data structures and persistence
+** DDL generator that can reconcile current database structure with desired structure
+*** One to one: parent has child id
+*** One to many: child has parent id
+*** Many to many: bridge table of unique (parent id, child id) rows
+*** Surrogate key called relid that uses auto generated values from a sequence
+*** Option for change columns (last_changed timestamp, last_changed_by string)
+*** Full text support
+*** Some auto trigger support (eg, deletes cause an insert to a delete tracking table, insert/update puts full text in a separate full text table)
+*** Generate new columns on the fly, not just during reconcile (eg, users can define a new column to store)
+*** Generate HTTP handling, default CRUD = PUT, GET, PUT, DELETE (can specify POST for create)
+* Update this README feature list
+* ETL operations
+** Mainly operating on streams, with 3 basic operation types:
+*** Combine streams
+*** Split streams
+*** Generate streams
+** Look at steps Pentaho and Talend provide as a rough guide
