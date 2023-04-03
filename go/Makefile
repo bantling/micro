@@ -149,6 +149,7 @@ have-dot:
 
 .PHONY: depgraph
 depgraph: have-dot
+	# Full gragh
 	{ \
 		mod="$$(grep module go.mod | awk '{print $$2}')"; \
 		echo "digraph dependencies {"; \
@@ -156,7 +157,20 @@ depgraph: have-dot
 			(cd "$$srcDir"; go list -f '{{.Imports}}') | tr -d '[]' | tr ' ' '\n' | sort | grep "$$mod" | sed -r "s,$$mod/(.*),\"$$srcDir\" -> \"\\1\","; \
 		done; \
 		echo "}"; \
-	} | dot -Tsvg > depgraph.svg
+	} > .depgraph.dot
+	dot -Tsvg .depgraph.dot > depgraph.svg
+	# Only iter and above
+	grep -Ev 'funcs|util|conv|reflect|constraint' .depgraph.dot | dot -Tsvg > depgraph.above.svg
+	# Only iter and below
+	grep -Ev 'json|stream|writer|math' .depgraph.dot | dot -Tsvg > depgraph.below.svg
+
+.PHONY: have-asciidoc
+have-asciidoc:
+	@which asciidoc 2>&1 > /dev/null || echo "The asciidoc package must be installed to generate the readme html file"
+
+.readme.html: README.adoc | have-asciidoc
+	asciidoc -b html -o $@ $<
+	sed -i '' -r 's,(href="[^"]*"),\1 target="_blank",' $@
 
 # Display all vars (host, docker, podman)
 .PHONY: vars

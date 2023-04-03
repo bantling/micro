@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: Apache-2.0
+:doctype: article
+
+== Go Port
+
+This file describes the Go port of micro.
+
+=== Dependency Graph
+
+A dependency graph can be generated anytime by running `make depgraph`, which produces several files:
+
+[cols="1,1"]
+|===
+|File
+|Purpose
+
+|link:depgraph.svg[]
+|A complete dependency graph
+
+|link:depgraph.above.svg[]
+|A graph of iter package and above
+
+|link:depgraph.below.svg[]
+|A graph of iter package and below
+|===
+
+=== Makefile
+
+[cols="1,1,1"]
+|===
+|Target
+|Purpose
+|Options
+
+|all (default)
+|builds on host
+|
+
+|docker
+|builds in a docker container such that every build has to download dependencies and build from scratch
+|
+
+|docker-cache
+|builds in a docker container with caching for dependencies and compiling across builds
+|
+
+|podman
+|builds in a podman container such that every build has to download dependencies and build from scratch
+|
+
+|podman-cache
+|builds in a podman container with caching for dependencies and compiling across builds
+|
+
+|tidy
+|runs `go mod tidy`, and cleanup tasks for docker-cache or podman-cache
+|
+
+|compile
+|runs `go build ./...`, and cleanup tasks for docker-cache or podman-cache
+|
+
+|lint
+|runs `go vet ./...`
+|
+
+|format
+|runs `gofmt` in every go package dir to format source code
+|
+
+|test
+|runs `go test` in every go package dir to format source code
+|`-count=num` to run tests N times, `pkg=./package_name` to test only one package, `run=test_name` to run matching tests
+
+|coverage
+| Display code coverage in default browser
+|
+
+|depgraph
+| Creates the three dependency graph files described above
+|
+
+|.readme.html
+| Generates an HTML version of this README, output should be the same as GitHub or GitLab
+|
+
+|vars
+| Displays all variables declared in the Makefile, useful for debugging issues with docker or podman targets
+|
+
+|clean
+| Removes docker and podman caches from host
+|
+|===

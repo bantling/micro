@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-:doctype:article
+:doctype: article
 
-= Micro
+== Micro
 
 Micro is a small library of useful stuff for small projects, particularly (but not limited to) REST/database projects.
 
-== Packages
+=== Packages
 
 * constraint
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
@@ -50,18 +50,8 @@ Micro is a small library of useful stuff for small projects, particularly (but n
 * util
 ** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
 
-== Dependency Graph
+=== TODO
 
-A dependency graph can be generated anytime by running "make depgraph", which produces a file called "depgraph.svg" in
-this directory, which can be viewed by a web browser, and is linked to by this document.
-
-link:depgraph.svg[Dependency Graph]
-
-== TODO
-
-* Search for tests involving maps and make sure they user assert.Equal(t, hardcoded map, returned map)
-* Use funcs.Ternary and TernaryFunc more often
-* Document Makefile - generate 3 dependency graphs: full, iter and down only, iter and up only
 * Update this README feature list
 * Create a code generator
 ** Low level fluent API knows Go switches, var blocks, imports, etc
