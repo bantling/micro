@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	// "github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/go/tuple"
 	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -108,7 +108,7 @@ func TestMapIterGen_(t *testing.T) {
 	iter = MapIterGen(src)
 
 	kv, err = iter()
-	assert.Equal(t, util.Of2("a", 1), kv)
+	assert.Equal(t, tuple.Of2("a", 1), kv)
 	assert.Nil(t, err)
 
 	kv, err = iter()

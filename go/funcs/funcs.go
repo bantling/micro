@@ -9,15 +9,82 @@ import (
 	"sort"
 
 	"github.com/bantling/micro/go/constraint"
+	"github.com/bantling/micro/go/tuple"
 )
 
 const (
 	notNilableMsg              = "Type %s is not a nillable type"
-	flattenSliceArgNotSliceMsg = "FlattenSlice argument must be a slice, not type %T"
-	flattenSliceArgNotTMsg     = "FlattenSlice argument must be slice of %s, not a slice of %s"
+	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
+	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
 )
 
-// ==== Element accessors
+// ==== Slices
+
+// SliceFlatten flattens a slice of any number of dimensions into a one dimensional slice.
+// The slice is received as type any, because there is no way to describe a slice of any number of dimensions
+// using generics.
+//
+// If a nil value is passed, an empty slice is returned.
+//
+// Panics if:
+// - the value passed is not a slice
+// - the slice passed does not ultimately resolve to elements of type T once all slice dimensions are indexed
+func SliceFlatten[T any](value any) []T {
+	rslc := []T{}
+
+	// Return empty slice if value is nil
+	if value == nil {
+		return rslc
+	}
+
+	// Make a one dimensional slice to return
+	var (
+		rtyp = reflect.ValueOf(rslc).Type().Elem()
+		vslc = reflect.ValueOf(value)
+		vtyp = vslc.Type()
+	)
+
+	// Ensure value passed is really a slice
+	if vtyp.Kind() != reflect.Slice {
+		panic(fmt.Errorf(sliceFlattenArgNotSliceMsg, value))
+	}
+
+	// Index all dimensions of value to get the element type
+	numDims := 0
+	for vtyp.Kind() == reflect.Slice {
+		vtyp = vtyp.Elem()
+		numDims++
+	}
+
+	// Ensure value element type is same as T
+	if rtyp != vtyp {
+		panic(fmt.Errorf(sliceFlattenArgNotTMsg, rtyp, vtyp))
+	}
+
+	// If original value is already one dimenion return it by reference
+	if numDims == 1 {
+		return value.([]T)
+	}
+
+	// Recursively iterate all dimensions of the given slice, some dimensions might be empty
+	var f func(reflect.Value)
+	f = func(currentSlice reflect.Value) {
+		// Iterate current slice
+		for i, num := 0, currentSlice.Len(); i < num; i++ {
+			val := currentSlice.Index(i)
+
+			// Recurse sub-arrays/slices
+			if val.Kind() == reflect.Slice {
+				f(val)
+			} else {
+				rslc = append(rslc, val.Interface().(T))
+			}
+		}
+	}
+	f(vslc)
+
+	return rslc
+}
 
 // SliceIndex returns the first of the following given a slice, index, and optional default value:
 // 1. slice[index] if the slice is non-nil and length > index
@@ -40,11 +107,44 @@ func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
 	return zv
 }
 
-// MapValue returns the first of the following:
+// SliceReverse reverses the elements of a slice, so that [1,2,3] becomes [3,2,1].
+func SliceReverse[T any](slc []T) {
+	l := len(slc)
+	for i := 0; i < l/2; i++ {
+		j := l - 1 - i
+		tmp := slc[i]
+		slc[i] = slc[j]
+		slc[j] = tmp
+	}
+}
+
+// SliceSortOrdered sorts a slice of Ordered
+func SliceSortOrdered[T constraint.Ordered](slc []T) {
+	sort.Slice(slc, func(i, j int) bool { return slc[i] < slc[j] })
+}
+
+// SliceSortComplex sorts a slice of Complex
+func SliceSortComplex[T constraint.Complex](slc []T) {
+	sort.Slice(slc, func(i, j int) bool { return cmplx.Abs(complex128(slc[i])) < cmplx.Abs(complex128(slc[j])) })
+}
+
+// SliceSortCmp sorts a slice of Cmp
+func SliceSortCmp[T constraint.Cmp[T]](slc []T) {
+	sort.Slice(slc, func(i, j int) bool { return slc[i].Cmp(slc[j]) < 0 })
+}
+
+// SliceSortBy sorts a slice of any type with the provided comparator
+func SliceSortBy[T any](slc []T, less func(T, T) bool) {
+	sort.Slice(slc, func(i, j int) bool { return less(slc[i], slc[j]) })
+}
+
+// ==== Maps
+
+// MapIndex returns the first of the following:
 // 1. map[key] if the map is non-nil and the key exists in the map
 // 2. default if provided
 // 3. zero value of map value type
-func MapValue[K comparable, V any](mp map[K]V, key K, defawlt ...V) V {
+func MapIndex[K comparable, V any](mp map[K]V, key K, defawlt ...V) V {
 	// Return key value if it exists
 	if mp != nil {
 		if val, haveIt := mp[key]; haveIt {
@@ -60,6 +160,30 @@ func MapValue[K comparable, V any](mp map[K]V, key K, defawlt ...V) V {
 	// Else return zero value of map value type
 	var zv V
 	return zv
+}
+
+// MapSortOrdered sorts a map with an Ordered key into a []Two[K, V]
+func MapSortOrdered[K constraint.Ordered, V any](mp map[K]V) []tuple.Two[K, V] {
+	// Collect pairs into a []Tuple2[K, V]
+	var slc []tuple.Two[K, V]
+	for k, v := range mp {
+		slc = append(slc, tuple.Of2(k, v))
+	}
+
+	sort.Slice(slc, func(i, j int) bool { return slc[i].T < slc[j].T })
+	return slc
+}
+
+// MapSortComplex sorts a map with a Complex key into a []Two[K, V]
+func MapSortComplex[K constraint.Complex, V any](mp map[K]V) []tuple.Two[K, V] {
+	// Collect pairs into a []Tuple2[K, V]
+	var slc []tuple.Two[K, V]
+	for k, v := range mp {
+		slc = append(slc, tuple.Of2(k, v))
+	}
+
+	sort.Slice(slc, func(i, j int) bool { return cmplx.Abs(complex128(slc[i].T)) < cmplx.Abs(complex128(slc[j].T)) })
+	return slc
 }
 
 // ==== Filters
@@ -81,6 +205,13 @@ func And[T any](filters ...func(T) bool) func(T) bool {
 	}
 }
 
+// Not (filter func) adapts a filter func (func(T) bool) to the negation of the func.
+func Not[T any](filter func(T) bool) func(T) bool {
+	return func(t T) bool {
+		return !filter(t)
+	}
+}
+
 // Or converts any number of filter funcs (func(T) bool) into the disjunction of all the funcs.
 // Short-circuit logic will return true on the first function that returns true.
 // If no filters are provided, the result is a function that always returns true.
@@ -95,13 +226,6 @@ func Or[T any](filters ...func(T) bool) func(T) bool {
 		}
 
 		return result
-	}
-}
-
-// Not (filter func) adapts a filter func (func(T) bool) to the negation of the func.
-func Not[T any](filter func(T) bool) func(T) bool {
-	return func(t T) bool {
-		return !filter(t)
 	}
 }
 
@@ -379,134 +503,7 @@ func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
 	return val1
 }
 
-// === Flatten
-
-// FlattenSlice flattens a slice of any number of dimensions into a one dimensional slice.
-// The slice is received as type any, because there is no way to describe a slice of any number of dimensions
-// using generics.
-//
-// If a nil value is passed, an empty slice is returned.
-//
-// Panics if:
-// - the value passed is not a slice
-// - the slice passed does not ultimately resolve to elements of type T once all slice dimensions are indexed
-func FlattenSlice[T any](value any) []T {
-	rslc := []T{}
-
-	// Return empty slice if value is nil
-	if value == nil {
-		return rslc
-	}
-
-	// Make a one dimensional slice to return
-	var (
-		rtyp = reflect.ValueOf(rslc).Type().Elem()
-		vslc = reflect.ValueOf(value)
-		vtyp = vslc.Type()
-	)
-
-	// Ensure value passed is really a slice
-	if vtyp.Kind() != reflect.Slice {
-		panic(fmt.Errorf(flattenSliceArgNotSliceMsg, value))
-	}
-
-	// Index all dimensions of value to get the element type
-	numDims := 0
-	for vtyp.Kind() == reflect.Slice {
-		vtyp = vtyp.Elem()
-		numDims++
-	}
-
-	// Ensure value element type is same as T
-	if rtyp != vtyp {
-		panic(fmt.Errorf(flattenSliceArgNotTMsg, rtyp, vtyp))
-	}
-
-	// If original value is already one dimenion return it by reference
-	if numDims == 1 {
-		return value.([]T)
-	}
-
-	// Recursively iterate all dimensions of the given slice, some dimensions might be empty
-	var f func(reflect.Value)
-	f = func(currentSlice reflect.Value) {
-		// Iterate current slice
-		for i, num := 0, currentSlice.Len(); i < num; i++ {
-			val := currentSlice.Index(i)
-
-			// Recurse sub-arrays/slices
-			if val.Kind() == reflect.Slice {
-				f(val)
-			} else {
-				rslc = append(rslc, val.Interface().(T))
-			}
-		}
-	}
-	f(vslc)
-
-	return rslc
-}
-
-// ==== Reverse
-
-// Reverse reverses the elements of a slice, so that [1,2,3] becomes [3,2,1].
-func Reverse[T any](slc []T) {
-	l := len(slc)
-	for i := 0; i < l/2; i++ {
-		j := l - 1 - i
-		tmp := slc[i]
-		slc[i] = slc[j]
-		slc[j] = tmp
-	}
-}
-
-// ==== Sort
-
-// Sort sorts a slice of Ordered
-func SortOrdered[T constraint.Ordered](slc []T) {
-	sort.Slice(slc, func(i, j int) bool { return slc[i] < slc[j] })
-}
-
-// SortComplex sorts a slice of Complex
-func SortComplex[T constraint.Complex](slc []T) {
-	sort.Slice(slc, func(i, j int) bool { return cmplx.Abs(complex128(slc[i])) < cmplx.Abs(complex128(slc[j])) })
-}
-
-// SortCmp sorts a slice of Cmp
-func SortCmp[T constraint.Cmp[T]](slc []T) {
-	sort.Slice(slc, func(i, j int) bool { return slc[i].Cmp(slc[j]) < 0 })
-}
-
-// SortBy sorts a slice of any type with the provided comparator
-func SortBy[T any](slc []T, less func(T, T) bool) {
-	sort.Slice(slc, func(i, j int) bool { return less(slc[i], slc[j]) })
-}
-
 // ==== Nil
-
-// Nillable returns true if the given reflect.Type represents a chan, func, map, pointer, or slice.
-func Nillable(typ reflect.Type) bool {
-	nillable := true
-
-	switch typ.Kind() {
-	case reflect.Chan:
-	case reflect.Func:
-	case reflect.Map:
-	case reflect.Pointer:
-	case reflect.Slice:
-	default:
-		nillable = false
-	}
-
-	return nillable
-}
-
-// MustBeNillable panics if Nillable(typ) returns false
-func MustBeNillable(typ reflect.Type) {
-	if !Nillable(typ) {
-		panic(fmt.Errorf(notNilableMsg, typ.Name()))
-	}
-}
 
 // IsNil generates a filter func (func(T) bool) that returns true if the value given is nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
@@ -529,6 +526,30 @@ func IsNonNil[T any]() func(T) bool {
 	return func(t T) bool {
 		return !reflect.ValueOf(t).IsNil()
 	}
+}
+
+// MustBeNillable panics if Nillable(typ) returns false
+func MustBeNillable(typ reflect.Type) {
+	if !Nillable(typ) {
+		panic(fmt.Errorf(notNilableMsg, typ.Name()))
+	}
+}
+
+// Nillable returns true if the given reflect.Type represents a chan, func, map, pointer, or slice.
+func Nillable(typ reflect.Type) bool {
+	nillable := true
+
+	switch typ.Kind() {
+	case reflect.Chan:
+	case reflect.Func:
+	case reflect.Map:
+	case reflect.Pointer:
+	case reflect.Slice:
+	default:
+		nillable = false
+	}
+
+	return nillable
 }
 
 // ==== Error
@@ -580,9 +601,9 @@ func SupplierOf[T any](value T) func() T {
 	}
 }
 
-// CachingSupplier generates a func() T that caches the result of the given supplier on the first call.
+// SupplierCached generates a func() T that caches the result of the given supplier on the first call.
 // Any subseqquent calls return the cached value, guaranteeing the provided supplier is invoked at most once.
-func CachingSupplier[T any](supplier func() T) func() T {
+func SupplierCached[T any](supplier func() T) func() T {
 	var (
 		isCached  bool
 		cachedVal T
@@ -594,18 +615,6 @@ func CachingSupplier[T any](supplier func() T) func() T {
 		}
 
 		return cachedVal
-	}
-}
-
-// ==== IgnoreResult
-
-// IgnoreResult takes a func of no args that returns any type, and generates a func of no args and no return value
-// that invokes it.
-//
-// Useful for TryTo function closers.
-func IgnoreResult[T any](fn func() T) func() {
-	return func() {
-		fn()
 	}
 }
 
@@ -624,6 +633,16 @@ func FirstValue3[T, U, V any](t T, u U, v V) T {
 }
 
 // ==== TryTo
+
+// IgnoreResult takes a func of no args that returns any type, and generates a func of no args and no return value
+// that invokes it.
+//
+// Useful for TryTo function closers.
+func IgnoreResult[T any](fn func() T) func() {
+	return func() {
+		fn()
+	}
+}
 
 // TryTo executes tryFn, and if a panic occurs, it executes panicFn.
 // If any closers are provided, they are deferred in the provided order before the tryFn, to ensure they get closed even if a panic occurs.

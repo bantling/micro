@@ -13,8 +13,8 @@ This file describes the Go port of micro.
 ** converts between numeric types, panicking if any loss of precision would occur
 * funcs
 ** slices:
-*** access elements safely
 *** flatten multiple dimensions into one
+*** access elements safely
 *** reverse elements
 *** sort elements
 ** maps: access keys safely

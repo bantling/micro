@@ -14,7 +14,7 @@ import (
 	"github.com/bantling/micro/go/funcs"
 	"github.com/bantling/micro/go/iter"
 	"github.com/bantling/micro/go/math"
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/go/tuple"
 )
 
 // PUnit indicates how to interpret a parallel quantity
@@ -502,12 +502,12 @@ func ExpandSlices[T any](it iter.Iter[[]T]) iter.Iter[T] {
 	})
 }
 
-// ReduceToMap reduces an Iter[KeyValue[K, V]]] into a Iter[map[K, V]] that contains a single element if type map[K, V].
-// Eg, an Iter[KeyValue[int]string] of {1: "1"}, {2: "2"} becomes an Iter[map[int]string] of {1: "1", 2: "2"}.
-// If multiple KeyValue objects in the Iter have the same key, the last such object in iteration order determines the
+// ReduceToMap reduces an Iter[tuple.Two[K, V]]] into a Iter[map[K, V]] that contains a single element if type map[K, V].
+// Eg, an Iter[tuple.Two[int]string] of {1: "1"}, {2: "2"} becomes an Iter[map[int]string] of {1: "1", 2: "2"}.
+// If multiple tuple.Two objects in the Iter have the same key, the last such object in iteration order determines the
 // value for the key in the resulting map.
 // An empty Iter is reduced to an empty map.
-func ReduceToMap[K comparable, V any](it iter.Iter[util.Tuple2[K, V]]) iter.Iter[map[K]V] {
+func ReduceToMap[K comparable, V any](it iter.Iter[tuple.Two[K, V]]) iter.Iter[map[K]V] {
 	var done bool
 
 	return iter.NewIter(func() (map[K]V, error) {
@@ -519,7 +519,7 @@ func ReduceToMap[K comparable, V any](it iter.Iter[util.Tuple2[K, V]]) iter.Iter
 
 		var (
 			m   = map[K]V{}
-			kv  util.Tuple2[K, V]
+			kv  tuple.Two[K, V]
 			err error
 		)
 
@@ -544,20 +544,20 @@ func ReduceToMap[K comparable, V any](it iter.Iter[util.Tuple2[K, V]]) iter.Iter
 }
 
 // ExpandMaps is the opposite of ReduceToMap: an Iter[map[int]string] of {1: "1", 2: "2", 3: "3"} becomes an
-// Iter[KeyValue[int, string]] of {1: "1"}, {2: "2"}, {3: "3"].
+// Iter[tuple.Two[int, string]] of {1: "1"}, {2: "2"}, {3: "3"].
 // If the source Iter contains multiple maps, they are combined together into one set of data (skipping nils),
 // so that an Iter[map[int]string] of {1: "1", 2: "2"}, nil, {}, {3: "3"} also becomes
-// an Iter[KeyValue[int, string]] of {1: "1"}, {2: "2"}, {3: "3"}.
+// an Iter[tuple.Two[int, string]] of {1: "1"}, {2: "2"}, {3: "3"}.
 // An empty Iter or an Iter with nil/empty maps is expanded to an empty Iter.
-func ExpandMaps[K comparable, V any](it iter.Iter[map[K]V]) iter.Iter[util.Tuple2[K, V]] {
+func ExpandMaps[K comparable, V any](it iter.Iter[map[K]V]) iter.Iter[tuple.Two[K, V]] {
 	var (
 		m  map[K]V
 		mr *reflect.MapIter
 	)
 
-	return iter.NewIter(func() (util.Tuple2[K, V], error) {
+	return iter.NewIter(func() (tuple.Two[K, V], error) {
 		var (
-			zv  util.Tuple2[K, V]
+			zv  tuple.Two[K, V]
 			err error
 		)
 
@@ -592,7 +592,7 @@ func ExpandMaps[K comparable, V any](it iter.Iter[map[K]V]) iter.Iter[util.Tuple
 			}
 		}
 
-		val := util.Of2(mr.Key().Interface().(K), mr.Value().Interface().(V))
+		val := tuple.Of2(mr.Key().Interface().(K), mr.Value().Interface().(V))
 
 		return val, nil
 	})
@@ -804,7 +804,7 @@ func Reverse[T any](it iter.Iter[T]) iter.Iter[T] {
 	}
 
 	// Reverse elements
-	funcs.Reverse(slc)
+	funcs.SliceReverse(slc)
 
 	// Return iterator of reversed elements
 	return iter.Of(slc...)
@@ -822,7 +822,7 @@ func SortOrdered[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
 	}
 
 	// Sort elements
-	funcs.SortOrdered(slc)
+	funcs.SliceSortOrdered(slc)
 
 	// Successfully return sorted iter
 	return iter.Of(slc...)
@@ -840,7 +840,7 @@ func SortComplex[T constraint.Complex](it iter.Iter[T]) iter.Iter[T] {
 	}
 
 	// Sort elements
-	funcs.SortComplex(slc)
+	funcs.SliceSortComplex(slc)
 
 	// Successfully return sorted iter
 	return iter.Of(slc...)
@@ -858,7 +858,7 @@ func SortCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
 	}
 
 	// Sort elements
-	funcs.SortCmp(slc)
+	funcs.SliceSortCmp(slc)
 
 	// Successfully return sorted iter
 	return iter.Of(slc...)
@@ -877,7 +877,7 @@ func SortBy[T any](less func(T, T) bool) func(iter.Iter[T]) iter.Iter[T] {
 		}
 
 		// Sort elements
-		funcs.SortBy(slc, less)
+		funcs.SliceSortBy(slc, less)
 
 		// Successfully return sorted iter
 		return iter.Of(slc...)

@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/go/tuple"
 )
 
 // ==== Constants
@@ -43,20 +43,20 @@ func SliceIterGen[T any](slc []T) func() (T, error) {
 }
 
 // MapIterGen generates an iterating function for a map[K]V
-// First len(m) calls to iterating function return (KeyValue[K, V]{m key, m value}, nil)
-// All remaining calls return (KeyValue[K, V] zero value, EOI)
-func MapIterGen[K comparable, V any](m map[K]V) func() (util.Tuple2[K, V], error) {
+// First len(m) calls to iterating function return (tuple.Two[K, V]{m key, m value}, nil)
+// All remaining calls return (tuple.Two[K, V] zero value, EOI)
+func MapIterGen[K comparable, V any](m map[K]V) func() (tuple.Two[K, V], error) {
 	// Unlike a slice, we don't know the set of indexes ahead of time
 	// Use reflection.Value.MapIter to iterate the keys via a stateful object that tracks the progress of key iteration internally
 	// We could use a go routine that writes a key/value pair to a channel, but that would cause a memory leak if map is not fully iterated
 
 	var (
 		mi   = reflect.ValueOf(m).MapRange()
-		zv   util.Tuple2[K, V]
+		zv   tuple.Two[K, V]
 		done bool
 	)
 
-	return func() (util.Tuple2[K, V], error) {
+	return func() (tuple.Two[K, V], error) {
 		if done {
 			return zv, EOI
 		}
@@ -66,7 +66,7 @@ func MapIterGen[K comparable, V any](m map[K]V) func() (util.Tuple2[K, V], error
 			return zv, EOI
 		}
 
-		return util.Of2(mi.Key().Interface().(K), mi.Value().Interface().(V)), nil
+		return tuple.Of2(mi.Key().Interface().(K), mi.Value().Interface().(V)), nil
 	}
 }
 

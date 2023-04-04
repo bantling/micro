@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/go/conv"
+	"github.com/bantling/micro/go/tuple"
 	"github.com/bantling/micro/go/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +37,7 @@ func TestMapWriterGen_(t *testing.T) {
 
 	for i := 1; i <= 100; i++ {
 		s := conv.IntToString(i)
-		assert.Nil(t, w(util.Of2(i, s)))
+		assert.Nil(t, w(tuple.Of2(i, s)))
 		assert.Equal(t, i, len(m))
 		assert.Equal(t, s, m[i])
 	}

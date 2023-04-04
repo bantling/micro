@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/go/tuple"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,7 +49,7 @@ func TestOfMapWriter_(t *testing.T) {
 	)
 	assert.NotNil(t, w)
 
-	w.Write(util.Of2(1, "2"))
+	w.Write(tuple.Of2(1, "2"))
 	assert.Equal(t, map[int]string{1: "2"}, m)
 }
 

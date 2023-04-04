@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/go/tuple"
 )
 
 // ==== constants
@@ -44,8 +44,8 @@ func OfSliceWriter[T any](dst *[]T) Writer[T] {
 	return NewWriter(SliceWriterGen(dst))
 }
 
-// OfMapWriter returns a Writer[KeyValue[K, V]] that writes to the given map
-func OfMapWriter[K comparable, V any](dst map[K]V) Writer[util.Tuple2[K, V]] {
+// OfMapWriter returns a Writer[tuple.Two[K, V]] that writes to the given map
+func OfMapWriter[K comparable, V any](dst map[K]V) Writer[tuple.Two[K, V]] {
 	return NewWriter(MapWriterGen(dst))
 }
 

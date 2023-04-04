@@ -9,8 +9,45 @@ import (
 	"strconv"
 	"testing"
 
+  "github.com/bantling/micro/go/tuple"
 	"github.com/stretchr/testify/assert"
 )
+
+// ==== Slices
+
+func TestSliceFlatten_(t *testing.T) {
+	assert.Equal(t, []int{}, SliceFlatten[int](nil))
+
+	// Check that one dimensional slice is returned as is (same address)
+	oneDim := []int{}
+	assert.Equal(t, fmt.Sprintf("%p", oneDim), fmt.Sprintf("%p", SliceFlatten[int](oneDim)))
+
+	assert.Equal(t, []int{1, 2, 3, 4}, SliceFlatten[int]([][]int{{1, 2}, {3, 4}}))
+
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, SliceFlatten[int]([][][]int{{{1, 2}, {3, 4}}, {{5}}, {{6}}}))
+
+	// Die if a value that is not a slice is passed
+	TryTo(
+		func() {
+			SliceFlatten[int](0)
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, fmt.Errorf("SliceFlatten argument must be a slice, not type int"), err)
+		},
+	)
+
+	// Die if expecting a []int but passed a []string
+	TryTo(
+		func() {
+			SliceFlatten[int]([]string{})
+			assert.Fail(t, "Must die")
+		},
+		func(err any) {
+			assert.Equal(t, fmt.Errorf("SliceFlatten argument must be slice of int, not a slice of string"), err)
+		},
+	)
+}
 
 func TestSliceIndex_(t *testing.T) {
 	slc := []int{}
@@ -25,16 +62,84 @@ func TestSliceIndex_(t *testing.T) {
 	assert.Equal(t, 3, SliceIndex(slc, 2, 3))
 }
 
-func TestMapValue_(t *testing.T) {
+func TestSliceReverse_(t *testing.T) {
+	slc := []int{}
+	SliceReverse(slc)
+	assert.Equal(t, []int{}, slc)
+
+	slc = []int{1}
+	SliceReverse(slc)
+	assert.Equal(t, []int{1}, slc)
+
+	slc = []int{1, 2}
+	SliceReverse(slc)
+	assert.Equal(t, []int{2, 1}, slc)
+
+	slc = []int{1, 2, 3}
+	SliceReverse(slc)
+	assert.Equal(t, []int{3, 2, 1}, slc)
+
+	slc = []int{1, 2, 3, 4}
+	SliceReverse(slc)
+	assert.Equal(t, []int{4, 3, 2, 1}, slc)
+}
+
+func TestSliceSort_(t *testing.T) {
+	// Ordered
+	{
+		slc := []int{2, 3, 1}
+		SliceSortOrdered(slc)
+		assert.Equal(t, []int{1, 2, 3}, slc)
+	}
+
+	// Complex
+	{
+		slc := []complex64{2, 3, 1}
+		SliceSortComplex(slc)
+		assert.Equal(t, []complex64{1, 2, 3}, slc)
+	}
+
+	// Cmp
+	{
+		slc := []*big.Int{big.NewInt(2), big.NewInt(3), big.NewInt(1)}
+		SliceSortCmp(slc)
+		assert.Equal(t, []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}, slc)
+	}
+
+	// By
+	{
+		slc := []int{2, 3, 1}
+		SliceSortBy(slc, func(i, j int) bool { return j < i })
+		assert.Equal(t, []int{3, 2, 1}, slc)
+	}
+}
+
+func TestMapIndex_(t *testing.T) {
 	mp := map[string]int{}
-	assert.Equal(t, 0, MapValue(mp, ""))
-	assert.Equal(t, 0, MapValue(mp, "a"))
-	assert.Equal(t, 3, MapValue(mp, "b", 3))
+	assert.Equal(t, 0, MapIndex(mp, ""))
+	assert.Equal(t, 0, MapIndex(mp, "a"))
+	assert.Equal(t, 3, MapIndex(mp, "b", 3))
 
 	mp = map[string]int{"": 1, "a": 2}
-	assert.Equal(t, 1, MapValue(mp, ""))
-	assert.Equal(t, 2, MapValue(mp, "a"))
-	assert.Equal(t, 3, MapValue(mp, "b", 3))
+	assert.Equal(t, 1, MapIndex(mp, ""))
+	assert.Equal(t, 2, MapIndex(mp, "a"))
+	assert.Equal(t, 3, MapIndex(mp, "b", 3))
+}
+
+func TestMapSort_(t *testing.T) {
+	// Ordered
+	{
+		mp := map[int]int{2: 2, 3: 3, 1: 1}
+		slc := MapSortOrdered(mp)
+		assert.Equal(t, []tuple.Two[int, int]{tuple.Of2(1, 1), tuple.Of2(2, 2), tuple.Of2(3, 3)}, slc)
+	}
+
+	// Complex
+	{
+		mp := map[complex64]int{2: 2, 3: 3, 1: 1}
+		slc := MapSortComplex(mp)
+		assert.Equal(t, []tuple.Two[complex64, int]{tuple.Of2(complex64(1+0i), 1), tuple.Of2(complex64(2+0i), 2), tuple.Of2(complex64(3+0i), 3)}, slc)
+	}
 }
 
 func lessThan5(i int) bool {
@@ -62,15 +167,6 @@ func TestAnd_(t *testing.T) {
 	assert.False(t, lt5_10(12))
 }
 
-func TestOr_(t *testing.T) {
-	lt5_gt10 := Or(lessThan5, greaterThan10)
-	assert.True(t, lt5_gt10(3))
-	assert.False(t, lt5_gt10(5))
-	assert.False(t, lt5_gt10(7))
-	assert.False(t, lt5_gt10(10))
-	assert.True(t, lt5_gt10(12))
-}
-
 func TestNot_(t *testing.T) {
 	nlt5 := Not(lessThan5)
 	assert.False(t, nlt5(3))
@@ -78,6 +174,15 @@ func TestNot_(t *testing.T) {
 	assert.True(t, nlt5(7))
 	assert.True(t, nlt5(10))
 	assert.True(t, nlt5(12))
+}
+
+func TestOr_(t *testing.T) {
+	lt5_gt10 := Or(lessThan5, greaterThan10)
+	assert.True(t, lt5_gt10(3))
+	assert.False(t, lt5_gt10(5))
+	assert.False(t, lt5_gt10(7))
+	assert.False(t, lt5_gt10(10))
+	assert.True(t, lt5_gt10(12))
 }
 
 func TestCompose_(t *testing.T) {
@@ -371,92 +476,6 @@ func TestMinMax_(t *testing.T) {
 	}()
 }
 
-func TestFlattenSlice_(t *testing.T) {
-	assert.Equal(t, []int{}, FlattenSlice[int](nil))
-
-	// Check that one dimensional slice is returned as is (same address)
-	oneDim := []int{}
-	assert.Equal(t, fmt.Sprintf("%p", oneDim), fmt.Sprintf("%p", FlattenSlice[int](oneDim)))
-
-	assert.Equal(t, []int{1, 2, 3, 4}, FlattenSlice[int]([][]int{{1, 2}, {3, 4}}))
-
-	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, FlattenSlice[int]([][][]int{{{1, 2}, {3, 4}}, {{5}}, {{6}}}))
-
-	// Die if a value that is not a slice is passed
-	TryTo(
-		func() {
-			FlattenSlice[int](0)
-			assert.Fail(t, "Must die")
-		},
-		func(err any) {
-			assert.Equal(t, fmt.Errorf("FlattenSlice argument must be a slice, not type int"), err)
-		},
-	)
-
-	// Die if expecting a []int but passed a []string
-	TryTo(
-		func() {
-			FlattenSlice[int]([]string{})
-			assert.Fail(t, "Must die")
-		},
-		func(err any) {
-			assert.Equal(t, fmt.Errorf("FlattenSlice argument must be slice of int, not a slice of string"), err)
-		},
-	)
-}
-
-func TestReverse_(t *testing.T) {
-	slc := []int{}
-	Reverse(slc)
-	assert.Equal(t, []int{}, slc)
-
-	slc = []int{1}
-	Reverse(slc)
-	assert.Equal(t, []int{1}, slc)
-
-	slc = []int{1, 2}
-	Reverse(slc)
-	assert.Equal(t, []int{2, 1}, slc)
-
-	slc = []int{1, 2, 3}
-	Reverse(slc)
-	assert.Equal(t, []int{3, 2, 1}, slc)
-
-	slc = []int{1, 2, 3, 4}
-	Reverse(slc)
-	assert.Equal(t, []int{4, 3, 2, 1}, slc)
-}
-
-func TestSort_(t *testing.T) {
-	// Ordered
-	{
-		slc := []int{2, 3, 1}
-		SortOrdered(slc)
-		assert.Equal(t, []int{1, 2, 3}, slc)
-	}
-
-	// Complex
-	{
-		slc := []complex64{2, 3, 1}
-		SortComplex(slc)
-		assert.Equal(t, []complex64{1, 2, 3}, slc)
-	}
-
-	// Cmp
-	{
-		slc := []*big.Int{big.NewInt(2), big.NewInt(3), big.NewInt(1)}
-		SortCmp(slc)
-		assert.Equal(t, []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}, slc)
-	}
-
-	// By
-	{
-		slc := []int{2, 3, 1}
-		SortBy(slc, func(i, j int) bool { return j < i })
-		assert.Equal(t, []int{3, 2, 1}, slc)
-	}
-}
-
 func TestNillable_(t *testing.T) {
 	var (
 		cn chan int
@@ -472,35 +491,6 @@ func TestNillable_(t *testing.T) {
 		s  []int = []int{}
 		a  any   = s
 	)
-	assert.True(t, Nillable(reflect.TypeOf(cn)))
-	assert.True(t, IsNil[chan int]()(cn))
-	assert.True(t, Nillable(reflect.TypeOf(c)))
-	assert.True(t, IsNonNil[chan int]()(c))
-
-	assert.True(t, Nillable(reflect.TypeOf(fn)))
-	assert.True(t, IsNil[func()]()(fn))
-	assert.True(t, Nillable(reflect.TypeOf(f)))
-	assert.True(t, IsNonNil[func()]()(f))
-
-	assert.True(t, Nillable(reflect.TypeOf(mn)))
-	assert.True(t, IsNil[map[int]int]()(mn))
-	assert.True(t, Nillable(reflect.TypeOf(m)))
-	assert.True(t, IsNonNil[map[int]int]()(m))
-
-	assert.True(t, Nillable(reflect.TypeOf(pn)))
-	assert.True(t, IsNil[*int]()(pn))
-	assert.True(t, Nillable(reflect.TypeOf(p)))
-	assert.True(t, IsNonNil[*int]()(p))
-
-	assert.True(t, Nillable(reflect.TypeOf(sn)))
-	assert.True(t, IsNil[[]int]()(sn))
-	assert.True(t, Nillable(reflect.TypeOf(s)))
-	assert.True(t, IsNonNil[[]int]()(s))
-
-	assert.True(t, Nillable(reflect.TypeOf(a)))
-	assert.True(t, IsNonNil[[]int]()(a.([]int)))
-
-	assert.False(t, Nillable(reflect.TypeOf(0)))
 
 	TryTo(
 		func() { IsNil[int]() },
@@ -511,6 +501,52 @@ func TestNillable_(t *testing.T) {
 		func() { IsNonNil[int]() },
 		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
+
+	TryTo(
+		func() { MustBeNillable(reflect.TypeOf(0)) },
+		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
+	)
+
+	assert.False(t, Nillable(reflect.TypeOf(0)))
+
+	assert.True(t, IsNil[chan int]()(cn))
+	assert.True(t, IsNonNil[chan int]()(c))
+	MustBeNillable(reflect.TypeOf(cn))
+	MustBeNillable(reflect.TypeOf(c))
+	assert.True(t, Nillable(reflect.TypeOf(cn)))
+	assert.True(t, Nillable(reflect.TypeOf(c)))
+
+	assert.True(t, IsNil[func()]()(fn))
+	assert.True(t, IsNonNil[func()]()(f))
+	MustBeNillable(reflect.TypeOf(fn))
+	MustBeNillable(reflect.TypeOf(f))
+	assert.True(t, Nillable(reflect.TypeOf(fn)))
+	assert.True(t, Nillable(reflect.TypeOf(f)))
+
+	assert.True(t, IsNil[map[int]int]()(mn))
+	assert.True(t, IsNonNil[map[int]int]()(m))
+	MustBeNillable(reflect.TypeOf(mn))
+	MustBeNillable(reflect.TypeOf(m))
+	assert.True(t, Nillable(reflect.TypeOf(mn)))
+	assert.True(t, Nillable(reflect.TypeOf(m)))
+
+	assert.True(t, IsNil[*int]()(pn))
+	assert.True(t, IsNonNil[*int]()(p))
+	MustBeNillable(reflect.TypeOf(pn))
+	MustBeNillable(reflect.TypeOf(p))
+	assert.True(t, Nillable(reflect.TypeOf(pn)))
+	assert.True(t, Nillable(reflect.TypeOf(p)))
+
+	assert.True(t, IsNil[[]int]()(sn))
+	assert.True(t, IsNonNil[[]int]()(s))
+	MustBeNillable(reflect.TypeOf(sn))
+	MustBeNillable(reflect.TypeOf(s))
+	assert.True(t, Nillable(reflect.TypeOf(sn)))
+	assert.True(t, Nillable(reflect.TypeOf(s)))
+
+	assert.True(t, IsNonNil[[]int]()(a.([]int)))
+	MustBeNillable(reflect.TypeOf(a))
+	assert.True(t, Nillable(reflect.TypeOf(a)))
 }
 
 func TestMust_(t *testing.T) {
@@ -579,7 +615,7 @@ func TestSupplier_(t *testing.T) {
 	assert.Equal(t, 5, supplier())
 
 	var called bool
-	supplier = CachingSupplier(func() int { called = true; return 7 })
+	supplier = SupplierCached(func() int { called = true; return 7 })
 
 	assert.False(t, called)
 	assert.Equal(t, 7, supplier())
@@ -591,18 +627,18 @@ func TestSupplier_(t *testing.T) {
 	assert.False(t, called)
 }
 
-func TestIgnoreResult_(t *testing.T) {
-	called := false
-	IgnoreResult(func() int { called = true; return 0 })()
-	assert.True(t, called)
-}
-
 func TestFirstValue2_(t *testing.T) {
 	assert.Equal(t, 1, FirstValue2(1, 2))
 }
 
 func TestFirstValue3_(t *testing.T) {
 	assert.Equal(t, 1, FirstValue3(1, 2, 3))
+}
+
+func TestIgnoreResult_(t *testing.T) {
+	called := false
+	IgnoreResult(func() int { called = true; return 0 })()
+	assert.True(t, called)
 }
 
 func TestTryTo_(t *testing.T) {

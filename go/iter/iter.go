@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/go/tuple"
 )
 
 // ==== Constants
@@ -82,11 +82,11 @@ func OfOne[T any](item T) Iter[T] {
 	return NewIter[T](SingleValueIterGen[T](item))
 }
 
-// Of constructs an Iter[KeyValue[K, V]] that iterates the items passed.
+// Of constructs an Iter[tuple.Two[K, V]] that iterates the items passed.
 //
 // See MapIterGen.
-func OfMap[K comparable, V any](items map[K]V) Iter[util.Tuple2[K, V]] {
-	return NewIter[util.Tuple2[K, V]](MapIterGen[K, V](items))
+func OfMap[K comparable, V any](items map[K]V) Iter[tuple.Two[K, V]] {
+	return NewIter[tuple.Two[K, V]](MapIterGen[K, V](items))
 }
 
 // OfReader constructs an Iter[byte] that iterates the bytes of a Reader.
@@ -176,8 +176,8 @@ func (it *IterImpl[T]) Unread(val T) {
 // ==== Operations on an Iter
 
 // Maybe converts the result of Next into a Tuple2[T, error] to represent the result as a single type.
-func Maybe[T any](it Iter[T]) util.Tuple2[T, error] {
-	return util.Of2Error(it.Next())
+func Maybe[T any](it Iter[T]) tuple.Two[T, error] {
+	return tuple.Of2Error(it.Next())
 }
 
 // SetError sets a particular error to occur instead of the first non-nil error the given iterator returns.

@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/go/tuple"
 )
 
 // Constants
@@ -31,8 +31,8 @@ func SliceWriterGen[T any](slc *[]T) func(T) error {
 
 // MapWriterGen generates a writing function for a map[K]V.
 // A pointer to the map is not required, as the map internally reallocates as needed, so that the caller map address never changes.
-func MapWriterGen[K comparable, V any](m map[K]V) func(util.Tuple2[K, V]) error {
-	return func(val util.Tuple2[K, V]) error {
+func MapWriterGen[K comparable, V any](m map[K]V) func(tuple.Two[K, V]) error {
+	return func(val tuple.Two[K, V]) error {
 		m[val.T] = val.U
 		return nil
 	}
