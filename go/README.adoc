@@ -17,16 +17,19 @@ This file describes the Go port of micro.
 *** access elements safely
 *** reverse elements
 *** sort elements
-** maps: access keys safely
-** filter - func(T) bool:
+** maps:
+*** access keys safely
+*** sort key/value pairs
+** filters - func(T) bool:
 *** compose with and, or, not
 *** generate filters for comparisons (<, <=, ==, >=, >)
 *** generate filters for is negative, is non-negative, is positive, is nil, is non nil
 ** compose any number of funcs that accept and receive same type
-** compose up to 10 funcs that accept and return different types
-** ternary - take a bool, true value or supplier, false value or supplier, and return true or false value
+** compose 2 to 10 funcs that accept and return different types
+** ternary - take a (bool, true value, false value) or (bool, true supplier, false supplier), and return true or false value
 ** min/max
 ** nil handling
+** error handling
 ** supplier generators
 ** generate a func that ignores result of another func
 ** TryTo is a replacement for hard to write idiomatic go code that acts like a Java try/catch/finally block:

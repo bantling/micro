@@ -186,7 +186,31 @@ func MapSortComplex[K constraint.Complex, V any](mp map[K]V) []tuple.Two[K, V] {
 	return slc
 }
 
-// ==== Filters
+// MapSortCmp sorts a map with a Cmp key into a []Two[K, V]
+func MapSortCmp[K constraint.Cmp[K], V any](mp map[K]V) []tuple.Two[K, V] {
+	// Collect pairs into a []Tuple2[K, V]
+	var slc []tuple.Two[K, V]
+	for k, v := range mp {
+		slc = append(slc, tuple.Of2(k, v))
+	}
+
+	sort.Slice(slc, func(i, j int) bool { return slc[i].T.Cmp(slc[j].T) < 0 })
+	return slc
+}
+
+// MapSortBy sorts a map with any type of key into a []Two[K, V]
+func MapSortBy[K comparable, V any](mp map[K]V, less func(K, K) bool) []tuple.Two[K, V] {
+	// Collect pairs into a []Tuple2[K, V]
+	var slc []tuple.Two[K, V]
+	for k, v := range mp {
+		slc = append(slc, tuple.Of2(k, v))
+	}
+
+	sort.Slice(slc, func(i, j int) bool { return less(slc[i].T, slc[j].T) })
+	return slc
+}
+
+// ==== Filters - and, not, or
 
 // And converts any number of filter funcs (func(T) bool) into the conjunction of all the funcs.
 // Short-circuit logic will return false on the first function that returns false.
@@ -226,6 +250,66 @@ func Or[T any](filters ...func(T) bool) func(T) bool {
 		}
 
 		return result
+	}
+}
+
+// ==== Filters - comparators
+
+// LessThan returns a filter func (func(T) bool) that returns true if it accepts a value that is less than the given value
+func LessThan[T constraint.Ordered](val T) func(T) bool {
+	return func(t T) bool {
+		return t < val
+	}
+}
+
+// LessThanEqual returns a filter func (func(T) bool) that returns true if it accepts a value that is less than or equal to the given value
+func LessThanEqual[T constraint.Ordered](val T) func(T) bool {
+	return func(t T) bool {
+		return t <= val
+	}
+}
+
+// Equal returns a filter func (func(T) bool) that returns true if it accepts a value that equals the given value with ==
+func Equal[T comparable](val T) func(T) bool {
+	return func(t T) bool {
+		return t == val
+	}
+}
+
+// GreaterThan returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than the given value
+func GreaterThan[T constraint.Ordered](val T) func(T) bool {
+	return func(t T) bool {
+		return t > val
+	}
+}
+
+// GreaterThanEqual returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than or equal to the given value
+func GreaterThanEqual[T constraint.Ordered](val T) func(T) bool {
+	return func(t T) bool {
+		return t >= val
+	}
+}
+
+// ==== Filters - negative, non-negative, positive
+
+// IsNegative returns a filter func (func(T) bool) that returns true if it accepts a negative value.
+func IsNegative[T constraint.Signed]() func(T) bool {
+	return func(t T) bool {
+		return t < 0
+	}
+}
+
+// IsNonNegative returns a filter func (func(T) bool) that returns true if it accepts a non-negative value.
+func IsNonNegative[T constraint.Signed]() func(T) bool {
+	return func(t T) bool {
+		return t >= 0
+	}
+}
+
+// IsPositive returns a filter func (func(T) bool) that returns true if it accepts a positive value.
+func IsPositive[T constraint.Signed]() func(T) bool {
+	return func(t T) bool {
+		return t > 0
 	}
 }
 
@@ -389,64 +473,6 @@ func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
 	}
 
 	return falseVal()
-}
-
-// ==== Comparators
-
-// LessThan returns a filter func (func(T) bool) that returns true if it accepts a value that is less than the given value
-func LessThan[T constraint.Ordered](val T) func(T) bool {
-	return func(t T) bool {
-		return t < val
-	}
-}
-
-// LessThanEqual returns a filter func (func(T) bool) that returns true if it accepts a value that is less than or equal to the given value
-func LessThanEqual[T constraint.Ordered](val T) func(T) bool {
-	return func(t T) bool {
-		return t <= val
-	}
-}
-
-// Equal returns a filter func (func(T) bool) that returns true if it accepts a value that equals the given value with ==
-func Equal[T comparable](val T) func(T) bool {
-	return func(t T) bool {
-		return t == val
-	}
-}
-
-// GreaterThan returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than the given value
-func GreaterThan[T constraint.Ordered](val T) func(T) bool {
-	return func(t T) bool {
-		return t > val
-	}
-}
-
-// GreaterThanEqual returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than or equal to the given value
-func GreaterThanEqual[T constraint.Ordered](val T) func(T) bool {
-	return func(t T) bool {
-		return t >= val
-	}
-}
-
-// IsNegative returns a filter func (func(T) bool) that returns true if it accepts a negative value.
-func IsNegative[T constraint.Signed]() func(T) bool {
-	return func(t T) bool {
-		return t < 0
-	}
-}
-
-// IsNonNegative returns a filter func (func(T) bool) that returns true if it accepts a non-negative value.
-func IsNonNegative[T constraint.Signed]() func(T) bool {
-	return func(t T) bool {
-		return t >= 0
-	}
-}
-
-// IsPositive returns a filter func (func(T) bool) that returns true if it accepts a positive value.
-func IsPositive[T constraint.Signed]() func(T) bool {
-	return func(t T) bool {
-		return t > 0
-	}
 }
 
 // MinOrdered returns the maximum value of two ordered types

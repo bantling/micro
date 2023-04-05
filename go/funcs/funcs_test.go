@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-  "github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/go/tuple"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -140,6 +140,20 @@ func TestMapSort_(t *testing.T) {
 		slc := MapSortComplex(mp)
 		assert.Equal(t, []tuple.Two[complex64, int]{tuple.Of2(complex64(1+0i), 1), tuple.Of2(complex64(2+0i), 2), tuple.Of2(complex64(3+0i), 3)}, slc)
 	}
+
+	// Cmp
+	{
+		mp := map[*big.Int]int{big.NewInt(2): 2, big.NewInt(3): 3, big.NewInt(1): 1}
+		slc := MapSortCmp(mp)
+		assert.Equal(t, []tuple.Two[*big.Int, int]{tuple.Of2(big.NewInt(1), 1), tuple.Of2(big.NewInt(2), 2), tuple.Of2(big.NewInt(3), 3)}, slc)
+	}
+
+	// By
+	{
+		mp := map[int]int{2: 2, 3: 3, 1: 1}
+		slc := MapSortBy(mp, func(i, j int) bool { return i < j })
+		assert.Equal(t, []tuple.Two[int, int]{tuple.Of2(1, 1), tuple.Of2(2, 2), tuple.Of2(3, 3)}, slc)
+	}
 }
 
 func lessThan5(i int) bool {
@@ -183,6 +197,72 @@ func TestOr_(t *testing.T) {
 	assert.False(t, lt5_gt10(7))
 	assert.False(t, lt5_gt10(10))
 	assert.True(t, lt5_gt10(12))
+}
+
+func TestLessThan_(t *testing.T) {
+	lt5 := LessThan(5)
+	assert.True(t, lt5(3))
+	assert.False(t, lt5(5))
+	assert.False(t, lt5(7))
+	assert.False(t, lt5(10))
+	assert.False(t, lt5(12))
+}
+
+func TestLessThanEqual_(t *testing.T) {
+	lte5 := LessThanEqual(5)
+	assert.True(t, lte5(3))
+	assert.True(t, lte5(5))
+	assert.False(t, lte5(7))
+	assert.False(t, lte5(10))
+	assert.False(t, lte5(12))
+}
+
+func TestEqual_(t *testing.T) {
+	eq5 := Equal(5)
+	assert.False(t, eq5(3))
+	assert.True(t, eq5(5))
+	assert.False(t, eq5(7))
+	assert.False(t, eq5(10))
+	assert.False(t, eq5(12))
+}
+
+func TestGreaterThan_(t *testing.T) {
+	gt5 := GreaterThan(5)
+	assert.False(t, gt5(3))
+	assert.False(t, gt5(5))
+	assert.True(t, gt5(7))
+	assert.True(t, gt5(10))
+	assert.True(t, gt5(12))
+}
+
+func TestGreaterThanEqual_(t *testing.T) {
+	gte5 := GreaterThanEqual(5)
+	assert.False(t, gte5(3))
+	assert.True(t, gte5(5))
+	assert.True(t, gte5(7))
+	assert.True(t, gte5(10))
+	assert.True(t, gte5(12))
+}
+
+func TestIsNegative_(t *testing.T) {
+	neg := IsNegative[int]()
+	assert.True(t, neg(-3))
+	assert.False(t, neg(0))
+	assert.False(t, neg(3))
+}
+
+func TestIsNonNegative_(t *testing.T) {
+	nneg := IsNonNegative[int]()
+	assert.False(t, nneg(-3))
+	assert.True(t, nneg(0))
+	assert.True(t, nneg(3))
+}
+
+func TestIsPositive_(t *testing.T) {
+	pos := IsPositive[int]()
+	assert.False(t, pos(-3))
+	assert.False(t, pos(0))
+	assert.True(t, pos(3))
 }
 
 func TestCompose_(t *testing.T) {
@@ -332,72 +412,6 @@ func TestTernary_(t *testing.T) {
 
 	assert.Equal(t, 2, Ternary(1 > 2, 1, 2))
 	assert.Equal(t, 2, TernaryResult(1 > 2, func() int { return 1 }, func() int { return 2 }))
-}
-
-func TestLessThan_(t *testing.T) {
-	lt5 := LessThan(5)
-	assert.True(t, lt5(3))
-	assert.False(t, lt5(5))
-	assert.False(t, lt5(7))
-	assert.False(t, lt5(10))
-	assert.False(t, lt5(12))
-}
-
-func TestLessThanEqual_(t *testing.T) {
-	lte5 := LessThanEqual(5)
-	assert.True(t, lte5(3))
-	assert.True(t, lte5(5))
-	assert.False(t, lte5(7))
-	assert.False(t, lte5(10))
-	assert.False(t, lte5(12))
-}
-
-func TestEqual_(t *testing.T) {
-	eq5 := Equal(5)
-	assert.False(t, eq5(3))
-	assert.True(t, eq5(5))
-	assert.False(t, eq5(7))
-	assert.False(t, eq5(10))
-	assert.False(t, eq5(12))
-}
-
-func TestGreaterThan_(t *testing.T) {
-	gt5 := GreaterThan(5)
-	assert.False(t, gt5(3))
-	assert.False(t, gt5(5))
-	assert.True(t, gt5(7))
-	assert.True(t, gt5(10))
-	assert.True(t, gt5(12))
-}
-
-func TestGreaterThanEqual_(t *testing.T) {
-	gte5 := GreaterThanEqual(5)
-	assert.False(t, gte5(3))
-	assert.True(t, gte5(5))
-	assert.True(t, gte5(7))
-	assert.True(t, gte5(10))
-	assert.True(t, gte5(12))
-}
-
-func TestIsNegative_(t *testing.T) {
-	neg := IsNegative[int]()
-	assert.True(t, neg(-3))
-	assert.False(t, neg(0))
-	assert.False(t, neg(3))
-}
-
-func TestIsNonNegative_(t *testing.T) {
-	nneg := IsNonNegative[int]()
-	assert.False(t, nneg(-3))
-	assert.True(t, nneg(0))
-	assert.True(t, nneg(3))
-}
-
-func TestIsPositive_(t *testing.T) {
-	pos := IsPositive[int]()
-	assert.False(t, pos(-3))
-	assert.False(t, pos(0))
-	assert.True(t, pos(3))
 }
 
 type cmp int

@@ -53,7 +53,9 @@ type Complex interface {
 }
 
 // Cmp is a companion interface for Ordered
+// Embeds comparable so that the Cmp interface can be a map key
 type Cmp[T any] interface {
+	comparable
 	// Returns <0 if this value < argument
 	//          0 if this value = argument
 	//         >0 if this value > argument
