@@ -40,7 +40,7 @@ This file describes the Go port of micro.
 ** based on iterating funcs, a func of no args that returns (value, bool), where the value is only relevant if the bool
    is true
 ** A number of constructors are provided for hard-coded values, slices, maps, io.reader, concat multiple iters
-** Next, value, unread, and Must funcs to retrieve values
+** Next and Unread methods
 ** Provides streaming functionality (similar to that of Java 8 streams).
     Most functions accept ands return an Iter, providing some kind of transform.
 *** funcs for first, map, filter, reduce, expand, skip, limit, peek, generate infinite series, all match, any match,
@@ -166,6 +166,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
+* Complete union and result testing
+* Change module to just github.com/bantling/micro, no need to say micro/go
 * Update this README feature list
 * Create a code generator
 ** Low level fluent API knows Go switches, var blocks, imports, etc
