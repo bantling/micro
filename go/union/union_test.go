@@ -14,8 +14,6 @@ var (
 	anErr = fmt.Errorf("An error")
 )
 
-// ==== Constructors
-
 func Test2_(t *testing.T) {
   var e error
 
@@ -315,5 +313,36 @@ func Test4_(t *testing.T) {
       },
     )
     assert.Equal(t, fmt.Errorf("Member V is not available"), e)
+  }
+}
+
+func TestResult_(t *testing.T) {
+  // Result
+  {
+  	res := OfResult("a")
+    assert.True(t, res.HasResult())
+    assert.False(t, res.HasError())
+  	assert.Equal(t, "a", res.Get())
+    assert.Zero(t, res.Error())
+  }
+
+  // Error
+  {
+    e := fmt.Errorf("An Error")
+  	res := OfError[string](e)
+    assert.False(t, res.HasResult())
+    assert.True(t, res.HasError())
+  	assert.Zero(t, res.Get())
+    assert.Equal(t, e, res.Error())
+
+    funcs.TryTo(
+      func() {
+        OfError[string](nil)
+      },
+      func(r any) {
+        e = r.(error)
+      },
+    )
+    assert.Equal(t, fmt.Errorf("A Result cannot be set to a nil error"), e)
   }
 }
