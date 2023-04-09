@@ -228,24 +228,24 @@ func TestFromNumberString_(t *testing.T) {
 	assertNumber(t, "5.75", FromNumberString("5.75"))
 }
 
-func TestFromNumber_(t *testing.T) {
+func TestFromNumberType_(t *testing.T) {
 	// Number - int
-	assertNumber(t, "1", FromNumber(int(1)))
-	assertNumber(t, "2", FromNumber(int8(2)))
-	assertNumber(t, "3", FromNumber(int16(3)))
-	assertNumber(t, "4", FromNumber(int32(4)))
-	assertNumber(t, "5", FromNumber(int64(5)))
+	assertNumber(t, "1", FromNumberType(int(1)))
+	assertNumber(t, "2", FromNumberType(int8(2)))
+	assertNumber(t, "3", FromNumberType(int16(3)))
+	assertNumber(t, "4", FromNumberType(int32(4)))
+	assertNumber(t, "5", FromNumberType(int64(5)))
 
 	// Number - uint
-	assertNumber(t, "1", FromNumber(uint(1)))
-	assertNumber(t, "2", FromNumber(uint8(2)))
-	assertNumber(t, "3", FromNumber(uint16(3)))
-	assertNumber(t, "4", FromNumber(uint32(4)))
-	assertNumber(t, "5", FromNumber(uint64(5)))
+	assertNumber(t, "1", FromNumberType(uint(1)))
+	assertNumber(t, "2", FromNumberType(uint8(2)))
+	assertNumber(t, "3", FromNumberType(uint16(3)))
+	assertNumber(t, "4", FromNumberType(uint32(4)))
+	assertNumber(t, "5", FromNumberType(uint64(5)))
 
 	// Number - float
-	assertNumber(t, "1.25", FromNumber(float32(1.25)))
-	assertNumber(t, "2.5", FromNumber(float64(2.5)))
+	assertNumber(t, "1.25", FromNumberType(float32(1.25)))
+	assertNumber(t, "2.5", FromNumberType(float64(2.5)))
 
 	// Number - *big.Int, *big.Float, *big.Rat
 	var (
@@ -254,15 +254,15 @@ func TestFromNumber_(t *testing.T) {
 		br *big.Rat
 	)
 	conv.IntToBigInt(3, &bi)
-	assertNumber(t, "3", FromNumber(bi))
+	assertNumber(t, "3", FromNumberType(bi))
 	conv.FloatToBigFloat(3.75, &bf)
-	assertNumber(t, "3.75", FromNumber(bf))
+	assertNumber(t, "3.75", FromNumberType(bf))
 	conv.FloatToBigRat(4.25, &br)
-	assertNumber(t, "4.25", FromNumber(br))
+	assertNumber(t, "4.25", FromNumberType(br))
 
 	// Number - NumberString
-	// FromNumber accepts type any, so explicit conversion required
-	assertNumber(t, "5.75", FromNumber(NumberString("5.75")))
+	// FromNumberType accepts type any, so explicit conversion required
+	assertNumber(t, "5.75", FromNumberType(NumberString("5.75")))
 }
 
 func TestFromBool_(t *testing.T) {
@@ -309,7 +309,7 @@ func TestAsString_(t *testing.T) {
 	val := FromString("foo")
 	assert.Equal(t, val.value, val.AsString())
 
-	val = FromNumber(1)
+	val = FromNumberType(1)
 	assert.Equal(t, "1", val.AsString())
 
 	assert.Equal(t, "true", TrueValue.AsString())
@@ -326,7 +326,7 @@ func TestAsString_(t *testing.T) {
 }
 
 func TestAsBigRat_(t *testing.T) {
-	val := FromNumber(1)
+	val := FromNumberType(1)
 	assert.Equal(t, NumberString("1"), val.AsNumberString())
 
 	funcs.TryTo(
@@ -422,7 +422,7 @@ func TestIsDocument_(t *testing.T) {
 	assert.True(t, FromMap(map[string]any{}).IsDocument())
 	assert.True(t, FromSlice([]any{}).IsDocument())
 	assert.False(t, FromString("").IsDocument())
-	assert.False(t, FromNumber(0).IsDocument())
+	assert.False(t, FromNumberType(0).IsDocument())
 	assert.False(t, FromBool(true).IsDocument())
 	assert.False(t, NullValue.IsDocument())
 }

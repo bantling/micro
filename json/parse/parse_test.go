@@ -90,7 +90,7 @@ func TestParseArray_(t *testing.T) {
 	// Case 9
 	assert.Equal(t, union.OfError[[]json.Value](anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1,[`), anErr))))))
 	// Case 10 - ordinary success case
-	assert.Equal(t, union.OfResult([]json.Value{json.FromNumber(1)}), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1]`))))))
+	assert.Equal(t, union.OfResult([]json.Value{json.FromNumberType(1)}), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1]`))))))
 	// Case 11
 	assert.Equal(t, union.OfError[[]json.Value](errArrayRequiresCommaOrBracket), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1}`))))))
 }

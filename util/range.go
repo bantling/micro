@@ -70,7 +70,7 @@ func (r Range[T]) GetValue() T {
 
 // SetValue sets the value.
 //
-//	Returns an error if the value cannot be set because it is outside the defined bounds, otherwise returns nil
+// Returns an error if the value cannot be set because it is outside the defined bounds, otherwise returns nil
 func (r *Range[T]) SetValue(val T) error {
 	if (((r.minMode == Open) && (val > r.min)) || ((r.minMode == Closed) && (val >= r.min))) &&
 		(((r.maxMode == Open) && (val < r.max)) || ((r.maxMode == Closed) && (val <= r.max))) {

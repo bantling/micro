@@ -792,7 +792,7 @@ func Duplicate[T comparable](it iter.Iter[T]) iter.Iter[T] {
 	})(it)
 }
 
-// Reverse reverse all the elements.
+// Reverse reverses all the elements.
 // The input iter must have a finite size.
 func Reverse[T any](it iter.Iter[T]) iter.Iter[T] {
 	// Get values into a slice
@@ -810,7 +810,7 @@ func Reverse[T any](it iter.Iter[T]) iter.Iter[T] {
 	return iter.Of(slc...)
 }
 
-// SortOrdered sorts an Ordered type that is implicitly sortable.
+// SortOrdered sorts an Ordered type that is implicitly sortable using funcs.SliceSortOrdered.
 // The input iter must have a finite size.
 func SortOrdered[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
 	// Get values into a slice
@@ -828,7 +828,7 @@ func SortOrdered[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
 	return iter.Of(slc...)
 }
 
-// SortComplex sorts a Complex type using funcs.SortComplex.
+// SortComplex sorts a Complex type using funcs.SliceSortComplex.
 // The input iter must have a finite size.
 func SortComplex[T constraint.Complex](it iter.Iter[T]) iter.Iter[T] {
 	// Get values into a slice
@@ -846,7 +846,7 @@ func SortComplex[T constraint.Complex](it iter.Iter[T]) iter.Iter[T] {
 	return iter.Of(slc...)
 }
 
-// SortCmp sorts a Cmp type using funcs.SortCmp.
+// SortCmp sorts a Cmp type using funcs.SliceSortCmp.
 // The input iter must have a finite size.
 func SortCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
 	// Get values into a slice
@@ -864,7 +864,7 @@ func SortCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
 	return iter.Of(slc...)
 }
 
-// SortBy sorts any type using funcs.SortBy and the given comparator.
+// SortBy sorts any type using funcs.SliceSortBy and the given comparator.
 // The input iter must have a finite size.
 func SortBy[T any](less func(T, T) bool) func(iter.Iter[T]) iter.Iter[T] {
 	return func(it iter.Iter[T]) iter.Iter[T] {
@@ -886,7 +886,8 @@ func SortBy[T any](less func(T, T) bool) func(iter.Iter[T]) iter.Iter[T] {
 
 // ==== Math
 
-// Abs converts all elements into their absolute values
+// Abs converts all elements into their absolute values.
+// See MapError for error handling in cases where there is no corresponding value for a negative integer.
 func Abs[T constraint.SignedInteger](it iter.Iter[T]) iter.Iter[T] {
 	return MapError(func(v T) (T, error) {
 		if v < 0 {

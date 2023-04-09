@@ -132,7 +132,7 @@ func fromNumberInternal(n any) Value {
 // To make recursive algorithms whose base case returns calls to functions like FromMap and FromSlice easier and more
 // efficient to implement, the value can also already be a Value, which is used as is.
 //
-// Panics if any other kind of value is provided for a map key
+// Panics if any other kind of value is provided
 func FromValue(v any) Value {
 	var jval Value
 
@@ -167,7 +167,7 @@ func FromMap(m map[string]any) Value {
 	return Value{typ: Object, value: jv}
 }
 
-// FromMapOfValue converts a []Value into a Value
+// FromMapOfValue converts a map[string]Value into a Value
 func FromMapOfValue(m map[string]Value) Value {
 	return Value{typ: Object, value: m}
 }
@@ -214,7 +214,7 @@ func FromString(s string) Value {
 	return Value{typ: String, value: s}
 }
 
-// FromNumeric
+// FromNumeric converts any constraint.Numeric type to a Value
 func FromNumeric[T constraint.Numeric](n T) Value {
 	var s NumberString
 	conv.To(n, &s)
@@ -258,9 +258,8 @@ func FromNumberString(n NumberString) Value {
 	return Value{typ: Number, value: n}
 }
 
-// FromNumber converts an int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int,
-// *big.Float, *big.Rat, or NumberString into a Value
-func FromNumber[N NumberType](n N) Value {
+// FromNumberType converts any NumberType to a Value
+func FromNumberType[N NumberType](n N) Value {
 	return fromNumberInternal(n)
 }
 

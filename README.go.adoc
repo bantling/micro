@@ -5,6 +5,11 @@
 
 This file describes the Go port of micro.
 
+=== Source code location
+
+The Go code is stored at the top level project directory. This means the code is stored online at github.com/bantling/micro,
+which means import statements in go can import any package as `import github.com/bantling/micro/<package>`.
+
 === Packages
 
 * constraint
@@ -40,12 +45,11 @@ This file describes the Go port of micro.
 ** based on iterating funcs, a func of no args that returns (value, bool), where the value is only relevant if the bool
    is true
 ** A number of constructors are provided for hard-coded values, slices, maps, io.reader, concat multiple iters
-** Next and Unread methods
-** Provides streaming functionality (similar to that of Java 8 streams).
-    Most functions accept ands return an Iter, providing some kind of transform.
-*** funcs for first, map, filter, reduce, expand, skip, limit, peek, generate infinite series, all match, any match,
-   none match, count, distinct, duplicate, reverse, sort, and parallel
-*** control over how and when parallel execution occurs, default algorithm provided
+** Next method returns (T, error)
+** Unread method builds a buffer that is read in reverse order (eg Unread(1) followed by Unread(2) provides values 2, 1)
+** Maybe func accepts an Iter and returns a Result, which provides either a value or an error
+** SetError func accepts an iter and an error, and returns a new iter that returns the given error after exhausting the iter.
+   Mostly useful for unit tests.
 * json
 ** Value type that describes any kind of JSON value
 ** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
@@ -57,24 +61,40 @@ This file describes the Go port of micro.
 ** integer division that rounds quotient up when remainder >= half way point
 * reflect
 ** utilities to make reflection usage easier
+** DerefType derefs a Type until it is not a pointer
+** DerefTypeMaxOnePtr derefs a Type until it is zero or one pointers (eg, two or more pointers get derefd to one pointer)
 ** DerefValue derefs a Value until it is not a pointer. If any pointer is nil, an invalid Value is returned.
 ** DerefValueMaxOnePtr derefs a Value until it is zero or one pointers (eg, two or more pointers get derefd to one pointer)
    If any pointer except the last one is nil, an invalid Value is returned.
-** DerefType derefs a Type until it is not a pointer
-** DerefTypeMaxOnePtr derefs a Type until it is zero or one pointers (eg, two or more pointers get derefd to one pointer)
 ** FieldsByName collects the fields of a struct into a map
 ** IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
 ** IsNillable returns true if a Value or Type represents a type that can be assigned nil
 ** IsPrimitive returns true if a Value or Type represents a primitive value
 ** ResolveValueType resolves the type of a value so it is not interface{} (eg, an interface{} that is really an int resolves to int).
    If the value is already not interface{}, it is returned as is
-** ToBaseType converts zero or one pointers to a primitive subtypes to the underlying type (eg rune -> int32, or *rune to *int32)
+** ToBaseType converts zero or one pointers to a primitive subtype to the underlying type (eg rune -> int32, or *rune to *int32)
 ** ValueMaxOnePtrType returns the underlying type of zero or one pointers to a value.
    If the value given has multiple pointers, the value is not a valid parameter value, and the result is nil.
 * stream
+** Provides streaming functionality (similar to that of Java 8 streams).
+** Some functions take params and return a func of Iter[T] -> Iter[U]
+** Remaining functions are a func of Iter[T] -> Iter[U]
+** All functions are a transform
+** Funcs that result in zero or one elements return an Iter instead of a Result, to allow continued usage of other
+   funcs that accept and return iters.
+* tuple
+** Tuples of 2, 3, or 4 elements of one generic type or separate generic types
+* union
+** Unions of 2, 3 or 4 elements of separate generic types
+** Result is union of one generic type and an error
 * util
-** Provides ErrorReader to return a specified error after reading a specified set of bytes; useful for unit tests.
+** ErrorReader and ErrorWriter returns a specified error after reading or writing a specified set of bytes, mostly useful
+   for unit tests.
+** Range can hold a range of values between a minimum and maximum, where minimum and maximum values themselves may or
+   may not be allowed. Attempting to set the value outside the range returns an error and does not change the value.
 * writer
+** Reverse of Iter, writes values to a destination rather than reading.
+** Mostly concerned with writing to IO.
 
 === Dependency Graph
 
@@ -166,7 +186,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Update this README feature list
+* Update this README feature SliceSortBy
 * Create a code generator
 ** Low level fluent API knows Go switches, var blocks, imports, etc
 ** Eventually support other languages (Java first - already has map, list, etc, then C - provide list, map, etc)
