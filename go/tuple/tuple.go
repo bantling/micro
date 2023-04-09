@@ -36,10 +36,6 @@ func Of2Same[T any](t T, u T) Two[T, T] {
 	return Two[T, T]{t, u}
 }
 
-func Of2Error[T any](t T, err error) Two[T, error] {
-	return Two[T, error]{t, err}
-}
-
 func Of3[T, U, V any](t T, u U, v V) Three[T, U, V] {
 	return Three[T, U, V]{t, u, v}
 }
@@ -48,20 +44,12 @@ func Of3Same[T any](t T, u T, v T) Three[T, T, T] {
 	return Three[T, T, T]{t, u, v}
 }
 
-func Of3Error[T, U any](t T, u U, err error) Three[T, U, error] {
-	return Three[T, U, error]{t, u, err}
-}
-
 func Of4[T, U, V, W any](t T, u U, v V, w W) Four[T, U, V, W] {
 	return Four[T, U, V, W]{t, u, v, w}
 }
 
 func Of4Same[T any](t T, u T, v T, w T) Four[T, T, T, T] {
 	return Four[T, T, T, T]{t, u, v, w}
-}
-
-func Of4Error[T, U, V any](t T, u U, v V, err error) Four[T, U, V, error] {
-	return Four[T, U, V, error]{t, u, v, err}
 }
 
 // ==== Methods

@@ -23,10 +23,6 @@ func TestOf2Same_(t *testing.T) {
 	assert.Equal(t, Two[string, string]{"a", "b"}, Of2Same("a", "b"))
 }
 
-func TestOf2Error_(t *testing.T) {
-	assert.Equal(t, Two[string, error]{"a", anErr}, Of2Error("a", anErr))
-}
-
 func TestOf3_(t *testing.T) {
 	assert.Equal(t, Three[string, int, uint]{"a", 1, 2}, Of3("a", 1, uint(2)))
 }
@@ -35,20 +31,12 @@ func TestOf3Same_(t *testing.T) {
 	assert.Equal(t, Three[string, string, string]{"a", "b", "c"}, Of3Same("a", "b", "c"))
 }
 
-func TestOf3Error_(t *testing.T) {
-	assert.Equal(t, Three[string, int, error]{"a", 1, anErr}, Of3Error("a", 1, anErr))
-}
-
 func TestOf4_(t *testing.T) {
 	assert.Equal(t, Four[string, int, uint, string]{"a", 1, 2, "b"}, Of4("a", 1, uint(2), "b"))
 }
 
 func TestOf4Same_(t *testing.T) {
 	assert.Equal(t, Four[string, string, string, string]{"a", "b", "c", "d"}, Of4Same("a", "b", "c", "d"))
-}
-
-func TestOf4Error_(t *testing.T) {
-	assert.Equal(t, Four[string, int, uint, error]{"a", 1, 2, anErr}, Of4Error("a", 1, uint(2), anErr))
 }
 
 // ==== methods

@@ -345,4 +345,30 @@ func TestResult_(t *testing.T) {
     )
     assert.Equal(t, fmt.Errorf("A Result cannot be set to a nil error"), e)
   }
+
+  // ResultError
+  {
+    e := fmt.Errorf("An Error")
+    res := OfResultError(1, nil)
+    assert.True(t, res.HasResult())
+    assert.False(t, res.HasError())
+    assert.Equal(t, 1, res.Get())
+    assert.Zero(t, res.Error())
+
+    res = OfResultError(0, e)
+    assert.False(t, res.HasResult())
+    assert.True(t, res.HasError())
+    assert.Zero(t, res.Get())
+    assert.Equal(t, e, res.Error())
+
+    funcs.TryTo(
+      func() {
+        OfResultError(1, e)
+      },
+      func(r any) {
+        e = r.(error)
+      },
+    )
+    assert.Equal(t, fmt.Errorf("A Result cannot have both a non-zero R value and a non-nil error"), e)
+  }
 }

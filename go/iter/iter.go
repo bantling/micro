@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/go/union"
 )
 
 // ==== Constants
@@ -168,16 +169,16 @@ func (it *IterImpl[T]) Next() (T, error) {
 	return zv, it.lastErr
 }
 
-// Unread adds the given value to an internal buffer, to be returned by Next in reverse order
+// Unread adds the given value to an internal buffer, to be returned by Next in reverse order.
 func (it *IterImpl[T]) Unread(val T) {
 	it.buffer = append(it.buffer, val)
 }
 
 // ==== Operations on an Iter
 
-// Maybe converts the result of Next into a Tuple2[T, error] to represent the result as a single type.
-func Maybe[T any](it Iter[T]) tuple.Two[T, error] {
-	return tuple.Of2Error(it.Next())
+// Maybe converts the result of Next into a Result[T] to represent the result as a single type.
+func Maybe[T any](it Iter[T]) union.Result[T] {
+	return union.OfResultError(it.Next())
 }
 
 // SetError sets a particular error to occur instead of the first non-nil error the given iterator returns.

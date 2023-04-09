@@ -4,6 +4,7 @@ package union
 
 import (
 	"fmt"
+  "reflect"
 )
 
 // Errors
@@ -126,8 +127,21 @@ func OfError[R any](err error) Result[R] {
 	if err == nil {
 		panic(fmt.Errorf("A Result cannot be set to a nil error"))
 	}
-  
+
 	return Result[R]{e: err}
+}
+
+// OfResultError constructs a Result from a value of type R and an error
+// Panics if the error is non-nil and R is not the zero value
+func OfResultError[R any](r R, err error) Result[R] {
+  if err != nil {
+    // R is not comparable
+    if !reflect.ValueOf(r).IsZero() {
+      panic(fmt.Errorf("A Result cannot have both a non-zero R value and a non-nil error"))
+    }
+  }
+
+  return Result[R]{r: r, e: err}
 }
 
 // ==== Helpers
