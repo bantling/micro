@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/funcs"
 	"github.com/stretchr/testify/assert"
 )
 

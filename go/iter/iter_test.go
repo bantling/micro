@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/tuple"
-	"github.com/bantling/micro/go/union"
+	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/tuple"
+	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 

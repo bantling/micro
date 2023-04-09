@@ -3,8 +3,8 @@ package write
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"github.com/bantling/micro/go/json"
-	"github.com/bantling/micro/go/writer"
+	"github.com/bantling/micro/json"
+	"github.com/bantling/micro/writer"
 )
 
 // Write writes any value to a writer

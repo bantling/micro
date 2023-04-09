@@ -166,8 +166,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Replace all Of2Error in tuple with union.Result, eliminate Of3Error, etc.
-* Change module to just github.com/bantling/micro, no need to say micro/go
 * Update this README feature list
 * Create a code generator
 ** Low level fluent API knows Go switches, var blocks, imports, etc

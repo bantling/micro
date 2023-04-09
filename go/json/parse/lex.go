@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"unicode/utf16"
 
-	"github.com/bantling/micro/go/iter"
+	"github.com/bantling/micro/iter"
 )
 
 // tokenType is an enum of lexical token types

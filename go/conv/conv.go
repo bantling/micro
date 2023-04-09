@@ -9,9 +9,9 @@ import (
 	goreflect "reflect"
 	"strconv"
 
-	"github.com/bantling/micro/go/constraint"
-	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/reflect"
+	"github.com/bantling/micro/constraint"
+	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/reflect"
 )
 
 var (

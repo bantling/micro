@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bantling/micro/go/iter"
-	"github.com/bantling/micro/go/json"
-	"github.com/bantling/micro/go/stream"
-	"github.com/bantling/micro/go/union"
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/iter"
+	"github.com/bantling/micro/json"
+	"github.com/bantling/micro/stream"
+	"github.com/bantling/micro/union"
+	"github.com/bantling/micro/util"
 	"github.com/stretchr/testify/assert"
 )
 

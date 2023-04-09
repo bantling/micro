@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/tuple"
 )
 
 // ==== constants

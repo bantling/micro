@@ -9,8 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/tuple"
 )
 
 // ==== Constants

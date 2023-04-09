@@ -5,9 +5,9 @@ package util
 import (
 	"fmt"
 
-	"github.com/bantling/micro/go/constraint"
-	"github.com/bantling/micro/go/conv"
-	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/constraint"
+	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/funcs"
 )
 
 // RangeMode indicates if a minimum or maximum value in a range is open or closed

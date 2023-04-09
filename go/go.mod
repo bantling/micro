@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-module github.com/bantling/micro/go
+module github.com/bantling/micro
 
 go 1.18
 

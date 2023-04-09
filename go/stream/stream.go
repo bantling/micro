@@ -9,12 +9,12 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/bantling/micro/go/constraint"
-	"github.com/bantling/micro/go/conv"
-	"github.com/bantling/micro/go/funcs"
-	"github.com/bantling/micro/go/iter"
-	"github.com/bantling/micro/go/math"
-	"github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/constraint"
+	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/iter"
+	"github.com/bantling/micro/math"
+	"github.com/bantling/micro/tuple"
 )
 
 // PUnit indicates how to interpret a parallel quantity

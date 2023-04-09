@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/bantling/micro/go/constraint"
-	"github.com/bantling/micro/go/conv"
+	"github.com/bantling/micro/constraint"
+	"github.com/bantling/micro/conv"
 )
 
 // Constants

@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/bantling/micro/go/constraint"
-	"github.com/bantling/micro/go/tuple"
+	"github.com/bantling/micro/constraint"
+	"github.com/bantling/micro/tuple"
 )
 
 const (

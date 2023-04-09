@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bantling/micro/go/conv"
-	"github.com/bantling/micro/go/json"
-	"github.com/bantling/micro/go/util"
-	"github.com/bantling/micro/go/writer"
+	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/json"
+	"github.com/bantling/micro/util"
+	"github.com/bantling/micro/writer"
 	"github.com/stretchr/testify/assert"
 )
 

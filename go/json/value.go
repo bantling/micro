@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/bantling/micro/go/constraint"
-	"github.com/bantling/micro/go/conv"
-	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/constraint"
+	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/funcs"
 )
 
 // Error constants

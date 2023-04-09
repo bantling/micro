@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bantling/micro/go/iter"
-	"github.com/bantling/micro/go/union"
+	"github.com/bantling/micro/iter"
+	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 

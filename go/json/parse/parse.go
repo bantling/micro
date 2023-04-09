@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bantling/micro/go/iter"
-	"github.com/bantling/micro/go/json"
-	"github.com/bantling/micro/go/stream"
+	"github.com/bantling/micro/iter"
+	"github.com/bantling/micro/json"
+	"github.com/bantling/micro/stream"
 )
 
 // Error constants

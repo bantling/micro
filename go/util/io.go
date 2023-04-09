@@ -3,7 +3,7 @@ package util
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"github.com/bantling/micro/go/funcs"
+	"github.com/bantling/micro/funcs"
 )
 
 // ErrorReader is an io.Reader that returns a non-eof error after some input bytes have been read.

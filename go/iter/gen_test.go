@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bantling/micro/go/tuple"
-	"github.com/bantling/micro/go/util"
+	"github.com/bantling/micro/tuple"
+	"github.com/bantling/micro/util"
 	"github.com/stretchr/testify/assert"
 )
 
