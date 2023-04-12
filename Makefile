@@ -160,9 +160,9 @@ depgraph: have-dot
 	} > .depgraph.dot
 	dot -Tsvg .depgraph.dot > depgraph.svg
 	# Only iter and above
-	grep -Ev 'funcs|util|conv|reflect|constraint' .depgraph.dot | dot -Tsvg > depgraph.above.svg
+	grep -Ev 'constraint|conv|funcs|reflect|tuple|union|util' .depgraph.dot | dot -Tsvg > depgraph.above.svg
 	# Only iter and below
-	grep -Ev 'json|stream|writer|math' .depgraph.dot | dot -Tsvg > depgraph.below.svg
+	grep -Ev 'bcd|json|math|stream|writer' .depgraph.dot | dot -Tsvg > depgraph.below.svg
 
 .PHONY: have-asciidoc
 have-asciidoc:
@@ -170,7 +170,9 @@ have-asciidoc:
 
 .readme.html: README.adoc | have-asciidoc
 	asciidoc -b html -o $@ $<
-	sed -i '' -r 's,(href="[^"]*"),\1 target="_blank",' $@
+
+.readme.go.html: README.go.adoc | have-asciidoc
+	asciidoc -b html -o $@ $<
 
 # Display all vars (host, docker, podman)
 .PHONY: vars

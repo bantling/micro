@@ -15,7 +15,7 @@ which means import statements in go can import any package as `import github.com
 * constraint
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
 * conv
-** converts between numeric types, panicking if any loss of precision would occur
+** converts between numeric types, returning an error if any loss of precision would occur
 * funcs
 ** slices:
 *** flatten multiple dimensions into one
@@ -37,18 +37,18 @@ which means import statements in go can import any package as `import github.com
 ** error handling
 ** supplier generators
 ** generate a func that ignores result of another func
-** TryTo is a replacement for hard to write idiomatic go code that acts like a Java try/catch/finally block:
+** TryTo is a replacement for awkward idiomatic go code that acts like a Java try/catch/finally block:
    Accepts a func for a try block, a func for a catch block (only invoked if try block panics), and any number of
    closer funcs that close resources regardless of whether the try func panics.
 * iter
 ** defines Iter type that can iterate anything
 ** based on iterating funcs, a func of no args that returns (value, bool), where the value is only relevant if the bool
    is true
-** A number of constructors are provided for hard-coded values, slices, maps, io.reader, concat multiple iters
+** A number of constructors are provided for hard-coded values, slices, maps, io.Reader, concat multiple iters
 ** Next method returns (T, error)
 ** Unread method builds a buffer that is read in reverse order (eg Unread(1) followed by Unread(2) provides values 2, 1)
 ** Maybe func accepts an Iter and returns a Result, which provides either a value or an error
-** SetError func accepts an iter and an error, and returns a new iter that returns the given error after exhausting the iter.
+** SetError func accepts an Iter and an error, and returns a new Iter that returns the given error after exhausting the Iter.
    Mostly useful for unit tests.
 * json
 ** Value type that describes any kind of JSON value
@@ -70,11 +70,11 @@ which means import statements in go can import any package as `import github.com
 ** IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
 ** IsNillable returns true if a Value or Type represents a type that can be assigned nil
 ** IsPrimitive returns true if a Value or Type represents a primitive value
-** ResolveValueType resolves the type of a value so it is not interface{} (eg, an interface{} that is really an int resolves to int).
-   If the value is already not interface{}, it is returned as is
+** ResolveValueType resolves the type of a Value so it is not interface{} (eg, an interface{} that is really an int resolves to int).
+   If the Value is already not interface{}, it is returned as is.
 ** ToBaseType converts zero or one pointers to a primitive subtype to the underlying type (eg rune -> int32, or *rune to *int32)
-** ValueMaxOnePtrType returns the underlying type of zero or one pointers to a value.
-   If the value given has multiple pointers, the value is not a valid parameter value, and the result is nil.
+** ValueMaxOnePtrType returns the underlying Type of zero or one pointers to a Value.
+   If the Value given has multiple pointers, the Value is not a valid parameter value, and the result is nil.
 * stream
 ** Provides streaming functionality (similar to that of Java 8 streams).
 ** Some functions take params and return a func of Iter[T] -> Iter[U]
@@ -156,23 +156,35 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 |
 
 |format
-|runs `gofmt` in every go package dir to format source code
+|runs `gofmt -s -w` in every go package dir to format source code
 |
 
 |test
-|runs `go test` in every go package dir to format source code
+|runs `go test ./...` in every go package dir to test source code
 |`-count=num` to run tests N times, `pkg=./package_name` to test only one package, `run=test_name` to run matching tests
 
 |coverage
-| Display code coverage in default browser
+|runs `go tool cover` to display code coverage in default browser
+|
+
+|have-dot
+|Check if graphViz `dot` program is installed, fail with an error message if not
 |
 
 |depgraph
-| Creates the three dependency graph files described above
+|Creates the three dependency graph files described above using graphViz dot program
+|
+
+|have-asciidoc
+|Check if `asciidoc` program is installed, fail with an error message if not
 |
 
 |.readme.html
-| Generates an HTML version of this README, output should be the same as GitHub or GitLab
+| Generates an HTML version of top level README.adoc using asciidoc, output should be the same as GitHub or GitLab
+|
+
+|.readme.go.html
+| Generates an HTML version of this README using asciidoc, output should be the same as GitHub or GitLab
 |
 
 |vars
@@ -186,10 +198,10 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Update this README feature SliceSortBy
+* Arbitrary precision type using BCD
 * Create a code generator
 ** Low level fluent API knows Go switches, var blocks, imports, etc
-** Eventually support other languages (Java first - already has map, list, etc, then C - provide list, map, etc)
+** Eventually support other languages (start with Java)
 ** Mid level fluent API is more general, not specific to language
 ** High level API translates an input file into mid level api calls for specific purposes (eg, generate REST HTTP handling)
 ** Define data types
@@ -201,7 +213,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 * Rewrite UTF-8 streaming decoder using code generator
 * Rewrite JSON streaming lexer/parser using code generator - provide line number, character number, and path in error messages
 ** JSONValue look up a string path of key names and indexes in objects and arrays, as in "addresses[0].city"
-* Provide BCD arbitrary precision using code generator - look at Java BigDecimal for various operations
 * Update this README feature list
 * Create an rc style event handling system using code generator
 ** Event types may be defined to come before and/or after other event types

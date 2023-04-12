@@ -1115,7 +1115,7 @@ func NumBits[T constraint.Signed | constraint.UnsignedInteger](val T) int {
 }
 
 // IntToInt converts any signed integer type into any signed integer type
-// Panics if the source value cannot be represented by the target type
+// Returns an error if the source value cannot be represented by the target type
 func IntToInt[S constraint.SignedInteger, T constraint.SignedInteger](ival S, oval *T) error {
 	var (
 		srcSize = NumBits(ival)
@@ -1131,7 +1131,7 @@ func IntToInt[S constraint.SignedInteger, T constraint.SignedInteger](ival S, ov
 }
 
 // IntToUint converts any signed integer type into any unsigned integer type
-// Panics if the signed int cannot be represented by the unsigned type
+// Returns an error if the signed int cannot be represented by the unsigned type
 func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I, oval *U) error {
 	var (
 		intSize  = NumBits(ival)
@@ -1147,7 +1147,7 @@ func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I,
 }
 
 // UintToInt converts any unsigned integer type into any signed integer type
-// Panics if the unsigned int cannot be represented by the signed type
+// Returns an error if the unsigned int cannot be represented by the signed type
 func UintToInt[U constraint.UnsignedInteger, I constraint.SignedInteger](ival U, oval *I) error {
 	var (
 		uintSize = NumBits(ival)
@@ -1163,7 +1163,7 @@ func UintToInt[U constraint.UnsignedInteger, I constraint.SignedInteger](ival U,
 }
 
 // UintToUint converts any unsigned integer type into any unsigned integer type
-// Panics if the source value cannot be represented by the target type
+// Returns an error if the source value cannot be represented by the target type
 func UintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](ival S, oval *T) error {
 	var (
 		srcSize = NumBits(ival)
@@ -1179,7 +1179,7 @@ func UintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](ival
 }
 
 // IntToFloat converts any kind of signed or unssigned integer into any kind of float.
-// Panics if the int value cannot be exactly represented without rounding.
+// Returns an error if the int value cannot be exactly represented without rounding.
 func IntToFloat[I constraint.Integer, F constraint.Float](ival I, oval *F) error {
 	// Convert int to float type, which may round if int has more bits than float type mantissa
 	inter := F(ival)
@@ -1194,7 +1194,7 @@ func IntToFloat[I constraint.Integer, F constraint.Float](ival I, oval *F) error
 }
 
 // FloatToInt converts and float type to any signed int type
-// Panics if the float value cannot be represented by the int type
+// Returns an error if the float value cannot be represented by the int type
 func FloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I) error {
 	var (
 		inter1 *big.Rat
@@ -1209,7 +1209,7 @@ func FloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I)
 }
 
 // FloatToUint converts and float type to any unsigned int type
-// Panics if the float value cannot be represented by the unsigned int type
+// Returns an error if the float value cannot be represented by the unsigned int type
 func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval *I) error {
 	var (
 		inter1 *big.Rat
@@ -1224,7 +1224,7 @@ func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval 
 }
 
 // FloatToFloat converts a float32 or float64 to a float32 or float64
-// Panics if the float64 is outside the range of a float32
+// Returns an error if the float64 is outside the range of a float32
 func FloatToFloat[I constraint.Float, O constraint.Float](ival I, oval *O) error {
 	ival64 := float64(ival)
 	if math.IsInf(ival64, 0) || math.IsNaN(ival64) {
@@ -1243,7 +1243,7 @@ func FloatToFloat[I constraint.Float, O constraint.Float](ival I, oval *O) error
 // ==== ToInt64
 
 // BigIntToInt converts a *big.Int to a signed integer
-// Panics if the *big.Int cannot be represented as an int64
+// Returns an error if the *big.Int cannot be represented as an int64
 func BigIntToInt64(ival *big.Int, oval *int64) error {
 	if !ival.IsInt64() {
 		return fmt.Errorf(errMsg, ival, ival.String(), "int64")
@@ -1254,7 +1254,7 @@ func BigIntToInt64(ival *big.Int, oval *int64) error {
 }
 
 // BigFloatToInt64 converts a *big.Float to an int64
-// Panics if the *big.Float cannot be represented as an int64
+// Returns an error if the *big.Float cannot be represented as an int64
 func BigFloatToInt64(ival *big.Float, oval *int64) error {
 	inter := big.NewInt(0)
 	if (BigFloatToBigInt(ival, &inter) != nil) || (BigIntToInt64(inter, oval) != nil) {
@@ -1265,7 +1265,7 @@ func BigFloatToInt64(ival *big.Float, oval *int64) error {
 }
 
 // BigRatToInt64 converts a *big.Rat to an int64
-// Panics if the *big.Rat cannot be represented as an int64
+// Returns an error if the *big.Rat cannot be represented as an int64
 func BigRatToInt64(ival *big.Rat, oval *int64) error {
 	if (!ival.IsInt()) || (!ival.Num().IsInt64()) {
 		return fmt.Errorf(errMsg, ival, ival.String(), "int64")
@@ -1276,7 +1276,7 @@ func BigRatToInt64(ival *big.Rat, oval *int64) error {
 }
 
 // StringToInt64 converts a string to an int64
-// Panics if the string cannot be represented as an int64
+// Returns an error if the string cannot be represented as an int64
 func StringToInt64(ival string, oval *int64) error {
 	var err error
 	*oval, err = strconv.ParseInt(ival, 10, 64)
@@ -1290,7 +1290,7 @@ func StringToInt64(ival string, oval *int64) error {
 // ==== ToUint64
 
 // BigIntToUint64 converts a *big.Int to a uint64
-// Panics if the *big.Int cannot be represented as a uint64
+// Returns an error if the *big.Int cannot be represented as a uint64
 func BigIntToUint64(ival *big.Int, oval *uint64) error {
 	if !ival.IsUint64() {
 		return fmt.Errorf(errMsg, ival, ival.String(), "uint64")
@@ -1301,7 +1301,7 @@ func BigIntToUint64(ival *big.Int, oval *uint64) error {
 }
 
 // BigFloatToUint64 converts a *big.Float to a uint64
-// Panics if the *big.Float cannot be represented as a uint64
+// Returns an error if the *big.Float cannot be represented as a uint64
 func BigFloatToUint64(ival *big.Float, oval *uint64) error {
 	var inter *big.Int
 	if (BigFloatToBigInt(ival, &inter) != nil) || (BigIntToUint64(inter, oval) != nil) {
@@ -1312,7 +1312,7 @@ func BigFloatToUint64(ival *big.Float, oval *uint64) error {
 }
 
 // BigRatToUint64 converts a *big.Rat to a uint64
-// Panics if the *big.Rat cannot be represented as a uint64
+// Returns an error if the *big.Rat cannot be represented as a uint64
 func BigRatToUint64(ival *big.Rat, oval *uint64) error {
 	if (!ival.IsInt()) || (!ival.Num().IsUint64()) {
 		return fmt.Errorf(errMsg, ival, ival.String(), "uint64")
@@ -1323,7 +1323,7 @@ func BigRatToUint64(ival *big.Rat, oval *uint64) error {
 }
 
 // StringToUint64 converts a string to a uint64
-// Panics if the string cannot be represented as a uint64
+// Returns an error if the string cannot be represented as a uint64
 func StringToUint64(ival string, oval *uint64) error {
 	var err error
 	if *oval, err = strconv.ParseUint(ival, 10, 64); err != nil {
@@ -1336,7 +1336,7 @@ func StringToUint64(ival string, oval *uint64) error {
 // ==== ToFloat32
 
 // BigIntToFloat32 converts a *big.Int to a float32
-// Panics if the *big.Int cannot be represented as a float32
+// Returns an error if the *big.Int cannot be represented as a float32
 func BigIntToFloat32(ival *big.Int, oval *float32) error {
 	var (
 		inter *big.Float
@@ -1351,7 +1351,7 @@ func BigIntToFloat32(ival *big.Int, oval *float32) error {
 }
 
 // BigFloatToFloat32 converts a *big.Float to a float32
-// Panics if the *big.Float cannot be represented as a float32
+// Returns an error if the *big.Float cannot be represented as a float32
 func BigFloatToFloat32(ival *big.Float, oval *float32) error {
 	var acc big.Accuracy
 	if *oval, acc = ival.Float32(); acc != big.Exact {
@@ -1362,7 +1362,7 @@ func BigFloatToFloat32(ival *big.Float, oval *float32) error {
 }
 
 // BigRatToFloat32 converts a *big.Rat to a float32
-// Panics if the *big.Rat cannot be represented as a float32
+// Returns an error if the *big.Rat cannot be represented as a float32
 func BigRatToFloat32(ival *big.Rat, oval *float32) error {
 	var exact bool
 	if *oval, exact = ival.Float32(); !exact {
@@ -1373,7 +1373,7 @@ func BigRatToFloat32(ival *big.Rat, oval *float32) error {
 }
 
 // StringToFloat32 converts a string to a float32
-// Panics if the string cannot be represented as a float32
+// Returns an error if the string cannot be represented as a float32
 func StringToFloat32(ival string, oval *float32) error {
 	var inter *big.Float
 
@@ -1392,7 +1392,7 @@ func StringToFloat32(ival string, oval *float32) error {
 // ==== ToFloat64
 
 // BigIntToFloat64 converts a *big.Int to a float64
-// Panics if the *big.Int cannot be represented as a float64
+// Returns an error if the *big.Int cannot be represented as a float64
 func BigIntToFloat64(ival *big.Int, oval *float64) error {
 	var (
 		inter *big.Float
@@ -1408,7 +1408,7 @@ func BigIntToFloat64(ival *big.Int, oval *float64) error {
 }
 
 // BigFloatToFloat64 converts a *big.Float to a float64
-// Panics if the *big.Float cannot be represented as a float64
+// Returns an error if the *big.Float cannot be represented as a float64
 func BigFloatToFloat64(ival *big.Float, oval *float64) error {
 	var acc big.Accuracy
 	if *oval, acc = ival.Float64(); acc != big.Exact {
@@ -1419,7 +1419,7 @@ func BigFloatToFloat64(ival *big.Float, oval *float64) error {
 }
 
 // BigRatToFloat64 converts a *big.Rat to a float64
-// Panics if the *big.Rat cannot be represented as a float64
+// Returns an error if the *big.Rat cannot be represented as a float64
 func BigRatToFloat64(ival *big.Rat, oval *float64) error {
 	var exact bool
 	if *oval, exact = ival.Float64(); !exact {
@@ -1430,7 +1430,7 @@ func BigRatToFloat64(ival *big.Rat, oval *float64) error {
 }
 
 // StringToFloat64 converts a string to a float64
-// Panics if the string cannot be represented as a float64
+// Returns an error if the string cannot be represented as a float64
 func StringToFloat64(ival string, oval *float64) error {
 	var inter *big.Float
 
@@ -1460,7 +1460,7 @@ func UintToBigInt[T constraint.UnsignedInteger](ival T, oval **big.Int) {
 }
 
 // FloatToBigInt converts any float type to a *big.Int
-// Panics if the float has fractional digits
+// Returns an error if the float has fractional digits
 func FloatToBigInt[T constraint.Float](ival T, oval **big.Int) error {
 	if math.IsInf(float64(ival), 0) || math.IsNaN(float64(ival)) {
 		return fmt.Errorf(errMsg, ival, fmt.Sprintf("%g", ival), "*big.Int")
@@ -1477,7 +1477,7 @@ func FloatToBigInt[T constraint.Float](ival T, oval **big.Int) error {
 }
 
 // BigFloatToBigInt converts a *big.Float to a *big.Int.
-// Panics if the *big.Float has any fractional digits.
+// Returns an error if the *big.Float has any fractional digits.
 func BigFloatToBigInt(ival *big.Float, oval **big.Int) error {
 	inter, acc := ival.Rat(nil)
 	if (inter == nil) || (!inter.IsInt()) || (acc != big.Exact) {
@@ -1489,7 +1489,7 @@ func BigFloatToBigInt(ival *big.Float, oval **big.Int) error {
 }
 
 // BigRatToBigInt converts a *big.Rat to a *big.Int
-// Panics if the *big.Rat is not an int
+// Returns an error if the *big.Rat is not an int
 func BigRatToBigInt(ival *big.Rat, oval **big.Int) error {
 	if !ival.IsInt() {
 		return fmt.Errorf(errMsg, ival, ival.String(), "*big.Int")
@@ -1500,7 +1500,7 @@ func BigRatToBigInt(ival *big.Rat, oval **big.Int) error {
 }
 
 // String toBigInt converts a string to a *big.Int.
-// Panics if the string is not an integer.
+// Returns an error if the string is not an integer.
 func StringToBigInt(ival string, oval **big.Int) error {
 	*oval = big.NewInt(0)
 	if _, ok := (*oval).SetString(ival, 10); !ok {
@@ -1551,7 +1551,7 @@ func BigRatToBigFloat(ival *big.Rat, oval **big.Float) {
 }
 
 // StringToBigFloat converts a string to a *big.Float
-// Panics if the string is not a valid float string
+// Returns an error if the string is not a valid float string
 func StringToBigFloat(ival string, oval **big.Float) error {
 	// A *big.Float is imprecise, but you can set the precision
 	// The crude measure we use is the largest of 53 (number of bits in a float64) and ceiling(string length * Log2(10))
