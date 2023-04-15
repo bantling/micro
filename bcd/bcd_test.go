@@ -53,30 +53,50 @@ func TestSignAdjust_(t *testing.T) {
   assert.Equal(t, Positive, s)
 }
 
-func TestOf_(t *testing.T) {
-  // == Valid strings
-
+func TestOfHex_(t *testing.T) {
   // -1
-  assert.Equal(t, union.OfResult(Fixed{Negative, 0x1, 0}), union.OfResultError(Of("-1")))
+  assert.Equal(t, union.OfResult(Number{Negative, 0x1, 0}), union.OfResultError(OfHex(Negative, 0x1, 0)))
 
   // 0
-  assert.Equal(t, union.OfResult(Fixed{Zero, 0x0, 0}), union.OfResultError(Of("0")))
+  assert.Equal(t, union.OfResult(Number{Zero, 0x0, 0}), union.OfResultError(OfHex(Negative, 0x0, 0)))
 
   // 1
-  assert.Equal(t, union.OfResult(Fixed{Positive, 0x1, 0}), union.OfResultError(Of("1")))
-
-  // 123
-  assert.Equal(t, union.OfResult(Fixed{Positive, 0x123, 0}), union.OfResultError(Of("123")))
+  assert.Equal(t, union.OfResult(Number{Positive, 0x1, 0}), union.OfResultError(OfHex(Positive, 0x1, 0)))
 
   // 0.456
-  assert.Equal(t, union.OfResult(Fixed{Positive, 0x456, 3}), union.OfResultError(Of("0.456")))
+  assert.Equal(t, union.OfResult(Number{Positive, 0x456, 3}), union.OfResultError(OfHex(Positive, 0x456, 3)))
 
   // 123.456
-  assert.Equal(t, union.OfResult(Fixed{Positive, 0x123456, 3}), union.OfResultError(Of("123.456")))
+  assert.Equal(t, union.OfResult(Number{Positive, 0x123456, 3}), union.OfResultError(OfHex(Positive, 0x123_456, 3)))
 
-  // == Invalid strings
+  // Invalid number of decimals
+  assert.Equal(t, union.OfError[Number](fmt.Errorf(fixedNumberDecimalsErrMsg, 17)), union.OfResultError(OfHex(Positive, 0x1, 17)))
 
+  // Invalid digit
+  assert.Equal(t, union.OfError[Number](fmt.Errorf(fixedNumberDigitsErrMsg, 0x1A)), union.OfResultError(OfHex(Positive, 0x1A)))
+}
+
+func TestOfString_(t *testing.T) {
+  // -1
+  assert.Equal(t, union.OfResult(Number{Negative, 0x1, 0}), union.OfResultError(OfString("-1")))
+
+  // 0
+  assert.Equal(t, union.OfResult(Number{Zero, 0x0, 0}), union.OfResultError(OfString("0")))
+
+  // 1
+  assert.Equal(t, union.OfResult(Number{Positive, 0x1, 0}), union.OfResultError(OfString("1")))
+
+  // 123
+  assert.Equal(t, union.OfResult(Number{Positive, 0x123, 0}), union.OfResultError(OfString("123")))
+
+  // 0.456
+  assert.Equal(t, union.OfResult(Number{Positive, 0x456, 3}), union.OfResultError(OfString("0.456")))
+
+  // 123.456
+  assert.Equal(t, union.OfResult(Number{Positive, 0x123456, 3}), union.OfResultError(OfString("123.456")))
+
+  // Invalid strings
   for _, s := range []string{"", ".", ".1", "a", "++1", "--1"} {
-    assert.Equal(t, union.OfError[Fixed](fmt.Errorf(fixedErrMsg, s)), union.OfResultError(Of(s)))
+    assert.Equal(t, union.OfError[Number](fmt.Errorf(fixedStringErrMsg, s)), union.OfResultError(OfString(s)))
   }
 }
