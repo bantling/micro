@@ -154,7 +154,7 @@ func OfString(str string) (Number, error) {
 
 // == Operations
 
-// SetDecimals sets the number of decimals for the given Number.
+// ConvertDecimals converts the number to have the specified number of decimals.
 // New decimals < old decimals: a rounding is performed, such that 0-4 are rounded down, 5-9 are rounded up
 // New decimals = old decimals: no operation
 // New decimals > old decimals: trailing zeros are added by shifting left 4 bits per extra decimal digit required, causing
@@ -178,7 +178,7 @@ func OfString(str string) (Number, error) {
 //   The rounding ripples across all the 9s, ending with 1_000_000_000_000_000.
 //
 // - 01.285 is expanded to 4 decimals. Sequence is 01.285 (shift left and add zero) => 1.2850.
-func (s *Number) SetDecimals(decimals uint) error {
+func (s *Number) ConvertDecimals(decimals uint) error {
   // There can't be more than 16 digits
   if len(decimals) > 16 {
     return fmt.Errorf(numberDecimalsErrMsg, decimals)
@@ -190,16 +190,52 @@ func (s *Number) SetDecimals(decimals uint) error {
   switch {
   case (decimals < s.decimals): {
     var (
-      digit uint8
-      shift = true // start by shift and round
-      mask uint64 = 0xF
-      maskShift = 0
+      digit uint8 // a single digit to round
+      mask uint64 = 0xF // initial mask to grab digit is last four bits
+      maskShift = 0 // how many bits to shift grabbed digit to line it up on far right, so the value is 0 - 9
+      allBits uint64 = 0xFF_FF_FF_FF_FF_FF_FF_FF // all 64 bits set
+      bool roundNext // true if this digit rounded from 9 to 0, so that next digit has to be rounded
     )
 
-    // Round 0-4 down, 5-9 up, from right to left, initially removing digits.
-    // If the new last digit is rounded from 9 to 0, then continue rounding in place until a non-9 digit is rounded.
-    for remove := s.decimals {
-      digit = uint8(s.decimals & mask)
+    // Round 0-4 down, 5-9 up, from right to left, rounding and removing all digits we no longer want
+    for i := s.decimals; i > decimals; i--  {
+      // Get digit
+      digit = uint8(s.digits & mask)
+
+      // If last digit rounded to a value >= 5, then this digit must be rounded, regardless of value.
+      if roundNext {
+        digit += 1
+      }
+
+      // Round next digit if this digit >= 5
+      roundNext = digit >= 5
+
+      // Remove this digit by shifting all digits right once place (4 bits), introducing a 0 in leading position
+      s.decimals >>= 4
+    }
+
+    // If the last removed digit was >= 5:
+    // - Always have to round lowest digit regardless of value
+    // - Continue rounding remaining digits until a rounded digit is < 9
+    // - Modify digits instead of removing them
+    for roundNext {
+      // Get digit, and shift it to the far right place to examine the value
+      digit = uint8((s.digits & mask) >> maskShift)
+
+      // Round this digit, 9 becomes 0
+      if digit++; digit == 10 {
+        digit = 0
+      }
+
+      // Replace the digit with the rounded value, whether or not any further rounding occurs
+      s.digit = (s.digits & (allBits ^ mask)) | (digit << maskShift)
+
+      // Continue rounding if this digit wrapped around to 0
+      if roundNext = digit == 0; roundNext {
+        // Prepare mask and shift for next digit
+        mask <<= 4
+        maskShift += 4
+      }
     }
   }
 
