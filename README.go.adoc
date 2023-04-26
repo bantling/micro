@@ -199,6 +199,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 === TODO
 
 * Arbitrary precision type using BCD
+* Remove any must funcs outside of funcs package - callers shd use funcs.Must/MustValue{,2,3}
 * Create a code generator
 ** Low level fluent API knows Go switches, var blocks, imports, etc
 ** Eventually support other languages (start with Java)
