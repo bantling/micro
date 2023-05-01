@@ -199,12 +199,10 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 === TODO
 
 * Arbitrary precision type using BCD
-* Remove any must funcs outside of funcs package - callers shd use funcs.Must/MustValue{,2,3}
+* Add must funcs where needed that call funcs.Must/MustValue{,2,3}
 * Create a code generator
-** Low level fluent API knows Go switches, var blocks, imports, etc
-** Eventually support other languages (start with Java)
-** Mid level fluent API is more general, not specific to language
-** High level API translates an input file into mid level api calls for specific purposes (eg, generate REST HTTP handling)
+** Just use plain old Go text template
+** For specific purposes, like HTTP handlers and SQL DTO/DAO structs
 ** Define data types
 *** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
 *** Self-referencing types (eg animal contains animal)

@@ -41,6 +41,18 @@ func (s Sign) String() string {
 	return funcs.Ternary(s == Negative, negStr, zeroPosStr)
 }
 
+// Negate returns opposite sign (Negative -> Positive, Zero -> Zero, Positive -> Negative)
+func (s Sign) Negate() Sign {
+	switch s {
+	case Negative:
+		return Positive
+	case Positive:
+		return Negative
+	}
+
+	return Zero
+}
+
 // ==== Number type
 
 var (
@@ -53,7 +65,7 @@ const (
 	numberDecimalsErrMsg = "Invalid number of decimals %d: the valid range is [0 .. 16]"
 
 	// numberDigitsErrMsg is an invalid number input
-	numberDigitsErrMsg = `Invalid Number "%x": the value must contain only decimal digits for each hex group`
+	numberDigitsErrMsg = `Invalid Number "0x%X": the value must contain only decimal digits for each hex group`
 
 	// numberStringErrMsg is an invalid number string input
 	numberStringErrMsg = "Invalid Number string %q: the value must be an optional sign, at least 1 digit, an optional dot and at least one digit, with no more than 16 digits in total"
@@ -64,17 +76,20 @@ const (
 	// numberAddDecimalsErr is an attempt to increase the number of decimals where leading significant digits would be lost
 	numberAddDecimalsMsg = "Cannot convert %s to %d decimal(s), as significant leading digits would be lost"
 
-  // numberAddOverflowMsg is an attempt to add two non-negative numbers that requires a 17th digit
-  numberAddOverflowMsg = "Overflow adding %s to %s"
+	// numberAddOverflowMsg is an attempt to add two non-negative numbers that requires a 17th digit
+	numberAddOverflowMsg = "Overflow adding %s to %s"
 
-  // numberAddUnderflowMsg is an attempt to add two negative numbers that requires a 17th digit
-  numberAddUnderflowMsg = "Underflow adding %s to %s"
+	// numberAddUnderflowMsg is an attempt to add two negative numbers that requires a 17th digit
+	numberAddUnderflowMsg = "Underflow adding %s to %s"
+
+	// numberSubUnderflowMsg is an attempt to subtract a positive from a negatrive that requires a 17th digit
+	numberSubUnderflowMsg = "Underflow subtracting %s from %s"
 
 	// highestDigitMask is the bit mask to read the highest digit
 	highestDigitMask uint64 = 0xF0_00_00_00_00_00_00_00
 
-  // highestDigitShift is the amount of shifting required to read the decimal value
-  highestDigitShift = 60
+	// highestDigitShift is the amount of shifting required to read the decimal value
+	highestDigitShift = 60
 
 	// lowestDigitMask is the bit mask to read the lowest digit
 	lowestDigitMask uint64 = 0xF
@@ -95,17 +110,17 @@ type Number struct {
 
 // ofHexInternal constructs a Number where we know that no error can occur
 func ofHexInternal(psign Sign, digits uint64, decimals uint) Number {
-  res := Number{psign, digits, decimals}
+	res := Number{psign, digits, decimals}
 
-  // Adjust sign
-  switch {
-  case digits == 0:
-    res.sign = Zero
-  case digits > 0:
-    res.sign = funcs.Ternary(psign == Zero, Positive, psign)
-  }
+	// Adjust sign
+	switch {
+	case digits == 0:
+		res.sign = Zero
+	case (digits > 0) && (psign == Zero):
+		res.sign = Positive
+	}
 
-  return res
+	return res
 }
 
 // OfHex constructs a Number from a sign, uint64 bcd, and number of digits that come after the decimal place.
@@ -134,7 +149,7 @@ func OfHex(psign Sign, digits uint64, decimals uint) (Number, error) {
 	}
 
 	// Adjust the sign to zero in the result
-  return ofHexInternal(sign, digits, decimals), nil
+	return ofHexInternal(sign, digits, decimals), nil
 }
 
 // OfString constructs a Number from a string described by the regex ^([-+])?([0-9]+)([.][0-9]+)?$,
@@ -181,60 +196,60 @@ func (s Number) String() string {
 		mask  uint64 = highestDigitMask
 		shift        = highestDigitShift
 		digit rune
-    i uint
+		i     uint
 	)
 
-  // If the number is negative, start with leading minus sign
-  if s.sign == Negative {
-    str.WriteRune('-')
-  }
+	// If the number is negative, start with leading minus sign
+	if s.sign == Negative {
+		str.WriteRune('-')
+	}
 
 	// Search for most significant non-zero digit that comes before the decimal (if any)
 	for i = 16 - s.decimals; i > 0; i-- {
-    // Get digit value
+		// Get digit value
 		digit = rune((s.digits & mask) >> shift)
 
-    // Prepare to get next digit value
+		// Prepare to get next digit value
 		mask >>= 4
 		shift -= 4
 
-    // Stop if digit is significant
+		// Stop if digit is significant
 		if digit > 0 {
 			break
 		}
 	}
 
-  // Is there a significant digit before the decimal point?
-  if i == 0 {
-    // No, so start with a 0
-    str.WriteRune('0')
-  } else {
-    // Yes, print it and any remaining digits before the decimal, regardless of value
-    str.WriteRune(digit + '0')
-    for i--; i > 0; i-- {
-      // Prior loop always altered mask and shift before terminating
-      digit = rune((s.digits & mask) >> shift)
-      str.WriteRune(digit + '0')
+	// Is there a significant digit before the decimal point?
+	if i == 0 {
+		// No, so start with a 0
+		str.WriteRune('0')
+	} else {
+		// Yes, print it and any remaining digits before the decimal, regardless of value
+		str.WriteRune(digit + '0')
+		for i--; i > 0; i-- {
+			// Prior loop always altered mask and shift before terminating
+			digit = rune((s.digits & mask) >> shift)
+			str.WriteRune(digit + '0')
 
-      mask >>= 4
-      shift -= 4
-    }
-  }
+			mask >>= 4
+			shift -= 4
+		}
+	}
 
-  // Do we have any decimals?
-  if s.decimals > 0 {
-    // Yes, print a dot, then remaining digits
-    str.WriteRune('.')
+	// Do we have any decimals?
+	if s.decimals > 0 {
+		// Yes, print a dot, then remaining digits
+		str.WriteRune('.')
 
-    for i = s.decimals; i > 0; i-- {
-      // Prior loop always altered mask and shift before terminating
-      digit = rune((s.digits & mask) >> shift)
-      str.WriteRune(digit + '0')
+		for i = s.decimals; i > 0; i-- {
+			// Prior loop always altered mask and shift before terminating
+			digit = rune((s.digits & mask) >> shift)
+			str.WriteRune(digit + '0')
 
-      mask >>= 4
-      shift -= 4
-    }
-  }
+			mask >>= 4
+			shift -= 4
+		}
+	}
 
 	return str.String()
 }
@@ -242,19 +257,13 @@ func (s Number) String() string {
 // AdjustToZero adjusts the sign of a Number by ensuring that the sign is Zero when the digits are zero.
 // No result is returned, the sign of the Number is modified.
 func (s *Number) AdjustToZero() {
-  s.sign = funcs.Ternary(s.digits == 0, Zero, s.sign)
+	s.sign = funcs.Ternary(s.digits == 0, Zero, s.sign)
 }
 
 // AdjustedToPositive adjusts the sign of a Number by ensuring that the sign is Positive when the digits are zero.
 // Returns the adjusted sign, the Number is unmodified.
 func (s Number) AdjustedToPositive() Sign {
-  return funcs.Ternary(s.digits == 0, Positive, s.sign)
-}
-
-// Negated returns the opposite sign after adjusting to positive.
-// Returns the negated sign, the Number is unmodified.
-func (s Number) Negated() Sign {
-  return funcs.Ternary(s.AdjustedToPositive() == Positive, Negative, Positive)
+	return funcs.Ternary(s.digits == 0, Positive, s.sign)
 }
 
 // checkDecimals checks that the two numbers passed have the same number of decimals, returning an error if not
@@ -263,12 +272,12 @@ func checkDecimals(a, b Number) error {
 		return fmt.Errorf(numberDecimalsDifferMsg, a.decimals, b.decimals)
 	}
 
-  return nil
+	return nil
 }
 
-// Negate returns the negation of this number
+// Negate returns the same digits with the negated sign
 func (s Number) Negate() Number {
-  return Number{sign: s.Negated(), digits: s.digits, decimals: s.decimals}
+	return Number{sign: s.sign.Negate(), digits: s.digits, decimals: s.decimals}
 }
 
 // ConvertDecimals converts the number to have the specified number of decimals.
@@ -383,53 +392,60 @@ func (s *Number) ConvertDecimals(decimals uint) error {
 
 // Cmp compares this number against another number, returning:
 // +1 = s > n
-//  0 = s == n
+//
+//	0 = s == n
+//
 // -1 = s < n
 //
 // Returns an error if this number has a different number of decimals than the provided number
 func (s Number) Cmp(n Number) (int, error) {
-  // Must have same number of decimals
-  if err := checkDecimals(s, n); err != nil {
-    return 0, err
-  }
+	// Must have same number of decimals
+	if err := checkDecimals(s, n); err != nil {
+		return 0, err
+	}
 
-  // If two numbers are opposite sign, the positive one is always larger (consider zero positive)
-  ssgn, nsgn := s.AdjustedToPositive(), n.AdjustedToPositive()
-  if ssgn != nsgn {
-    return funcs.Ternary(ssgn == Positive, +1, -1), nil
-  }
+	// If two numbers have different signs, the greater sign is the greater number
+	// If two numbers are zero, they are equal
+	switch {
+	case s.sign < n.sign:
+		return -1, nil
+	case s.sign > n.sign:
+		return +1, nil
+	case (s.sign == Zero) && (n.sign == Zero):
+		return 0, nil
+	}
 
-  // If two numbers are the same sign, compare from left to right, stopping at first digit that differs
-  var (
-    mask = highestDigitMask
-    maskShift = 60
-    sdigit, ndigit uint64
-    cmp int
-  )
+	// If two numbers are the same sign, compare from left to right, stopping at first digit that differs
+	var (
+		mask           = highestDigitMask
+		maskShift      = 60
+		sdigit, ndigit uint64
+		cmp            int
+	)
 
-  for i := 0; i < 16; i++ {
-    sdigit, ndigit = s.digits & mask, n.digits & mask
+	for i := 0; i < 16; i++ {
+		sdigit, ndigit = s.digits&mask, n.digits&mask
 
-    // The larger digit is the larger magnitude
-    switch {
-    case sdigit > ndigit:
-      cmp = +1
+		// The larger digit is the larger magnitude
+		switch {
+		case sdigit > ndigit:
+			cmp = +1
 
-    case sdigit < ndigit:
-      cmp = -1
-    }
+		case sdigit < ndigit:
+			cmp = -1
+		}
 
-    if cmp != 0 {
-      // Consider the sign: if they are positive, sdigit > ndigit means s > n; otherwise s < n
-      return funcs.Ternary(ssgn == Positive, cmp, -cmp), nil
-    }
+		if cmp != 0 {
+			// If s is positive, sdigit > ndigit means s > n; otherwise s < n
+			return funcs.Ternary(s.sign == Positive, cmp, -cmp), nil
+		}
 
-    mask >>= 4
-    maskShift -= 4
-  }
+		mask >>= 4
+		maskShift -= 4
+	}
 
-  // Must have all the same digits
-  return 0, nil
+	// Must have all the same digits
+	return 0, nil
 }
 
 // Add this number to another number, returning a new number with the same number of decimals.
@@ -441,106 +457,191 @@ func (s Number) Cmp(n Number) (int, error) {
 func (s Number) Add(o Number) (Number, error) {
 	var zv Number
 
-  // Must have same number of decimals
-  if err := checkDecimals(s, o); err != nil {
-    return zv, err
-  }
+	// Must have same number of decimals
+	if err := checkDecimals(s, o); err != nil {
+		return zv, err
+	}
 
-  // If adjusted signs differ, it is actually subtraction
-  sgn := s.AdjustedToPositive()
-  if sgn != o.AdjustedToPositive() {
-    return zv, nil
-  }
+	//  9 +  5 = add 9 + 5 =  14
+	//  5 +  9 = add 5 + 9 =  14
+	// -9 + -5 = add 9 + 5 = -14
+	// -5 + -9 = add 5 + 9 = -14
+	//
+	//  9 + -5 = sub 9 - 5 =  4
+	//  5 + -9 = sub 5 - 9 = -4
+	// -9 +  5 = sub 9 - 5 = -4
+	// -5 +  9 = sub 9 - 5 =  4
+	// If adjusted signs differ, it is actually subtraction
+	ssgn, osgn := s.AdjustedToPositive(), o.AdjustedToPositive()
+	if ssgn != osgn {
+		// Call sub with the negative number altered to positive
+		switch {
+		case ssgn == Positive:
+			return s.Sub(o.Negate())
+		default:
+			// If this is negative, we also have to negate result, which cannot over/under flow
+			return funcs.MustValue(s.Negate().Sub(o)).Negate(), nil
+		}
+	}
 
-  // Add the digits one column at a time, from right to left.
-  // If the result of a column >= 10, subtract 10 for that column, and have a carry of 1 for next column.
-  var (
-    carry uint64
-    mask = lowestDigitMask
-    maskShift = 0
-    digit uint64
-    zero uint64
-    one uint64 = 1
-    sum uint64 = s.digits
-  )
+	// Add the digits one column at a time, from right to left.
+	// If the result of a column >= 10, subtract 10 for that column, and have a carry of 1 for next column.
+	var (
+		carry     uint64
+		mask      = lowestDigitMask
+		maskShift = 0
+		digit     uint64
+		sum       uint64 = s.digits
+	)
 
-  for i := 0; i < 16; i++ {
-    digit = ((sum & mask) >> maskShift) + ((o.digits & mask) >> maskShift) + carry
-    if carry = funcs.Ternary(digit >= 10, one, zero); carry == 1 {
-      digit -= 10
-    }
+	for i := 0; i < 16; i++ {
+		// Add next column and any carry from previous column
+		digit = ((sum & mask) >> maskShift) + ((o.digits & mask) >> maskShift) + carry
 
-    sum = (sum & (allBitsMask ^ mask)) | (digit << maskShift)
+		// If column >= 10, we need to subtract 10 and carry to next column
+		if carry = funcs.Ternary[uint64](digit >= 10, 1, 0); carry == 1 {
+			digit -= 10
+		}
 
-    mask <<= 4
-    maskShift += 4
-  }
+		// Set next digit of sum
+		sum = (sum & (allBitsMask ^ mask)) | (digit << maskShift)
 
-  // If we have a final carry, that is an overflow (adding non-negatives) or underflow (adding negatives)
-  if carry == one {
-    return zv, fmt.Errorf(funcs.Ternary(sgn == Positive, numberAddOverflowMsg, numberAddUnderflowMsg), s.String(), o.String())
-  }
+		// Next mask and shift value
+		mask <<= 4
+		maskShift += 4
+	}
 
-  // Addition was successful
+	// If we have a final carry, that is an overflow (adding non-negatives) or underflow (adding negatives)
+	if carry == 1 {
+		return zv, fmt.Errorf(funcs.Ternary(ssgn == Positive, numberAddOverflowMsg, numberAddUnderflowMsg), s.String(), o.String())
+	}
+
+	// Addition was successful
 	return ofHexInternal(s.sign, sum, s.decimals), nil
 }
 
-// Subtract another number from this number, returning a new number with the same number of decimals.
+// Sub subtracts another number from this number, returning a new number with the same number of decimals.
 //
 // Returns an error if:
 // - this number has a different number of decimals than the provided number
 // - the subtraction overflows (subtracting a negative from a positive is too large)
 // - the subtraction underflows (subtracting a positive from a negative is too low)
-// func (s Number) Subtract(o Number) (Number, error) {
-// 	var zv Number
+func (s Number) Sub(o Number) (Number, error) {
+	var zv Number
+
+	// Must have same number of decimals
+	if err := checkDecimals(s, o); err != nil {
+		return zv, err
+	}
+
+	//  9 -  5 = sub 9 - 5 =  4
+	//  5 -  9 = sub 9 - 5 = -4
+	// -9 - -5 = sub 9 - 5 = -4
+	// -5 - -9 = sub 9 - 5 =  4
+	//
+	//  9 - -5 = add 9 + 5 =  14
+	//  5 - -9 = add 5 + 9 =  14
+	// -9 -  5 = add 9 + 5 = -14
+	// -5 -  9 = add 5 + 9 = -14
+	//
+	// If adjusted signs differ, it is actually addition
+	ssgn, osgn := s.AdjustedToPositive(), o.AdjustedToPositive()
+	if ssgn != osgn {
+		// Call add with the negative number altered to positive
+		switch {
+		case ssgn == Positive:
+			return s.Add(o.Negate())
+		default:
+			// If this is negative, we also have to negate result, which may underflow
+			r, err := s.Negate().Add(o)
+			if err != nil {
+				return zv, fmt.Errorf(numberSubUnderflowMsg, o, s)
+			}
+
+			return r.Negate(), nil
+		}
+	}
+
+	// Borrowing requires the smaller magnitude to be subtracted from the larger magnitude.
+	// The resulting sign is the same as this sign, unless we have to flip, in which case it is the opposite of this sign.
+	var (
+		top, bot = s.digits, o.digits
+		rsgn     = ssgn
+	)
+	if top < bot {
+		top, bot = o.digits, s.digits
+		rsgn = rsgn.Negate()
+	}
+
+	// Subtract the digits one column at a time, from right to left.
+	// If a column has top digit < bottom digit, start borrowing by adding 10 to top digit.
+	// On next column, if it top digit <= bottom digit, add 9 to top digit.
+	// Continue until a column has top digit > bottom digit, subtract one from top and stop borrowing.
+	// Example:
+	//  201
+	// -199
+	//  002
+	//
+	// 1 - 9        -> 1 + 10 - 9 -> 2 start borrow
+	// 0 - 9 borrow -> 0 +  9 - 9 -> 0 continue borrow
+	// 2 - 1 borrow -> 2 -  1 - 1 -> 0 stop borrow
+	var (
+		borrow    bool // true if borrowing continues to next column
+		mask      = lowestDigitMask
+		maskShift = 0
+		sub       uint64
+		topDigit  uint64
+		botDigit  uint64
+		subDigit  uint64
+	)
+
+	for i := 0; i < 16; i++ {
+		topDigit = (top & mask) >> maskShift
+		botDigit = (bot & mask) >> maskShift
+
+		switch {
+		case !borrow:
+			switch {
+			case topDigit < botDigit:
+				// Borrow 10
+				subDigit = topDigit + 10 - botDigit
+				borrow = true
+			default:
+				subDigit = topDigit - botDigit
+			}
+
+		case borrow:
+			switch {
+			case topDigit <= botDigit:
+				// Borrow 9
+				subDigit = topDigit + 9 - botDigit
+			default:
+				// Subtract additional 1 and stop borrowing
+				subDigit = topDigit - 1 - botDigit
+				borrow = false
+			}
+		}
+
+		sub = (sub & (allBitsMask ^ mask)) | (subDigit << maskShift)
+
+		mask <<= 4
+		maskShift += 4
+	}
+
+	return ofHexInternal(rsgn, sub, s.decimals), nil
+}
+
+// Mul multiplies this number by another number, returning a new number with the same number of decimals as this number.
+// If this number has N decimals and the other number has M decimals, then multiplication produces N+M decimals.
+// The additional M decimals are generated purely for rounding purposes, so the N decimals returned are more accurate.
 //
-//  // Must have same number of decimals
-//  if err := checkDecimals(s, n); err != nil {
-//    return err
-//  }
+// If this number has N integer digits and the other number has M integer digits, then multiplication produces anywhere
+// between N and N+M integer digits. If there are not enough integer digits available to store the resulting number of
+// integer digits, an overflow (positive number too large) or underflow (negative number too low) occurs.
 //
-//   //  9 -  5 = sub 9 - 5 =  4
-//   //  5 -  9 = sub 9 - 5 = -4
-//   //  9 - -5 = add 9 + 5 =  14
-//   //  5 - -9 = add 5 + 9 =  14
-//   // -9 -  5 = add 9 + 5 = -14
-//   // -5 -  9 = add 5 + 9 =  14
-//   // -9 - -5 = sub 9 - 5 = -4
-//   // -5 - -9 = sub 9 - 5 =  4
-//   sgn := s.sign.AdjustToPositive(s.digits)
-//   if sgn != o.sign.AdjustToPositive(o.digits) {
-//     return zv, nil
-//   }
-//
-//   // Add the digits one column at a time, from right to left.
-//   // If the result of a column >= 10, subtract 10 for that column, and have a carry of 1 for next column.
-//   var (
-//     carry uint64
-//     mask = lowestDigitMask
-//     maskShift = 0
-//     digit uint64
-//     zero uint64
-//     one uint64 = 1
-//     sum uint64 = s.digits
-//   )
-//
-//   for i := 0; i < 16; i++ {
-//     digit = ((sum & mask) >> maskShift) + ((o.digits & mask) >> maskShift) + carry
-//     if carry = funcs.Ternary(digit >= 10, one, zero); carry == 1 {
-//       digit -= 10
-//     }
-//
-//     sum = (sum & (allBitsMask ^ mask)) | (digit << maskShift)
-//
-//     mask <<= 4
-//     maskShift += 4
-//   }
-//
-//   // If we have a final carry, that is an overflow (adding non-negatives) or underflow (adding negatives)
-//   if carry == one {
-//     return zv, fmt.Errorf(funcs.Ternary(sgn == Positive, numberAddOverflowMsg, numberAddUnderflowMsg), s.String(), o.String())
-//   }
-//
-//   // Addition was successful
-// 	return Number{sign: s.sign.AdjustToZero(sum), digits: sum, decimals: s.decimals}, nil
-// }
+// Returns an error if an overflow or underflow occurs
+func (s Number) Mul(o Number) (Number, error) {
+	var zv Number
+
+	return zv, nil
+}
