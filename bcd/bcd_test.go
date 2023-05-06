@@ -236,56 +236,253 @@ func TestConvertDecimals_(t *testing.T) {
 }
 
 func TestCmp_(t *testing.T) {
-	// Both positive
-	a, b := funcs.MustValue(OfString("5")), funcs.MustValue(OfString("4"))
-	assert.Equal(t, union.OfResult(1), union.OfResultError(a.Cmp(b)))
+	// a == b
+	a, b := funcs.MustValue(OfString("5")), funcs.MustValue(OfString("5"))
+	assert.Equal(t, 0, a.Cmp(b))
 
-	a, b = funcs.MustValue(OfString("5")), funcs.MustValue(OfString("5"))
-	assert.Equal(t, union.OfResult(0), union.OfResultError(a.Cmp(b)))
-
-	a, b = funcs.MustValue(OfString("5")), funcs.MustValue(OfString("6"))
-	assert.Equal(t, union.OfResult(-1), union.OfResultError(a.Cmp(b)))
-
-	// Both negative
-	a, b = funcs.MustValue(OfString("-12.34")), funcs.MustValue(OfString("-12.35"))
-	assert.Equal(t, union.OfResult(1), union.OfResultError(a.Cmp(b)))
-
-	a, b = funcs.MustValue(OfString("-12.34")), funcs.MustValue(OfString("-12.34"))
-	assert.Equal(t, union.OfResult(0), union.OfResultError(a.Cmp(b)))
-
-	a, b = funcs.MustValue(OfString("-12.34")), funcs.MustValue(OfString("-12.33"))
-	assert.Equal(t, union.OfResult(-1), union.OfResultError(a.Cmp(b)))
-
-	// Different signs
-	a, b = funcs.MustValue(OfString("5")), funcs.MustValue(OfString("-4"))
-	assert.Equal(t, union.OfResult(1), union.OfResultError(a.Cmp(b)))
-
-	a, b = funcs.MustValue(OfString("-5")), funcs.MustValue(OfString("4"))
-	assert.Equal(t, union.OfResult(-1), union.OfResultError(a.Cmp(b)))
-
-	// Compare to zero
-	a, b = funcs.MustValue(OfString("5")), funcs.MustValue(OfString("0"))
-	assert.Equal(t, union.OfResult(1), union.OfResultError(a.Cmp(b)))
-
-	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("5"))
-	assert.Equal(t, union.OfResult(-1), union.OfResultError(a.Cmp(b)))
-
+	// a.sign < b.sign (- < 0)
 	a, b = funcs.MustValue(OfString("-5")), funcs.MustValue(OfString("0"))
-	assert.Equal(t, union.OfResult(-1), union.OfResultError(a.Cmp(b)))
+	assert.Equal(t, -1, a.Cmp(b))
 
+	// a.sign < b.sign (0 < +)
+	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("5"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+	// a.sign > b.sign (0 > -)
 	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("-5"))
-	assert.Equal(t, union.OfResult(1), union.OfResultError(a.Cmp(b)))
+	assert.Equal(t, 1, a.Cmp(b))
 
-	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("0"))
-	assert.Equal(t, union.OfResult(0), union.OfResultError(a.Cmp(b)))
+	// a.sign > b.sign (+ > 0)
+	a, b = funcs.MustValue(OfString("5")), funcs.MustValue(OfString("0"))
+	assert.Equal(t, 1, a.Cmp(b))
 
-	// Error - number of decimals differ
-	a, b = funcs.MustValue(OfString("5.1")), funcs.MustValue(OfString("5.12"))
-	assert.Equal(
-		t,
-		union.OfError[int](fmt.Errorf("Invalid Number pair: the number of decimals do not match (1 and 2)")),
-		union.OfResultError(a.Cmp(b)),
-	)
+  // a.sign == b.sign, a.decimals == b.decimals
+
+	// a.digits < b.digits, a +
+	a, b = funcs.MustValue(OfString("5")), funcs.MustValue(OfString("9"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+	// a.digits < b.digits, a -
+	a, b = funcs.MustValue(OfString("-5")), funcs.MustValue(OfString("-9"))
+	assert.Equal(t, +1, a.Cmp(b))
+
+	// a.digits > b.digits, a +
+	a, b = funcs.MustValue(OfString("9")), funcs.MustValue(OfString("5"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+	// a.digits > b.digits, a -
+	a, b = funcs.MustValue(OfString("-9")), funcs.MustValue(OfString("-5"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // a.sign == b.sign, a.decimals != b.decimals, a == 0 and/or b == 0
+
+  // a == 0, b == 0
+	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("0.0"))
+	assert.Equal(t, 0, a.Cmp(b))
+
+  // a != 0, b == 0, a +
+	a, b = funcs.MustValue(OfString("1.0")), funcs.MustValue(OfString("0"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // a != 0, b == 0, a -
+	a, b = funcs.MustValue(OfString("-1.0")), funcs.MustValue(OfString("0"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // a == 0, b != 0, b +
+	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("1.0"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // a == 0, b != 0, b -
+	a, b = funcs.MustValue(OfString("0")), funcs.MustValue(OfString("-1.0"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+	// a.sign == b.sign, a.decimals != b.decimals, a.digits != 0, b.digits != 0
+
+  // a int < b int, +
+  a, b = funcs.MustValue(OfString("1.0")), funcs.MustValue(OfString("2.00"))
+  assert.Equal(t, -1, a.Cmp(b))
+
+  // a int < b int, -
+  a, b = funcs.MustValue(OfString("-1.0")), funcs.MustValue(OfString("-2.00"))
+  assert.Equal(t, 1, a.Cmp(b))
+
+  // a int > b int, +
+  a, b = funcs.MustValue(OfString("2.0")), funcs.MustValue(OfString("1.00"))
+  assert.Equal(t, -1, a.Cmp(b))
+
+  // a int > b int, -
+  a, b = funcs.MustValue(OfString("-2.0")), funcs.MustValue(OfString("-1.00"))
+  assert.Equal(t, 1, a.Cmp(b))
+
+	// a.sign == b.sign, a.decimals != b.decimals, a.digits != 0, b.digits != 0, a int == b int, a.decimals > b.decimals
+
+  // a frac < b frac, +
+  a, b = funcs.MustValue(OfString("1.00")), funcs.MustValue(OfString("1.1"))
+  assert.Equal(t, -1, a.Cmp(b))
+
+  // a frac < b frac, -
+  a, b = funcs.MustValue(OfString("-1.00")), funcs.MustValue(OfString("-1.1"))
+  assert.Equal(t, 1, a.Cmp(b))
+
+  // a frac > b frac, +
+  a, b = funcs.MustValue(OfString("1.01")), funcs.MustValue(OfString("1.0"))
+  assert.Equal(t, 1, a.Cmp(b))
+
+  // a frac > b frac, -
+  a, b = funcs.MustValue(OfString("-1.01")), funcs.MustValue(OfString("-1.0"))
+  assert.Equal(t, -1, a.Cmp(b))
+
+	// a.sign == b.sign, a.decimals != b.decimals, a.digits != 0, b.digits != 0, a int == b int, a.decimals < b.decimals
+
+  // a frac < b frac, +
+  a, b = funcs.MustValue(OfString("1.0")), funcs.MustValue(OfString("1.01"))
+  assert.Equal(t, -1, a.Cmp(b))
+
+  // a frac < b frac, -
+  a, b = funcs.MustValue(OfString("-1.0")), funcs.MustValue(OfString("-1.01"))
+  assert.Equal(t, 1, a.Cmp(b))
+
+  // a frac > b frac, +
+  a, b = funcs.MustValue(OfString("1.01")), funcs.MustValue(OfString("1.0"))
+  assert.Equal(t, 1, a.Cmp(b))
+
+  // a frac > b frac, -
+  a, b = funcs.MustValue(OfString("-1.01")), funcs.MustValue(OfString("-1.0"))
+  assert.Equal(t, -1, a.Cmp(b))
+
+  // a frac = b frac, +
+  a, b = funcs.MustValue(OfString("1.10")), funcs.MustValue(OfString("1.1"))
+  assert.Equal(t, 0, a.Cmp(b))
+
+  // All numbers of decimal positions
+
+  // 1 < 1.2
+	a, b = funcs.MustValue(OfString("1")), funcs.MustValue(OfString("1.2"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 1.2 > 1
+	a, b = funcs.MustValue(OfString("1.2")), funcs.MustValue(OfString("1"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 12 < 12.3
+	a, b = funcs.MustValue(OfString("12")), funcs.MustValue(OfString("12.3"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 12.3 > 12
+	a, b = funcs.MustValue(OfString("12.3")), funcs.MustValue(OfString("12"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 123 < 123.4
+	a, b = funcs.MustValue(OfString("123")), funcs.MustValue(OfString("123.4"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 123.4 > 123
+	a, b = funcs.MustValue(OfString("123.4")), funcs.MustValue(OfString("123"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 1234 < 1234.5
+	a, b = funcs.MustValue(OfString("1234")), funcs.MustValue(OfString("1234.5"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 1234.5 > 1234
+	a, b = funcs.MustValue(OfString("1234.5")), funcs.MustValue(OfString("1234"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 12345 < 12345.6
+	a, b = funcs.MustValue(OfString("12345")), funcs.MustValue(OfString("12345.6"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 12345.6 > 12345
+	a, b = funcs.MustValue(OfString("12345.6")), funcs.MustValue(OfString("12345"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 123456 < 123456.7
+	a, b = funcs.MustValue(OfString("123456")), funcs.MustValue(OfString("123456.7"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 123456.7 > 123456
+	a, b = funcs.MustValue(OfString("123456.7")), funcs.MustValue(OfString("123456"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 1234567 < 1234567.8
+	a, b = funcs.MustValue(OfString("1234567")), funcs.MustValue(OfString("1234567.8"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 1234567.8 > 1234567
+	a, b = funcs.MustValue(OfString("1234567.8")), funcs.MustValue(OfString("1234567"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 12345678 < 12345678.9
+	a, b = funcs.MustValue(OfString("12345678")), funcs.MustValue(OfString("12345678.9"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 12345678.9 > 12345678
+	a, b = funcs.MustValue(OfString("12345678.9")), funcs.MustValue(OfString("12345678"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 123456789 < 123456789.1
+	a, b = funcs.MustValue(OfString("123456789")), funcs.MustValue(OfString("123456789.1"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 123456789.1 > 123456789
+	a, b = funcs.MustValue(OfString("123456789.1")), funcs.MustValue(OfString("123456789"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 1234567890 < 1234567890.1
+	a, b = funcs.MustValue(OfString("1234567890")), funcs.MustValue(OfString("1234567890.1"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 1234567890.1 > 1234567890
+	a, b = funcs.MustValue(OfString("1234567890.1")), funcs.MustValue(OfString("1234567890"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 12345678901 < 12345678901.2
+	a, b = funcs.MustValue(OfString("12345678901")), funcs.MustValue(OfString("12345678901.2"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 12345678901.2 > 12345678901
+	a, b = funcs.MustValue(OfString("12345678901.2")), funcs.MustValue(OfString("12345678901"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 123456789012 < 123456789012.3
+	a, b = funcs.MustValue(OfString("123456789012")), funcs.MustValue(OfString("123456789012.3"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 123456789012.3 > 123456789012
+	a, b = funcs.MustValue(OfString("123456789012.3")), funcs.MustValue(OfString("123456789012"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 1234567890123 < 1234567890123.4
+	a, b = funcs.MustValue(OfString("1234567890123")), funcs.MustValue(OfString("1234567890123.4"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 1234567890123.4 > 1234567890123
+	a, b = funcs.MustValue(OfString("1234567890123.4")), funcs.MustValue(OfString("1234567890123"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 12345678901234 < 12345678901234.5
+	a, b = funcs.MustValue(OfString("1234567890124")), funcs.MustValue(OfString("12345678901234.5"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 12345678901234.5 > 12345678901234
+	a, b = funcs.MustValue(OfString("12345678901234.5")), funcs.MustValue(OfString("12345678901234"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 123456789012345 < 123456789012345.6
+	a, b = funcs.MustValue(OfString("12345678901245")), funcs.MustValue(OfString("123456789012345.6"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 123456789012345.6 > 123456789012345
+	a, b = funcs.MustValue(OfString("123456789012345.6")), funcs.MustValue(OfString("123456789012345"))
+	assert.Equal(t, 1, a.Cmp(b))
+
+  // 1234567890123456 < 1234567890123457
+	a, b = funcs.MustValue(OfString("123456789012456")), funcs.MustValue(OfString("1234567890123457"))
+	assert.Equal(t, -1, a.Cmp(b))
+
+  // 1234567890123457 > 1234567890123456
+	a, b = funcs.MustValue(OfString("1234567890123457")), funcs.MustValue(OfString("1234567890123456"))
+	assert.Equal(t, 1, a.Cmp(b))
 }
 
 func TestAdd_(t *testing.T) {
@@ -363,11 +560,11 @@ func TestAdd_(t *testing.T) {
 		}
 	}
 
-  assert.Equal(
-    t,
-    fmt.Errorf("Invalid Number pair: the number of decimals do not match (1 and 2)"),
-    union.OfResultError(funcs.MustValue(OfString("1.1")).Add(funcs.MustValue(OfString("1.12")))).Error(),
-  )
+	assert.Equal(
+		t,
+		fmt.Errorf("Invalid Number pair: the number of decimals do not match (1 and 2)"),
+		union.OfResultError(funcs.MustValue(OfString("1.1")).Add(funcs.MustValue(OfString("1.12")))).Error(),
+	)
 
 	assert.Equal(
 		t,
@@ -457,17 +654,17 @@ func TestSub_(t *testing.T) {
 		}
 	}
 
-  // Decimals mismatch
-  assert.Equal(
-    t,
-    fmt.Errorf("Invalid Number pair: the number of decimals do not match (1 and 2)"),
-    union.OfResultError(funcs.MustValue(OfString("1.1")).Sub(funcs.MustValue(OfString("1.12")))).Error(),
-  )
+	// Decimals mismatch
+	assert.Equal(
+		t,
+		fmt.Errorf("Invalid Number pair: the number of decimals do not match (1 and 2)"),
+		union.OfResultError(funcs.MustValue(OfString("1.1")).Sub(funcs.MustValue(OfString("1.12")))).Error(),
+	)
 
-  // Underflow subtracting positive from negative
-  assert.Equal(
-    t,
-    fmt.Errorf("Underflow subtracting 0.1 from -999999999999999.9"),
-    union.OfResultError(funcs.MustValue(OfString("-999999999999999.9")).Sub(funcs.MustValue(OfString("0.1")))).Error(),
-  )
+	// Underflow subtracting positive from negative
+	assert.Equal(
+		t,
+		fmt.Errorf("Underflow subtracting 0.1 from -999999999999999.9"),
+		union.OfResultError(funcs.MustValue(OfString("-999999999999999.9")).Sub(funcs.MustValue(OfString("0.1")))).Error(),
+	)
 }

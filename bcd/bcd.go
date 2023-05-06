@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/tuple"
 )
 
 // ==== Sign type
@@ -58,6 +59,27 @@ func (s Sign) Negate() Sign {
 var (
 	// numberRegex is a regex for a number
 	numberRegex = regexp.MustCompile("^([-+])?([0-9]+)([.][0-9]+)?$")
+
+	// splitMasks is a slice of digit and decimal masks to split a number into integer and fractional parts
+	splitMasks = []tuple.Two[uint64, uint64]{
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_FF_FF_FF, 0x00_00_00_00_00_00_00_00), //  0 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_FF_FF_F0, 0x00_00_00_00_00_00_00_0F), //  1 decimal
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_FF_FF_00, 0x00_00_00_00_00_00_00_FF), //  2 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_FF_F0_00, 0x00_00_00_00_00_00_0F_FF), //  3 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_FF_00_00, 0x00_00_00_00_00_00_FF_FF), //  4 ecimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_F0_00_00, 0x00_00_00_00_00_0F_FF_FF), //  5 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_FF_00_00_00, 0x00_00_00_00_00_FF_FF_FF), //  6 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_F0_00_00_00, 0x00_00_00_00_0F_FF_FF_FF), //  7 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_FF_00_00_00_00, 0x00_00_00_00_FF_FF_FF_FF), //  8 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_F0_00_00_00_00, 0x00_00_00_0F_FF_FF_FF_FF), //  9 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_FF_00_00_00_00_00, 0x00_00_00_FF_FF_FF_FF_FF), // 10 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_F0_00_00_00_00_00, 0x00_00_0F_FF_FF_FF_FF_FF), // 11 decimals
+		tuple.Of2[uint64, uint64](0xFF_FF_00_00_00_00_00_00, 0x00_00_FF_FF_FF_FF_FF_FF), // 12 decimals
+		tuple.Of2[uint64, uint64](0xFF_F0_00_00_00_00_00_00, 0x00_0F_FF_FF_FF_FF_FF_FF), // 13 decimals
+		tuple.Of2[uint64, uint64](0xFF_00_00_00_00_00_00_00, 0x00_FF_FF_FF_FF_FF_FF_FF), // 14 decimals
+		tuple.Of2[uint64, uint64](0xF0_00_00_00_00_00_00_00, 0x0F_FF_FF_FF_FF_FF_FF_FF), // 15 decimals
+		tuple.Of2[uint64, uint64](0x00_00_00_00_00_00_00_00, 0xFF_FF_FF_FF_FF_FF_FF_FF), // 16 decimals
+	}
 )
 
 const (
@@ -116,6 +138,7 @@ func ofHexInternal(psign Sign, digits uint64, decimals uint) Number {
 	switch {
 	case digits == 0:
 		res.sign = Zero
+    res.decimals = 0
 	case (digits > 0) && (psign == Zero):
 		res.sign = Positive
 	}
@@ -391,61 +414,97 @@ func (s *Number) ConvertDecimals(decimals uint) error {
 }
 
 // Cmp compares this number against another number, returning:
+//
 // +1 = s > n
-//
 //	0 = s == n
-//
 // -1 = s < n
-//
-// Returns an error if this number has a different number of decimals than the provided number
-func (s Number) Cmp(n Number) (int, error) {
-	// Must have same number of decimals
-	if err := checkDecimals(s, n); err != nil {
-		return 0, err
-	}
+func (s Number) Cmp(n Number) int {
+	// The two numbers may have different numbers of decimal places.
+	// - Find the position of most significant digit
+	// - Adjust the power of the digit based on the number of decimals
+	// - If the powers are different, return +1 if larger power is first, -1 if second
+	// - If the powers are the same, compare digits from right to left until:
+	//   - A difference occurs, returning a +1 if larger digit is first, -1 if second
+	//   - All digits are the same, returning 0
+	// - Optimisations:
+	//   - Same sign, digits, and decimals mean same value
+	//   - Different signs mean greater sign is greater number
+	//   - Same sign and decimals and different digits means greater digits is greater
+	//   - Same sign and different decimals:
+	//     - Both digits are 0 means equal
+	//     - One digits are 0 and other is not means non-0 digits are greater
+	//     - Otherwise, compare digits to determine less than, greater than, or equal
 
-	// If two numbers have different signs, the greater sign is the greater number
-	// If two numbers are zero, they are equal
 	switch {
+	case s == n:
+		// Signs, digits, and decimals are all equal
+		return 0
 	case s.sign < n.sign:
-		return -1, nil
+		// This sign less than other sign
+		return -1
 	case s.sign > n.sign:
-		return +1, nil
-	case (s.sign == Zero) && (n.sign == Zero):
-		return 0, nil
-	}
-
-	// If two numbers are the same sign, compare from left to right, stopping at first digit that differs
-	var (
-		mask           = highestDigitMask
-		maskShift      = 60
-		sdigit, ndigit uint64
-		cmp            int
-	)
-
-	for i := 0; i < 16; i++ {
-		sdigit, ndigit = s.digits&mask, n.digits&mask
-
-		// The larger digit is the larger magnitude
+		// This sign greater than other sign
+		return +1
+	case s.decimals == n.decimals:
+		// Signs and decimals are equal, digits must differ
 		switch {
-		case sdigit > ndigit:
-			cmp = +1
-
-		case sdigit < ndigit:
-			cmp = -1
+		case s.digits < n.digits:
+			// This value less than other value (unless signs are negative)
+			return funcs.Ternary(s.sign == Positive, -1, +1)
+		default:
+			// This value greater than other value
+			return funcs.Ternary(s.sign == Positive, +1, -1)
 		}
-
-		if cmp != 0 {
-			// If s is positive, sdigit > ndigit means s > n; otherwise s < n
-			return funcs.Ternary(s.sign == Positive, cmp, -cmp), nil
-		}
-
-		mask >>= 4
-		maskShift -= 4
 	}
 
-	// Must have all the same digits
-	return 0, nil
+	// To reach this point, the two numbers:
+	// - Are different
+	// - Have the same sign
+	// - Have different number of decimals
+	// - Neither has digits = 0
+	// - May have same digits, but cannot be equal, since different number of decimals
+  // - May have different digits, but are equal, with different number of trailing zeroes
+  // Strategy:
+  // - Get the integer parts as a pair of uint64 values
+  // - Shift the integers to the right such that the rightmost digit is in the ones column
+  // - Compare integers with < and > operators, continue if equal
+  // - Get the fractional parts as a pair of uint64 values
+  // - Shift the shorter number of decimals left by the difference, so that leftmost digits are in same column
+  // - Compare integers with < and > operators, may be equal
+  //
+  // Example of equality:
+  // 0000 0000 0000 01.20
+  // 0000 0000 0000 001.2
+
+  // Integer parts, shifting right by number of digits * 4 bits per digit to align rightmost digits with ones column
+  smasks, nmasks := splitMasks[s.decimals], splitMasks[n.decimals]
+  si, ni := (s.digits&smasks.T) >> (s.decimals * 4), (n.digits&nmasks.T) >> (n.decimals * 4)
+
+  switch {
+  case si < ni:
+    return funcs.Ternary(s.sign == Positive, -1, +1)
+  case si > ni:
+    return funcs.Ternary(s.sign == Negative, +1, -1)
+  }
+
+  // Integers must be equal
+  // Decimal parts, shifting shorter length left by difference to align leftmost digits
+  sf, nf := s.digits&smasks.U, n.digits&nmasks.U
+  if s.decimals > n.decimals {
+    nf <<= (s.decimals - n.decimals) * 4
+  } else {
+    sf <<= (n.decimals - s.decimals) * 4
+  }
+
+  switch {
+  case sf < nf:
+    return funcs.Ternary(s.sign == Positive, -1, +1)
+  case sf > nf:
+    return funcs.Ternary(s.sign == Positive, +1, -1)
+  }
+
+	// Must have same logical value
+	return 0
 }
 
 // Add this number to another number, returning a new number with the same number of decimals.
