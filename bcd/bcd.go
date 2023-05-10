@@ -54,6 +54,29 @@ func (s Sign) Negate() Sign {
 	return Zero
 }
 
+// ==== State Type
+
+// State is an enum of Number states
+type State uint
+
+const (
+  Normal State = iota // Normal state, number contains useful digits
+  Overflow // Overflow state, digits are same as before operation that would have overflowed
+  Underflow // Underflow state, digits are same as before operation that would have underflowed
+)
+
+// String is the Stringer interface for State
+func (s State) String() string {
+  switch s {
+  case Normal:
+    return "Normal"
+  case Overflow:
+    return "Overflow"
+  }
+
+  return "Underflow"
+}
+
 // ==== Number type
 
 var (
@@ -104,7 +127,10 @@ const (
 	// numberAddUnderflowMsg is an attempt to add two negative numbers that requires a 17th digit
 	numberAddUnderflowMsg = "Underflow adding %s to %s"
 
-	// numberSubUnderflowMsg is an attempt to subtract a positive from a negatrive that requires a 17th digit
+	// numberSubOverflowMsg is an attempt to subtract a negative from a positive that requires a 17th digit
+	numberSubOverflowMsg = "Overflow subtracting %s from %s"
+
+	// numberSubUnderflowMsg is an attempt to subtract a positive from a negative that requires a 17th digit
 	numberSubUnderflowMsg = "Underflow subtracting %s from %s"
 
 	// highestDigitMask is the bit mask to read the highest digit
@@ -126,13 +152,15 @@ type Number struct {
 	sign     Sign
 	digits   uint64
 	decimals uint
+  state    State
+  stateMsg string
 }
 
 // == Constructors
 
 // ofHexInternal constructs a Number where we know that no error can occur
 func ofHexInternal(psign Sign, digits uint64, decimals uint) Number {
-	res := Number{psign, digits, decimals}
+	res := Number{psign, digits, decimals, Normal, ""}
 
 	// Adjust sign
 	switch {
@@ -175,6 +203,11 @@ func OfHex(psign Sign, digits uint64, decimals uint) (Number, error) {
 	return ofHexInternal(sign, digits, decimals), nil
 }
 
+// MustHex is a Must version of OfHex
+func MustHex(psign Sign, digits uint64, decimals uint) Number {
+  return funcs.MustValue(OfHex(psign, digits, decimals))
+}
+
 // OfString constructs a Number from a string described by the regex ^([-+])?([0-9]+)([.][0-9]+)?$,
 // where the number of digits must <= 16.
 //
@@ -207,13 +240,23 @@ func OfString(str string) (Number, error) {
 	decimals := uint(funcs.Ternary(fracStr == "", 0, len(fracStr)-1))
 
 	// Return the number representation, with the sign adjusted to zero
-	return OfHex(sign, digits, decimals)
+	return ofHexInternal(sign, digits, decimals), nil
+}
+
+// MustString is a Must version of OfString
+func MustString(str string) Number {
+  return funcs.MustValue(OfString(str))
 }
 
 // == Operations
 
 // String is Stringer interface
 func (s Number) String() string {
+  // If the state is not normal, return the state message
+  if s.state != Normal {
+    return s.state.String()
+  }
+
 	var (
 		str   strings.Builder
 		mask  uint64 = highestDigitMask
@@ -277,38 +320,42 @@ func (s Number) String() string {
 	return str.String()
 }
 
-// AdjustToZero adjusts the sign of a Number by ensuring that the sign is Zero when the digits are zero.
-// No result is returned, the sign of the Number is modified.
-func (s *Number) AdjustToZero() {
-	s.sign = funcs.Ternary(s.digits == 0, Zero, s.sign)
-}
-
 // AdjustedToPositive adjusts the sign of a Number by ensuring that the sign is Positive when the digits are zero.
 // Returns the adjusted sign, the Number is unmodified.
 func (s Number) AdjustedToPositive() Sign {
 	return funcs.Ternary(s.digits == 0, Positive, s.sign)
 }
 
-// checkDecimals checks that the two numbers passed have the same number of decimals, returning an error if not
-func checkDecimals(a, b Number) error {
-	if a.decimals != b.decimals {
-		return fmt.Errorf(numberDecimalsDifferMsg, a.decimals, b.decimals)
-	}
+// Negate returns the same digits with the negated sign
+// If the state is Overflow or Underflow, the value is returned as is
+func (s Number) Negate() Number {
+  if s.state != Normal {
+    return s
+  }
 
-	return nil
+	return Number{sign: s.sign.Negate(), digits: s.digits, decimals: s.decimals}
 }
 
-// Negate returns the same digits with the negated sign
-func (s Number) Negate() Number {
-	return Number{sign: s.sign.Negate(), digits: s.digits, decimals: s.decimals}
+// IsNormal returns true if the number is in the Normal state
+func (s Number) IsNormal() bool {
+  return s.state == Normal
+}
+
+// State returns the state of the number
+func (s Number) State() State {
+  return s.state
+}
+
+// StateMsg returns the state message of the number, which is the empty string for the Normal state
+func (s Number) StateMsg() string {
+  return s.stateMsg
 }
 
 // ConvertDecimals converts the number to have the specified number of decimals.
 // New decimals < old decimals: a rounding is performed, such that 0-4 are rounded down, 5-9 are rounded up
 // New decimals = old decimals: no operation
 // New decimals > old decimals: trailing zeros are added by shifting left 4 bits per extra decimal digit required, causing
-//
-//	the most significant decimal digit to be lost in each shift. The digits lost must be 0.
+// the most significant decimal digit to be lost in each shift. The lost digits must be 0.
 //
 // No over/under flow can occur when rounding, since at least one leading zero is introduced.
 // Over/under flow can occur when adding trailing zeros, if a leading non-zero digit is shifted off.
@@ -316,7 +363,7 @@ func (s Number) Negate() Number {
 //
 // An error occurs if:
 // - New number of decimals > 16
-// - New number of decimals > old number of decimals, and non-zero digits would be lost (over/under flow discussed above)
+// - New number of decimals > old number of decimals, and non-zero digits would be lost (over/underflow discussed above)
 //
 // # When an error occurs, this object is not modified
 //
@@ -413,6 +460,31 @@ func (s *Number) ConvertDecimals(decimals uint) error {
 	return nil
 }
 
+// alignDecimals aligns the decimal point of two numbers so they are the same:
+// - If they are already the same, return them as is
+// - Try ConvertDecimals on number with fewer decimals to extend to larger. If an error occurs, round more decimals to fewer.
+func alignDecimals(a, b Number) (Number, Number) {
+  ad, bd := a.decimals, b.decimals
+
+  switch {
+  case ad < bd:
+      // Try extending a, adding trailing zeroes
+      if a.ConvertDecimals(bd) != nil {
+        // Overflowed, shorten b
+        b.ConvertDecimals(ad)
+      }
+
+  default: // ad > bd
+    // Try extending b, adding trailing zeroes
+    if b.ConvertDecimals(ad) != nil {
+      // Overflowed, shorten a
+      a.ConvertDecimals(bd)
+    }
+  }
+
+  return a, b
+}
+
 // Cmp compares this number against another number, returning:
 //
 // +1 = s > n
@@ -507,19 +579,35 @@ func (s Number) Cmp(n Number) int {
 	return 0
 }
 
-// Add this number to another number, returning a new number with the same number of decimals.
+// Add this number to another number, returning a new number with the same number of decimals as the number with the most decimals.
 //
-// Returns an error if:
-// - this number has a different number of decimals than the provided number
-// - the addition overflows  (adding two positives is too large)
-// - the addition underflows (adding two negatives is too low)
-func (s Number) Add(o Number) (Number, error) {
-	var zv Number
+// The state of the result is Overflow if:
+// - s is already Overflow, returning s as is
+// - s is Normal and o is Overflow, returning s with state = Overflow and same digits
+// - the addition overflows, returning s with state = Overflow, and same digits
+// - in last two cases, stateMsg = "Overflow adding o to s"
+//
+// The state of and the result can become Underflow if:
+// - s is already Underflow, returning s as is
+// - s is Normal and o is Underflow, returning s with state = Underflow and same digits
+// - the addition underflows, returning s with state = Underflow, and same digits
+// - in last two cases, stateMsg = "Underflow adding o to s"
+func (s Number) Add(o Number) Number {
+  // If s is not Normal, return as is
+  if s.state != Normal {
+    return s
+  }
 
-	// Must have same number of decimals
-	if err := checkDecimals(s, o); err != nil {
-		return zv, err
-	}
+  // If o is not Normal, return s with o State and a message
+  switch o.state {
+  case Overflow:
+    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberAddOverflowMsg, o, s)}
+  case Underflow:
+    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberAddUnderflowMsg, o, s)}
+  }
+
+  // Align the decimals of the two numbers
+  a, b := alignDecimals(s, o)
 
 	//  9 +  5 = add 9 + 5 =  14
 	//  5 +  9 = add 5 + 9 =  14
@@ -531,17 +619,19 @@ func (s Number) Add(o Number) (Number, error) {
 	// -9 +  5 = sub 9 - 5 = -4
 	// -5 +  9 = sub 9 - 5 =  4
 	// If adjusted signs differ, it is actually subtraction
-	ssgn, osgn := s.AdjustedToPositive(), o.AdjustedToPositive()
-	if ssgn != osgn {
+	asgn, bsgn := a.AdjustedToPositive(), b.AdjustedToPositive()
+	if asgn != bsgn {
 		// Call sub with the negative number altered to positive
 		switch {
-		case ssgn == Positive:
-			return s.Sub(o.Negate())
+		case asgn == Positive:
+			return a.Sub(b.Negate())
 		default:
 			// If this is negative, we also have to negate result, which cannot over/under flow
-			return funcs.MustValue(s.Negate().Sub(o)).Negate(), nil
+			return a.Negate().Sub(b).Negate()
 		}
 	}
+
+  // Split the two numbers into integer and fractional parts
 
 	// Add the digits one column at a time, from right to left.
 	// If the result of a column >= 10, subtract 10 for that column, and have a carry of 1 for next column.
@@ -555,7 +645,7 @@ func (s Number) Add(o Number) (Number, error) {
 
 	for i := 0; i < 16; i++ {
 		// Add next column and any carry from previous column
-		digit = ((sum & mask) >> maskShift) + ((o.digits & mask) >> maskShift) + carry
+		digit = ((sum & mask) >> maskShift) + ((b.digits & mask) >> maskShift) + carry
 
 		// If column >= 10, we need to subtract 10 and carry to next column
 		if carry = funcs.Ternary[uint64](digit >= 10, 1, 0); carry == 1 {
@@ -570,28 +660,56 @@ func (s Number) Add(o Number) (Number, error) {
 		maskShift += 4
 	}
 
-	// If we have a final carry, that is an overflow (adding non-negatives) or underflow (adding negatives)
+	// If we have a final carry, that is an overflow (adding positives) or underflow (adding negatives)
 	if carry == 1 {
-		return zv, fmt.Errorf(funcs.Ternary(ssgn == Positive, numberAddOverflowMsg, numberAddUnderflowMsg), s.String(), o.String())
+    var (
+      state State
+      stateMsg string
+    )
+
+    if asgn == Positive {
+      state = Overflow
+      stateMsg = numberAddOverflowMsg
+    } else {
+      state = Underflow
+      stateMsg = numberAddUnderflowMsg
+    }
+
+    return Number{s.sign, s.digits, s.decimals, state, fmt.Sprintf(stateMsg, o, s)}
 	}
 
 	// Addition was successful
-	return ofHexInternal(s.sign, sum, s.decimals), nil
+	return ofHexInternal(a.sign, sum, a.decimals)
 }
 
-// Sub subtracts another number from this number, returning a new number with the same number of decimals.
+// Subtract another number from this number, returning a new number with the same number of decimals as the number with the most decimals.
 //
-// Returns an error if:
-// - this number has a different number of decimals than the provided number
-// - the subtraction overflows (subtracting a negative from a positive is too large)
-// - the subtraction underflows (subtracting a positive from a negative is too low)
-func (s Number) Sub(o Number) (Number, error) {
-	var zv Number
+// The state of the result is Overflow if:
+// - s is already Overflow, returning s as is
+// - s is Normal and o is Overflow, returning s with state = Overflow and same digits
+// - in last case, stateMsg = "Overflow subtracting o from s"
+//
+// The state of and the result can become Underflow if:
+// - s is already Underflow, returning s as is
+// - s is Normal and o is Underflow, returning s with state = Underflow and same digits
+// - the subtraction underflows, returning s with state = Underflow, and same digits
+// - in last two cases, stateMsg = "Underflow subtracting o from s"
+func (s Number) Sub(o Number) Number {
+  // If s is not Normal, return as is
+  if s.state != Normal {
+    return s
+  }
 
-	// Must have same number of decimals
-	if err := checkDecimals(s, o); err != nil {
-		return zv, err
-	}
+  // If o is not Normal, return s with o State and a message
+  switch o.state {
+  case Overflow:
+    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberSubOverflowMsg, o, s)}
+  case Underflow:
+    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberSubUnderflowMsg, o, s)}
+  }
+
+  // Align the decimals of the two numbers
+  a, b := alignDecimals(s, o)
 
 	//  9 -  5 = sub 9 - 5 =  4
 	//  5 -  9 = sub 9 - 5 = -4
@@ -604,31 +722,44 @@ func (s Number) Sub(o Number) (Number, error) {
 	// -5 -  9 = add 5 + 9 = -14
 	//
 	// If adjusted signs differ, it is actually addition
-	ssgn, osgn := s.AdjustedToPositive(), o.AdjustedToPositive()
+	ssgn, osgn := a.AdjustedToPositive(), b.AdjustedToPositive()
 	if ssgn != osgn {
 		// Call add with the negative number altered to positive
+    var r Number
 		switch {
 		case ssgn == Positive:
-			return s.Add(o.Negate())
+			r = a.Add(b.Negate())
 		default:
 			// If this is negative, we also have to negate result, which may underflow
-			r, err := s.Negate().Add(o)
-			if err != nil {
-				return zv, fmt.Errorf(numberSubUnderflowMsg, o, s)
-			}
-
-			return r.Negate(), nil
+			r = a.Negate().Add(b).Negate()
 		}
+
+    if r.state != Normal {
+      var stateMsg string
+
+      if ssgn == Positive {
+        r.state = Overflow
+        stateMsg = numberSubOverflowMsg
+      } else {
+        r.sign = Negative
+        r.state = Underflow
+        stateMsg = numberSubUnderflowMsg
+      }
+
+      r.stateMsg = fmt.Sprintf(stateMsg, b, a)
+    }
+
+    return r
 	}
 
 	// Borrowing requires the smaller magnitude to be subtracted from the larger magnitude.
 	// The resulting sign is the same as this sign, unless we have to flip, in which case it is the opposite of this sign.
 	var (
-		top, bot = s.digits, o.digits
+		top, bot = a.digits, b.digits
 		rsgn     = ssgn
 	)
 	if top < bot {
-		top, bot = o.digits, s.digits
+		top, bot = b.digits, a.digits
 		rsgn = rsgn.Negate()
 	}
 
@@ -687,20 +818,22 @@ func (s Number) Sub(o Number) (Number, error) {
 		maskShift += 4
 	}
 
-	return ofHexInternal(rsgn, sub, s.decimals), nil
+	return ofHexInternal(rsgn, sub, a.decimals)
 }
 
-// Mul multiplies this number by another number, returning a new number with the same number of decimals as this number.
+// Mul multiplies this number by another number, returning a new number.
 // If this number has N decimals and the other number has M decimals, then multiplication produces N+M decimals.
-// The additional M decimals are generated purely for rounding purposes, so the N decimals returned are more accurate.
 //
-// If this number has N integer digits and the other number has M integer digits, then multiplication produces anywhere
-// between N and N+M integer digits. If there are not enough integer digits available to store the resulting number of
-// integer digits, an overflow (positive number too large) or underflow (negative number too low) occurs.
+// If this number has N integer digits and the other number has M integer digits, then multiplication produces at most
+// M+N integer digits.
 //
-// Returns an error if an overflow or underflow occurs
-func (s Number) Mul(o Number) (Number, error) {
-	var zv Number
-
-	return zv, nil
-}
+// If there are not enough integer digits available to store the resulting number of integer digits, then an overflow
+// (positive number too large) or underflow (negative number too low) occurs.
+//
+// If there are not enough decimal digits available to store the resulting number of decimal digits, then the decimal
+// digits are rounded down to what is available, which may be 0 (integer portion only).
+// func (s Number) Mul(o Number) Number {
+// 	var zv Number
+//
+// 	return zv, nil
+// }
