@@ -60,21 +60,21 @@ func (s Sign) Negate() Sign {
 type State uint
 
 const (
-  Normal State = iota // Normal state, number contains useful digits
-  Overflow // Overflow state, digits are same as before operation that would have overflowed
-  Underflow // Underflow state, digits are same as before operation that would have underflowed
+	Normal    State = iota // Normal state, number contains useful digits
+	Overflow               // Overflow state, digits are same as before operation that would have overflowed
+	Underflow              // Underflow state, digits are same as before operation that would have underflowed
 )
 
 // String is the Stringer interface for State
 func (s State) String() string {
-  switch s {
-  case Normal:
-    return "Normal"
-  case Overflow:
-    return "Overflow"
-  }
+	switch s {
+	case Normal:
+		return "Normal"
+	case Overflow:
+		return "Overflow"
+	}
 
-  return "Underflow"
+	return "Underflow"
 }
 
 // ==== Number type
@@ -152,8 +152,8 @@ type Number struct {
 	sign     Sign
 	digits   uint64
 	decimals uint
-  state    State
-  stateMsg string
+	state    State
+	stateMsg string
 }
 
 // == Constructors
@@ -166,7 +166,7 @@ func ofHexInternal(psign Sign, digits uint64, decimals uint) Number {
 	switch {
 	case digits == 0:
 		res.sign = Zero
-    res.decimals = 0
+		res.decimals = 0
 	case (digits > 0) && (psign == Zero):
 		res.sign = Positive
 	}
@@ -205,7 +205,7 @@ func OfHex(psign Sign, digits uint64, decimals uint) (Number, error) {
 
 // MustHex is a Must version of OfHex
 func MustHex(psign Sign, digits uint64, decimals uint) Number {
-  return funcs.MustValue(OfHex(psign, digits, decimals))
+	return funcs.MustValue(OfHex(psign, digits, decimals))
 }
 
 // OfString constructs a Number from a string described by the regex ^([-+])?([0-9]+)([.][0-9]+)?$,
@@ -245,17 +245,17 @@ func OfString(str string) (Number, error) {
 
 // MustString is a Must version of OfString
 func MustString(str string) Number {
-  return funcs.MustValue(OfString(str))
+	return funcs.MustValue(OfString(str))
 }
 
 // == Operations
 
 // String is Stringer interface
 func (s Number) String() string {
-  // If the state is not normal, return the state message
-  if s.state != Normal {
-    return s.state.String()
-  }
+	// If the state is not normal, return the state message
+	if s.state != Normal {
+		return s.state.String()
+	}
 
 	var (
 		str   strings.Builder
@@ -329,26 +329,26 @@ func (s Number) AdjustedToPositive() Sign {
 // Negate returns the same digits with the negated sign
 // If the state is Overflow or Underflow, the value is returned as is
 func (s Number) Negate() Number {
-  if s.state != Normal {
-    return s
-  }
+	if s.state != Normal {
+		return s
+	}
 
 	return Number{sign: s.sign.Negate(), digits: s.digits, decimals: s.decimals}
 }
 
 // IsNormal returns true if the number is in the Normal state
 func (s Number) IsNormal() bool {
-  return s.state == Normal
+	return s.state == Normal
 }
 
 // State returns the state of the number
 func (s Number) State() State {
-  return s.state
+	return s.state
 }
 
 // StateMsg returns the state message of the number, which is the empty string for the Normal state
 func (s Number) StateMsg() string {
-  return s.stateMsg
+	return s.stateMsg
 }
 
 // ConvertDecimals converts the number to have the specified number of decimals.
@@ -464,31 +464,33 @@ func (s *Number) ConvertDecimals(decimals uint) error {
 // - If they are already the same, return them as is
 // - Try ConvertDecimals on number with fewer decimals to extend to larger. If an error occurs, round more decimals to fewer.
 func alignDecimals(a, b Number) (Number, Number) {
-  ad, bd := a.decimals, b.decimals
+	ad, bd := a.decimals, b.decimals
 
-  switch {
-  case ad < bd:
-      // Try extending a, adding trailing zeroes
-      if a.ConvertDecimals(bd) != nil {
-        // Overflowed, shorten b
-        b.ConvertDecimals(ad)
-      }
+	switch {
+	case ad < bd:
+		// Try extending a, adding trailing zeroes
+		if a.ConvertDecimals(bd) != nil {
+			// Overflowed, shorten b
+			b.ConvertDecimals(ad)
+		}
 
-  default: // ad > bd
-    // Try extending b, adding trailing zeroes
-    if b.ConvertDecimals(ad) != nil {
-      // Overflowed, shorten a
-      a.ConvertDecimals(bd)
-    }
-  }
+	default: // ad > bd
+		// Try extending b, adding trailing zeroes
+		if b.ConvertDecimals(ad) != nil {
+			// Overflowed, shorten a
+			a.ConvertDecimals(bd)
+		}
+	}
 
-  return a, b
+	return a, b
 }
 
 // Cmp compares this number against another number, returning:
 //
 // +1 = s > n
+//
 //	0 = s == n
+//
 // -1 = s < n
 func (s Number) Cmp(n Number) int {
 	// The two numbers may have different numbers of decimal places.
@@ -535,45 +537,45 @@ func (s Number) Cmp(n Number) int {
 	// - Have different number of decimals
 	// - Neither has digits = 0
 	// - May have same digits, but cannot be equal, since different number of decimals
-  // - May have different digits, but are equal, with different number of trailing zeroes
-  // Strategy:
-  // - Get the integer parts as a pair of uint64 values
-  // - Shift the integers to the right such that the rightmost digit is in the ones column
-  // - Compare integers with < and > operators, continue if equal
-  // - Get the fractional parts as a pair of uint64 values
-  // - Shift the shorter number of decimals left by the difference, so that leftmost digits are in same column
-  // - Compare integers with < and > operators, may be equal
-  //
-  // Example of equality:
-  // 0000 0000 0000 01.20
-  // 0000 0000 0000 001.2
+	// - May have different digits, but are equal, with different number of trailing zeroes
+	// Strategy:
+	// - Get the integer parts as a pair of uint64 values
+	// - Shift the integers to the right such that the rightmost digit is in the ones column
+	// - Compare integers with < and > operators, continue if equal
+	// - Get the fractional parts as a pair of uint64 values
+	// - Shift the shorter number of decimals left by the difference, so that leftmost digits are in same column
+	// - Compare integers with < and > operators, may be equal
+	//
+	// Example of equality:
+	// 0000 0000 0000 01.20
+	// 0000 0000 0000 001.2
 
-  // Integer parts, shifting right by number of digits * 4 bits per digit to align rightmost digits with ones column
-  smasks, nmasks := splitMasks[s.decimals], splitMasks[n.decimals]
-  si, ni := (s.digits&smasks.T) >> (s.decimals * 4), (n.digits&nmasks.T) >> (n.decimals * 4)
+	// Integer parts, shifting right by number of digits * 4 bits per digit to align rightmost digits with ones column
+	smasks, nmasks := splitMasks[s.decimals], splitMasks[n.decimals]
+	si, ni := (s.digits&smasks.T)>>(s.decimals*4), (n.digits&nmasks.T)>>(n.decimals*4)
 
-  switch {
-  case si < ni:
-    return funcs.Ternary(s.sign == Positive, -1, +1)
-  case si > ni:
-    return funcs.Ternary(s.sign == Negative, +1, -1)
-  }
+	switch {
+	case si < ni:
+		return funcs.Ternary(s.sign == Positive, -1, +1)
+	case si > ni:
+		return funcs.Ternary(s.sign == Negative, +1, -1)
+	}
 
-  // Integers must be equal
-  // Decimal parts, shifting shorter length left by difference to align leftmost digits
-  sf, nf := s.digits&smasks.U, n.digits&nmasks.U
-  if s.decimals > n.decimals {
-    nf <<= (s.decimals - n.decimals) * 4
-  } else {
-    sf <<= (n.decimals - s.decimals) * 4
-  }
+	// Integers must be equal
+	// Decimal parts, shifting shorter length left by difference to align leftmost digits
+	sf, nf := s.digits&smasks.U, n.digits&nmasks.U
+	if s.decimals > n.decimals {
+		nf <<= (s.decimals - n.decimals) * 4
+	} else {
+		sf <<= (n.decimals - s.decimals) * 4
+	}
 
-  switch {
-  case sf < nf:
-    return funcs.Ternary(s.sign == Positive, -1, +1)
-  case sf > nf:
-    return funcs.Ternary(s.sign == Positive, +1, -1)
-  }
+	switch {
+	case sf < nf:
+		return funcs.Ternary(s.sign == Positive, -1, +1)
+	case sf > nf:
+		return funcs.Ternary(s.sign == Positive, +1, -1)
+	}
 
 	// Must have same logical value
 	return 0
@@ -593,21 +595,21 @@ func (s Number) Cmp(n Number) int {
 // - the addition underflows, returning s with state = Underflow, and same digits
 // - in last two cases, stateMsg = "Underflow adding o to s"
 func (s Number) Add(o Number) Number {
-  // If s is not Normal, return as is
-  if s.state != Normal {
-    return s
-  }
+	// If s is not Normal, return as is
+	if s.state != Normal {
+		return s
+	}
 
-  // If o is not Normal, return s with o State and a message
-  switch o.state {
-  case Overflow:
-    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberAddOverflowMsg, o, s)}
-  case Underflow:
-    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberAddUnderflowMsg, o, s)}
-  }
+	// If o is not Normal, return s with o State and a message
+	switch o.state {
+	case Overflow:
+		return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberAddOverflowMsg, o, s)}
+	case Underflow:
+		return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberAddUnderflowMsg, o, s)}
+	}
 
-  // Align the decimals of the two numbers
-  a, b := alignDecimals(s, o)
+	// Align the decimals of the two numbers
+	a, b := alignDecimals(s, o)
 
 	//  9 +  5 = add 9 + 5 =  14
 	//  5 +  9 = add 5 + 9 =  14
@@ -631,7 +633,7 @@ func (s Number) Add(o Number) Number {
 		}
 	}
 
-  // Split the two numbers into integer and fractional parts
+	// Split the two numbers into integer and fractional parts
 
 	// Add the digits one column at a time, from right to left.
 	// If the result of a column >= 10, subtract 10 for that column, and have a carry of 1 for next column.
@@ -662,20 +664,20 @@ func (s Number) Add(o Number) Number {
 
 	// If we have a final carry, that is an overflow (adding positives) or underflow (adding negatives)
 	if carry == 1 {
-    var (
-      state State
-      stateMsg string
-    )
+		var (
+			state    State
+			stateMsg string
+		)
 
-    if asgn == Positive {
-      state = Overflow
-      stateMsg = numberAddOverflowMsg
-    } else {
-      state = Underflow
-      stateMsg = numberAddUnderflowMsg
-    }
+		if asgn == Positive {
+			state = Overflow
+			stateMsg = numberAddOverflowMsg
+		} else {
+			state = Underflow
+			stateMsg = numberAddUnderflowMsg
+		}
 
-    return Number{s.sign, s.digits, s.decimals, state, fmt.Sprintf(stateMsg, o, s)}
+		return Number{s.sign, s.digits, s.decimals, state, fmt.Sprintf(stateMsg, o, s)}
 	}
 
 	// Addition was successful
@@ -695,21 +697,21 @@ func (s Number) Add(o Number) Number {
 // - the subtraction underflows, returning s with state = Underflow, and same digits
 // - in last two cases, stateMsg = "Underflow subtracting o from s"
 func (s Number) Sub(o Number) Number {
-  // If s is not Normal, return as is
-  if s.state != Normal {
-    return s
-  }
+	// If s is not Normal, return as is
+	if s.state != Normal {
+		return s
+	}
 
-  // If o is not Normal, return s with o State and a message
-  switch o.state {
-  case Overflow:
-    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberSubOverflowMsg, o, s)}
-  case Underflow:
-    return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberSubUnderflowMsg, o, s)}
-  }
+	// If o is not Normal, return s with o State and a message
+	switch o.state {
+	case Overflow:
+		return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberSubOverflowMsg, o, s)}
+	case Underflow:
+		return Number{s.sign, s.digits, s.decimals, o.state, fmt.Sprintf(numberSubUnderflowMsg, o, s)}
+	}
 
-  // Align the decimals of the two numbers
-  a, b := alignDecimals(s, o)
+	// Align the decimals of the two numbers
+	a, b := alignDecimals(s, o)
 
 	//  9 -  5 = sub 9 - 5 =  4
 	//  5 -  9 = sub 9 - 5 = -4
@@ -725,7 +727,7 @@ func (s Number) Sub(o Number) Number {
 	ssgn, osgn := a.AdjustedToPositive(), b.AdjustedToPositive()
 	if ssgn != osgn {
 		// Call add with the negative number altered to positive
-    var r Number
+		var r Number
 		switch {
 		case ssgn == Positive:
 			r = a.Add(b.Negate())
@@ -734,22 +736,22 @@ func (s Number) Sub(o Number) Number {
 			r = a.Negate().Add(b).Negate()
 		}
 
-    if r.state != Normal {
-      var stateMsg string
+		if r.state != Normal {
+			var stateMsg string
 
-      if ssgn == Positive {
-        r.state = Overflow
-        stateMsg = numberSubOverflowMsg
-      } else {
-        r.sign = Negative
-        r.state = Underflow
-        stateMsg = numberSubUnderflowMsg
-      }
+			if ssgn == Positive {
+				r.state = Overflow
+				stateMsg = numberSubOverflowMsg
+			} else {
+				r.sign = Negative
+				r.state = Underflow
+				stateMsg = numberSubUnderflowMsg
+			}
 
-      r.stateMsg = fmt.Sprintf(stateMsg, b, a)
-    }
+			r.stateMsg = fmt.Sprintf(stateMsg, b, a)
+		}
 
-    return r
+		return r
 	}
 
 	// Borrowing requires the smaller magnitude to be subtracted from the larger magnitude.
@@ -823,17 +825,17 @@ func (s Number) Sub(o Number) Number {
 
 // Mul multiplies this number by another number, returning a new number.
 // If this number has N decimals and the other number has M decimals, then multiplication produces N+M decimals.
+// If this number has N integer digits and the other number has M integer digits:
+// - If both numbers < 1, then no integer digits are produced.
+// - If one number >= 1, and the other < 1, then fewer integer digits may be produced, possibly none.
+// - If both numbers >= 1, then the integer produced is between max(N, M) and N+M digits, inclusive.
 //
-// If this number has N integer digits and the other number has M integer digits, then multiplication produces at most
-// M+N integer digits.
+// If there are not enough decimal digits available to store the resulting number of decimal digits, then the decimal
+// digits are rounded to what is available. Decimal digits may also be rounded further to make room for integer digits.
 //
 // If there are not enough integer digits available to store the resulting number of integer digits, then an overflow
 // (positive number too large) or underflow (negative number too low) occurs.
-//
-// If there are not enough decimal digits available to store the resulting number of decimal digits, then the decimal
-// digits are rounded down to what is available, which may be 0 (integer portion only).
-// func (s Number) Mul(o Number) Number {
-// 	var zv Number
-//
-// 	return zv, nil
-// }
+func (s Number) Mul(o Number) Number {
+
+	return Number{}
+}

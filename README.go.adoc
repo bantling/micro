@@ -200,6 +200,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 * Arbitrary precision type using BCD
 * Add must funcs where needed that call funcs.Must/MustValue{,2,3}
+* Create a BASIC interpreter
+** All decimal math uses bcd
 * Create a code generator
 ** Just use plain old Go text template
 ** For specific purposes, like HTTP handlers and SQL DTO/DAO structs

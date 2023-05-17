@@ -11,6 +11,7 @@ import (
 
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/conv"
+	// "github.com/bantling/micro/funcs"
 )
 
 // Constants
@@ -446,14 +447,14 @@ func SubUint[T constraint.UnsignedInteger](me T, sed *T) error {
 // Mul multiples two integers overwriting the second value, and returns an error if over/underflow occurs.
 // Over/underflow occurs if the magnitude of the result requires more bits than the type provides.
 // Unsigned types can only overflow.
-func Mul[T constraint.Integer](ae1 T, ae2 *T) error {
-	var ae1BI, ae2BI *big.Int
-	conv.To(ae1, &ae1BI)
-	conv.To(*ae2, &ae2BI)
-	ae2BI.Mul(ae1BI, ae2BI)
+func Mul[T constraint.Integer](mp T, ma *T) error {
+	var mpBI, maBI *big.Int
+	conv.To(mp, &mpBI)
+	conv.To(*ma, &maBI)
+	maBI.Mul(mpBI, maBI)
 
-	if err := conv.To(ae2BI, ae2); err != nil {
-		if ae2BI.Sign() >= 0 {
+	if err := conv.To(maBI, ma); err != nil {
+		if maBI.Sign() >= 0 {
 			return OverflowErr
 		}
 
@@ -461,6 +462,92 @@ func Mul[T constraint.Integer](ae1 T, ae2 *T) error {
 	}
 
 	return nil
+}
+
+// MulU64 multiplies two uint64 values into a pair of uint64 values that represent a 128-bit result.
+func MulU64(mp, ma uint64) (upper, lower uint64) {
+	// There is a simple rule for multiplying two maximum value n-bit integers for some even number n:
+	// The result is of the form (F)E(0)1, where the number F and 0 digits is the same: n / 2 - 1.
+	// EG:
+	// for two  8-bit values, we have  8 / 2 - 1 =  1 F and 0, producing FE01.
+	// for two 16-bit values, we have 16 / 4 - 1 =  3 F and 0, producing FFFE_0001.
+	// for two 32-bit values, we have 32 / 4 - 1 =  7 F and 0, producing FFFF_FFFE_0000_0001.
+	// for two 64-bit values, we have 64 / 4 - 1 = 15 F and 0, producing FFFF_FFFF_FFFF_FFFE_0000_0000_0000_0001.
+	//
+	// We can perform multiplication of two n-bit values using only n-bit integers, by breaking up the two n-bit values into
+	// two pairs of n/2-bit values, which we call (a,b) and (c,d). The results are stored in four n/2-bit slots,
+	// which we call e, f, g, and h.
+	//
+	// We need to break the result down into four multiplications:
+	// ab * cd = b*d + b*c + a*d + a*c
+	// The results are then placed into the slots.
+	//
+	// The folowing explaanation shows how to multiply two maximum value 16-bit numbers:
+	//
+	// a = b = c = d = FF, and FF * FF = FE01, so b*d = b*c = a*d = a*c = FF*FF = FE01.
+	//
+	// The difference between the terms is not their value, but their position:
+	// a and c are high bytes, so are multiplied by 2^8, which means shifting left 8 bits.
+	// b and d are low  bytes, so are multiplied by 2^0, which means shifting left 0 bits.
+	//
+	// b*d is  low * low , has a total multiple of 2^0, stored in slots g and h
+	// b*c is  low * high, has a total multiple of 2^8, stored in slots f and g
+	// a*d is high * low , has a total multiple of 2^8, stored in slots f and g
+	// a*c is high * high, has a total multiple of 2^16,stored in slots e and f
+	//
+	// Slot h = low half of b*d = b*d & 0xFF
+	// Slot g = high half of b*d + low half of b*c + low half of a*d = (b*d >> 8) + (b*c & 0xFF) + (a*d & 0xFF)
+	// Slot f = carry from g + high half of b*c + high half of a*d + low half of a*c = g carry + (b*c >> 8) + (a*d >> 8) + (a*c & 0xFF)
+	// Slot a = carry from f + high half of a*c = f carry + (a*c >> 8)
+	//
+	// Note how the multiple additions for g and f can produce a carry: adding 3 or 4 integers of n can require up to 2 extra
+	// bits. By writing a utility function that adds four 8-bit integers (received as 16-bit integers for convenience) and
+	// produces two 16-bit integers (carry and sum), we can use math that multiples two 16 bit integer using only 16-bit math.
+	//
+	// Adding four FE01 results multiplied by 2^0, 2^8, 2^8, and 2^16:
+	//            111 1
+	//           0000 FE01 b*d = FE01 * 2^0
+	//         + 00FE 0100 b*c = FE01 * 2^8
+	//         + 00FE 0100 a*d = FE01 * 2^8
+	//         + FE01 0000 a*c = FE01 * 2^16
+	//         = FFFE 0001
+	//         = eeff gghh
+	//
+	// The idea can be extended to 64-bit math as follows:
+	// - Change all uint16 into uint64
+	// - Change all (x & 0xFF) expressions into (x & 0xFF_FF_FF_FF)
+	// - Change all (x >> 8) expressions into (x >> 32)
+	var (
+		// add receives type uint64 for convenience, but they are actually 32 bit values.
+		// The result may require 34 bits, and is expressed as a pair of uint64s for convenience.
+		add = func(v1, v2, v3, v4 uint64) (carry, result uint64) {
+			var res uint64 = v1 + v2 + v3 + v4
+			carry = res >> 32
+			result = res & 0xFF_FF_FF_FF
+
+			return
+		}
+
+		lmp uint64 = (mp & 0xFF_FF_FF_FF)
+		hmp uint64 = mp >> 32
+		lma uint64 = (ma & 0xFF_FF_FF_FF)
+		hma uint64 = ma >> 32
+
+		bd uint64 = lmp * lma
+		bc uint64 = lmp * hma
+		ad uint64 = hmp * lma
+		ac uint64 = hmp * hma
+
+		h          uint64 = bd & 0xFF_FF_FF_FF
+		g_carry, g uint64 = add(0, bd>>32, bc&0xFF_FF_FF_FF, ad&0xFF_FF_FF_FF)
+		f_carry, f uint64 = add(g_carry, bc>>32, ad>>32, ac&0xFF_FF_FF_FF)
+		e          uint64 = f_carry + (ac >> 32)
+	)
+
+	lower = (g << 32) | h
+	upper = (e << 32) | f
+
+	return
 }
 
 // Div calculates the quotient of a division operation of a pair of integers or a pair of floating point types.

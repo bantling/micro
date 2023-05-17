@@ -1,4 +1,3 @@
-
 package bcd
 
 // SPDX-License-Identifier: Apache-2.0
@@ -42,9 +41,9 @@ func TestSignNegate_(t *testing.T) {
 }
 
 func TestStateString_(t *testing.T) {
-  assert.Equal(t, "Normal", Normal.String())
-  assert.Equal(t, "Overflow", Overflow.String())
-  assert.Equal(t, "Underflow", Underflow.String())
+	assert.Equal(t, "Normal", Normal.String())
+	assert.Equal(t, "Overflow", Overflow.String())
+	assert.Equal(t, "Underflow", Underflow.String())
 }
 
 func TestOfHexInternal_(t *testing.T) {
@@ -63,7 +62,7 @@ func TestOfHexInternal_(t *testing.T) {
 	// 123.456
 	assert.Equal(t, Number{Positive, 0x123456, 3, Normal, ""}, ofHexInternal(Positive, 0x123_456, 3))
 
-  // Verify adjusted sign
+	// Verify adjusted sign
 	assert.Equal(t, Zero, ofHexInternal(Negative, 0, 0).sign)
 	assert.Equal(t, Zero, ofHexInternal(Zero, 0, 0).sign)
 	assert.Equal(t, Zero, ofHexInternal(Positive, 0, 0).sign)
@@ -162,26 +161,26 @@ func TestAdjustedToPositive_(t *testing.T) {
 }
 
 func TestNumberNegate_(t *testing.T) {
-  assert.Equal(t, MustString("1"), MustString("-1").Negate())
-  assert.Equal(t, MustString("0"), MustString("0").Negate())
-  assert.Equal(t, MustString("-1"), MustString("1").Negate())
+	assert.Equal(t, MustString("1"), MustString("-1").Negate())
+	assert.Equal(t, MustString("0"), MustString("0").Negate())
+	assert.Equal(t, MustString("-1"), MustString("1").Negate())
 }
 
 func TestNumberState_(t *testing.T) {
-  n := Number{Zero, 0, 0, Normal, ""}
-  assert.True(t, n.IsNormal())
-  assert.Equal(t, Normal, n.State())
-  assert.Equal(t, "", n.StateMsg())
+	n := Number{Zero, 0, 0, Normal, ""}
+	assert.True(t, n.IsNormal())
+	assert.Equal(t, Normal, n.State())
+	assert.Equal(t, "", n.StateMsg())
 
-  n = Number{Positive, 1, 0, Overflow, "Overflowed"}
-  assert.False(t, n.IsNormal())
-  assert.Equal(t, Overflow, n.State())
-  assert.Equal(t, "Overflowed", n.StateMsg())
+	n = Number{Positive, 1, 0, Overflow, "Overflowed"}
+	assert.False(t, n.IsNormal())
+	assert.Equal(t, Overflow, n.State())
+	assert.Equal(t, "Overflowed", n.StateMsg())
 
-  n = Number{Positive, 1, 0, Underflow, "Underflowed"}
-  assert.False(t, n.IsNormal())
-  assert.Equal(t, Underflow, n.State())
-  assert.Equal(t, "Underflowed", n.StateMsg())
+	n = Number{Positive, 1, 0, Underflow, "Underflowed"}
+	assert.False(t, n.IsNormal())
+	assert.Equal(t, Underflow, n.State())
+	assert.Equal(t, "Underflowed", n.StateMsg())
 }
 
 func TestConvertDecimals_(t *testing.T) {
@@ -247,25 +246,25 @@ func TestConvertDecimals_(t *testing.T) {
 }
 
 func TestAlignDecimals_(t *testing.T) {
-  // Same decimals
-  a, b := MustString("1.23"), MustString("2.34")
-  assert.Equal(t, tuple.Of2(a, b), tuple.Of2(alignDecimals(a, b)))
+	// Same decimals
+	a, b := MustString("1.23"), MustString("2.34")
+	assert.Equal(t, tuple.Of2(a, b), tuple.Of2(alignDecimals(a, b)))
 
-  // a decimals > b
-  a, b = MustString("1.234"), MustString("2.34")
-  assert.Equal(t, tuple.Of2(a, MustString("2.340")), tuple.Of2(alignDecimals(a, b)))
+	// a decimals > b
+	a, b = MustString("1.234"), MustString("2.34")
+	assert.Equal(t, tuple.Of2(a, MustString("2.340")), tuple.Of2(alignDecimals(a, b)))
 
-  // a decimals > b, extending b would lose precision, requiring rounding of a
-  a, b = MustString("1.234567890123456"), MustString("23.45678901234567")
-  assert.Equal(t, tuple.Of2(MustString("1.23456789012346"), b), tuple.Of2(alignDecimals(a, b)))
+	// a decimals > b, extending b would lose precision, requiring rounding of a
+	a, b = MustString("1.234567890123456"), MustString("23.45678901234567")
+	assert.Equal(t, tuple.Of2(MustString("1.23456789012346"), b), tuple.Of2(alignDecimals(a, b)))
 
-  // a < b
-  a, b = MustString("1.23"), MustString("2.345")
-  assert.Equal(t, tuple.Of2(MustString("1.230"), b), tuple.Of2(alignDecimals(a, b)))
+	// a < b
+	a, b = MustString("1.23"), MustString("2.345")
+	assert.Equal(t, tuple.Of2(MustString("1.230"), b), tuple.Of2(alignDecimals(a, b)))
 
-  // a decimals < b, extending a would lose precision, requiring rounding of b
-  a, b = MustString("12.34567890123456"), MustString("2.345678901234567")
-  assert.Equal(t, tuple.Of2(a, MustString("2.34567890123457")), tuple.Of2(alignDecimals(a, b)))
+	// a decimals < b, extending a would lose precision, requiring rounding of b
+	a, b = MustString("12.34567890123456"), MustString("2.345678901234567")
+	assert.Equal(t, tuple.Of2(a, MustString("2.34567890123457")), tuple.Of2(alignDecimals(a, b)))
 }
 
 func TestCmp_(t *testing.T) {
@@ -289,7 +288,7 @@ func TestCmp_(t *testing.T) {
 	a, b = MustString("5"), MustString("0")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // a.sign == b.sign, a.decimals == b.decimals
+	// a.sign == b.sign, a.decimals == b.decimals
 
 	// a.digits < b.digits, a +
 	a, b = MustString("5"), MustString("9")
@@ -307,213 +306,213 @@ func TestCmp_(t *testing.T) {
 	a, b = MustString("-9"), MustString("-5")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // a.sign == b.sign, a.decimals != b.decimals, a == 0 and/or b == 0
+	// a.sign == b.sign, a.decimals != b.decimals, a == 0 and/or b == 0
 
-  // a == 0, b == 0
+	// a == 0, b == 0
 	a, b = MustString("0"), MustString("0.0")
 	assert.Equal(t, 0, a.Cmp(b))
 
-  // a != 0, b == 0, a +
+	// a != 0, b == 0, a +
 	a, b = MustString("1.0"), MustString("0")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // a != 0, b == 0, a -
+	// a != 0, b == 0, a -
 	a, b = MustString("-1.0"), MustString("0")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // a == 0, b != 0, b +
+	// a == 0, b != 0, b +
 	a, b = MustString("0"), MustString("1.0")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // a == 0, b != 0, b -
+	// a == 0, b != 0, b -
 	a, b = MustString("0"), MustString("-1.0")
 	assert.Equal(t, 1, a.Cmp(b))
 
 	// a.sign == b.sign, a.decimals != b.decimals, a.digits != 0, b.digits != 0
 
-  // a int < b int, +
-  a, b = MustString("1.0"), MustString("2.00")
-  assert.Equal(t, -1, a.Cmp(b))
+	// a int < b int, +
+	a, b = MustString("1.0"), MustString("2.00")
+	assert.Equal(t, -1, a.Cmp(b))
 
-  // a int < b int, -
-  a, b = MustString("-1.0"), MustString("-2.00")
-  assert.Equal(t, 1, a.Cmp(b))
+	// a int < b int, -
+	a, b = MustString("-1.0"), MustString("-2.00")
+	assert.Equal(t, 1, a.Cmp(b))
 
-  // a int > b int, +
-  a, b = MustString("2.0"), MustString("1.00")
-  assert.Equal(t, -1, a.Cmp(b))
+	// a int > b int, +
+	a, b = MustString("2.0"), MustString("1.00")
+	assert.Equal(t, -1, a.Cmp(b))
 
-  // a int > b int, -
-  a, b = MustString("-2.0"), MustString("-1.00")
-  assert.Equal(t, 1, a.Cmp(b))
+	// a int > b int, -
+	a, b = MustString("-2.0"), MustString("-1.00")
+	assert.Equal(t, 1, a.Cmp(b))
 
 	// a.sign == b.sign, a.decimals != b.decimals, a.digits != 0, b.digits != 0, a int == b int, a.decimals > b.decimals
 
-  // a frac < b frac, +
-  a, b = MustString("1.00"), MustString("1.1")
-  assert.Equal(t, -1, a.Cmp(b))
+	// a frac < b frac, +
+	a, b = MustString("1.00"), MustString("1.1")
+	assert.Equal(t, -1, a.Cmp(b))
 
-  // a frac < b frac, -
-  a, b = MustString("-1.00"), MustString("-1.1")
-  assert.Equal(t, 1, a.Cmp(b))
+	// a frac < b frac, -
+	a, b = MustString("-1.00"), MustString("-1.1")
+	assert.Equal(t, 1, a.Cmp(b))
 
-  // a frac > b frac, +
-  a, b = MustString("1.01"), MustString("1.0")
-  assert.Equal(t, 1, a.Cmp(b))
+	// a frac > b frac, +
+	a, b = MustString("1.01"), MustString("1.0")
+	assert.Equal(t, 1, a.Cmp(b))
 
-  // a frac > b frac, -
-  a, b = MustString("-1.01"), MustString("-1.0")
-  assert.Equal(t, -1, a.Cmp(b))
+	// a frac > b frac, -
+	a, b = MustString("-1.01"), MustString("-1.0")
+	assert.Equal(t, -1, a.Cmp(b))
 
 	// a.sign == b.sign, a.decimals != b.decimals, a.digits != 0, b.digits != 0, a int == b int, a.decimals < b.decimals
 
-  // a frac < b frac, +
-  a, b = MustString("1.0"), MustString("1.01")
-  assert.Equal(t, -1, a.Cmp(b))
+	// a frac < b frac, +
+	a, b = MustString("1.0"), MustString("1.01")
+	assert.Equal(t, -1, a.Cmp(b))
 
-  // a frac < b frac, -
-  a, b = MustString("-1.0"), MustString("-1.01")
-  assert.Equal(t, 1, a.Cmp(b))
+	// a frac < b frac, -
+	a, b = MustString("-1.0"), MustString("-1.01")
+	assert.Equal(t, 1, a.Cmp(b))
 
-  // a frac > b frac, +
-  a, b = MustString("1.01"), MustString("1.0")
-  assert.Equal(t, 1, a.Cmp(b))
+	// a frac > b frac, +
+	a, b = MustString("1.01"), MustString("1.0")
+	assert.Equal(t, 1, a.Cmp(b))
 
-  // a frac > b frac, -
-  a, b = MustString("-1.01"), MustString("-1.0")
-  assert.Equal(t, -1, a.Cmp(b))
+	// a frac > b frac, -
+	a, b = MustString("-1.01"), MustString("-1.0")
+	assert.Equal(t, -1, a.Cmp(b))
 
-  // a frac = b frac, +
-  a, b = MustString("1.10"), MustString("1.1")
-  assert.Equal(t, 0, a.Cmp(b))
+	// a frac = b frac, +
+	a, b = MustString("1.10"), MustString("1.1")
+	assert.Equal(t, 0, a.Cmp(b))
 
-  // All numbers of decimal positions
+	// All numbers of decimal positions
 
-  // 1 < 1.2
+	// 1 < 1.2
 	a, b = MustString("1"), MustString("1.2")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 1.2 > 1
+	// 1.2 > 1
 	a, b = MustString("1.2"), MustString("1")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 12 < 12.3
+	// 12 < 12.3
 	a, b = MustString("12"), MustString("12.3")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 12.3 > 12
+	// 12.3 > 12
 	a, b = MustString("12.3"), MustString("12")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 123 < 123.4
+	// 123 < 123.4
 	a, b = MustString("123"), MustString("123.4")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 123.4 > 123
+	// 123.4 > 123
 	a, b = MustString("123.4"), MustString("123")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 1234 < 1234.5
+	// 1234 < 1234.5
 	a, b = MustString("1234"), MustString("1234.5")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 1234.5 > 1234
+	// 1234.5 > 1234
 	a, b = MustString("1234.5"), MustString("1234")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 12345 < 12345.6
+	// 12345 < 12345.6
 	a, b = MustString("12345"), MustString("12345.6")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 12345.6 > 12345
+	// 12345.6 > 12345
 	a, b = MustString("12345.6"), MustString("12345")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 123456 < 123456.7
+	// 123456 < 123456.7
 	a, b = MustString("123456"), MustString("123456.7")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 123456.7 > 123456
+	// 123456.7 > 123456
 	a, b = MustString("123456.7"), MustString("123456")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 1234567 < 1234567.8
+	// 1234567 < 1234567.8
 	a, b = MustString("1234567"), MustString("1234567.8")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 1234567.8 > 1234567
+	// 1234567.8 > 1234567
 	a, b = MustString("1234567.8"), MustString("1234567")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 12345678 < 12345678.9
+	// 12345678 < 12345678.9
 	a, b = MustString("12345678"), MustString("12345678.9")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 12345678.9 > 12345678
+	// 12345678.9 > 12345678
 	a, b = MustString("12345678.9"), MustString("12345678")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 123456789 < 123456789.1
+	// 123456789 < 123456789.1
 	a, b = MustString("123456789"), MustString("123456789.1")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 123456789.1 > 123456789
+	// 123456789.1 > 123456789
 	a, b = MustString("123456789.1"), MustString("123456789")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 1234567890 < 1234567890.1
+	// 1234567890 < 1234567890.1
 	a, b = MustString("1234567890"), MustString("1234567890.1")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 1234567890.1 > 1234567890
+	// 1234567890.1 > 1234567890
 	a, b = MustString("1234567890.1"), MustString("1234567890")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 12345678901 < 12345678901.2
+	// 12345678901 < 12345678901.2
 	a, b = MustString("12345678901"), MustString("12345678901.2")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 12345678901.2 > 12345678901
+	// 12345678901.2 > 12345678901
 	a, b = MustString("12345678901.2"), MustString("12345678901")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 123456789012 < 123456789012.3
+	// 123456789012 < 123456789012.3
 	a, b = MustString("123456789012"), MustString("123456789012.3")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 123456789012.3 > 123456789012
+	// 123456789012.3 > 123456789012
 	a, b = MustString("123456789012.3"), MustString("123456789012")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 1234567890123 < 1234567890123.4
+	// 1234567890123 < 1234567890123.4
 	a, b = MustString("1234567890123"), MustString("1234567890123.4")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 1234567890123.4 > 1234567890123
+	// 1234567890123.4 > 1234567890123
 	a, b = MustString("1234567890123.4"), MustString("1234567890123")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 12345678901234 < 12345678901234.5
+	// 12345678901234 < 12345678901234.5
 	a, b = MustString("1234567890124"), MustString("12345678901234.5")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 12345678901234.5 > 12345678901234
+	// 12345678901234.5 > 12345678901234
 	a, b = MustString("12345678901234.5"), MustString("12345678901234")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 123456789012345 < 123456789012345.6
+	// 123456789012345 < 123456789012345.6
 	a, b = MustString("12345678901245"), MustString("123456789012345.6")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 123456789012345.6 > 123456789012345
+	// 123456789012345.6 > 123456789012345
 	a, b = MustString("123456789012345.6"), MustString("123456789012345")
 	assert.Equal(t, 1, a.Cmp(b))
 
-  // 1234567890123456 < 1234567890123457
+	// 1234567890123456 < 1234567890123457
 	a, b = MustString("123456789012456"), MustString("1234567890123457")
 	assert.Equal(t, -1, a.Cmp(b))
 
-  // 1234567890123457 > 1234567890123456
+	// 1234567890123457 > 1234567890123456
 	a, b = MustString("1234567890123457"), MustString("1234567890123456")
 	assert.Equal(t, 1, a.Cmp(b))
 }
@@ -522,31 +521,31 @@ func TestAdd_(t *testing.T) {
 	a, b := MustString("9"), MustString("5")
 	assert.Equal(t, union.OfResultError(OfString("14")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("5"), MustString("9")
+	a, b = MustString("5"), MustString("9")
 	assert.Equal(t, union.OfResultError(OfString("14")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("-9"), MustString("-5")
+	a, b = MustString("-9"), MustString("-5")
 	assert.Equal(t, union.OfResultError(OfString("-14")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("-5"), MustString("-9")
+	a, b = MustString("-5"), MustString("-9")
 	assert.Equal(t, union.OfResultError(OfString("-14")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("9"), MustString("-5")
+	a, b = MustString("9"), MustString("-5")
 	assert.Equal(t, union.OfResultError(OfString("4")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("5"), MustString("-9")
+	a, b = MustString("5"), MustString("-9")
 	assert.Equal(t, union.OfResultError(OfString("-4")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("-9"), MustString("5")
+	a, b = MustString("-9"), MustString("5")
 	assert.Equal(t, union.OfResultError(OfString("-4")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("-5"), MustString("9")
+	a, b = MustString("-5"), MustString("9")
 	assert.Equal(t, union.OfResultError(OfString("4")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("12.3456"), MustString("12.3456")
+	a, b = MustString("12.3456"), MustString("12.3456")
 	assert.Equal(t, union.OfResultError(OfString("24.6912")), union.OfResult(a.Add(b)))
 
-  a, b = MustString("-12.3456"), MustString("-12.3456")
+	a, b = MustString("-12.3456"), MustString("-12.3456")
 	assert.Equal(t, union.OfResultError(OfString("-24.6912")), union.OfResult(a.Add(b)))
 
 	// Try adding 0 - 999 with 0 - 999
@@ -564,62 +563,62 @@ func TestAdd_(t *testing.T) {
 		}
 	}
 
-  // Overflow
-  v9, v1 := MustString("9000000000000000"), MustString("1000000000000000")
-  a = v9.Add(v1)
+	// Overflow
+	v9, v1 := MustString("9000000000000000"), MustString("1000000000000000")
+	a = v9.Add(v1)
 	assert.Equal(t, Number{Positive, 0x9000000000000000, 0, Overflow, "Overflow adding 1000000000000000 to 9000000000000000"}, a)
 
-  // Overflow + Normal stays Overflow with original message
-  b = a.Add(v1)
-  assert.True(t, a == b)
+	// Overflow + Normal stays Overflow with original message
+	b = a.Add(v1)
+	assert.True(t, a == b)
 
-  // Normal + Overflow stays Overflow
-  a = v9.Add(a)
-  assert.Equal(t, Number{Positive, 0x9000000000000000, 0, Overflow, "Overflow adding Overflow to 9000000000000000"}, a)
+	// Normal + Overflow stays Overflow
+	a = v9.Add(a)
+	assert.Equal(t, Number{Positive, 0x9000000000000000, 0, Overflow, "Overflow adding Overflow to 9000000000000000"}, a)
 
-  // Underflow
-  v9, v1 = v9.Negate(), v1.Negate()
-  a = v9.Add(v1)
+	// Underflow
+	v9, v1 = v9.Negate(), v1.Negate()
+	a = v9.Add(v1)
 	assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow adding -1000000000000000 to -9000000000000000"}, a)
 
-  // Underflow + Normal stays Underflow with original message
-  b = a.Add(v1)
-  assert.True(t, a == b)
+	// Underflow + Normal stays Underflow with original message
+	b = a.Add(v1)
+	assert.True(t, a == b)
 
-  // Normal + Underflow stays Underflow
-  a = v9.Add(a)
-  assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow adding Underflow to -9000000000000000"}, a)
+	// Normal + Underflow stays Underflow
+	a = v9.Add(a)
+	assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow adding Underflow to -9000000000000000"}, a)
 }
 
 func TestSub_(t *testing.T) {
 	a, b := MustString("9"), MustString("5")
 	assert.Equal(t, MustString("4"), a.Sub(b))
 
-  a, b = MustString("5"), MustString("9")
+	a, b = MustString("5"), MustString("9")
 	assert.Equal(t, MustString("-4"), a.Sub(b))
 
-  a, b = MustString("-9"), MustString("-5")
+	a, b = MustString("-9"), MustString("-5")
 	assert.Equal(t, MustString("-4"), a.Sub(b))
 
-  a, b = MustString("-5"), MustString("-9")
+	a, b = MustString("-5"), MustString("-9")
 	assert.Equal(t, MustString("4"), a.Sub(b))
 
-  a, b = MustString("9"), MustString("-5")
+	a, b = MustString("9"), MustString("-5")
 	assert.Equal(t, MustString("14"), a.Sub(b))
 
-  a, b = MustString("5"), MustString("-9")
+	a, b = MustString("5"), MustString("-9")
 	assert.Equal(t, MustString("14"), a.Sub(b))
 
-  a, b = MustString("-9"), MustString("5")
+	a, b = MustString("-9"), MustString("5")
 	assert.Equal(t, MustString("-14"), a.Sub(b))
 
-  a, b = MustString("-5"), MustString("9")
+	a, b = MustString("-5"), MustString("9")
 	assert.Equal(t, MustString("-14"), a.Sub(b))
 
-  a, b = MustString("12.3456"), MustString("-12.3456")
+	a, b = MustString("12.3456"), MustString("-12.3456")
 	assert.Equal(t, MustString("24.6912"), a.Sub(b))
 
-  a, b = MustString("-12.3456"), MustString("12.3456")
+	a, b = MustString("-12.3456"), MustString("12.3456")
 	assert.Equal(t, MustString("-24.6912"), a.Sub(b))
 
 	// Try subtracting 0 - 999 from 0 - 999
@@ -637,29 +636,29 @@ func TestSub_(t *testing.T) {
 		}
 	}
 
-  // Overflow
-  v9, v1 := MustString("9000000000000000"), MustString("-1000000000000000")
-  a = v9.Sub(v1)
+	// Overflow
+	v9, v1 := MustString("9000000000000000"), MustString("-1000000000000000")
+	a = v9.Sub(v1)
 	assert.Equal(t, Number{Positive, 0x9000000000000000, 0, Overflow, "Overflow subtracting -1000000000000000 from 9000000000000000"}, a)
 
-  // Overflow - Normal stays Overflow with original message
-  b = a.Sub(v1)
-  assert.True(t, a == b)
+	// Overflow - Normal stays Overflow with original message
+	b = a.Sub(v1)
+	assert.True(t, a == b)
 
-  // Normal - Overflow stays Overflow
-  a = v9.Sub(a)
-  assert.Equal(t, Number{Positive, 0x9000000000000000, 0, Overflow, "Overflow subtracting Overflow from 9000000000000000"}, a)
+	// Normal - Overflow stays Overflow
+	a = v9.Sub(a)
+	assert.Equal(t, Number{Positive, 0x9000000000000000, 0, Overflow, "Overflow subtracting Overflow from 9000000000000000"}, a)
 
-  // Underflow
-  v9, v1 = v9.Negate(), v1.Negate()
-  a = v9.Sub(v1)
+	// Underflow
+	v9, v1 = v9.Negate(), v1.Negate()
+	a = v9.Sub(v1)
 	assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow subtracting 1000000000000000 from -9000000000000000"}, a)
 
-  // Underflow - Normal stays Underflow with original message
-  b = a.Sub(v1)
-  assert.True(t, a == b)
+	// Underflow - Normal stays Underflow with original message
+	b = a.Sub(v1)
+	assert.True(t, a == b)
 
-  // Normal - Underflow stays Underflow
-  a = v9.Sub(a)
-  assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow subtracting Underflow from -9000000000000000"}, a)
+	// Normal - Underflow stays Underflow
+	a = v9.Sub(a)
+	assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow subtracting Underflow from -9000000000000000"}, a)
 }
