@@ -2,6 +2,8 @@ package one28
 
 // SPDX-License-Identifier: Apache-2.0
 
+import "fmt"
+
 const (
 	highestBitMask uint64 = 0x80_00_00_00_00_00_00_00
 	allBitsMask    uint64 = 0xFF_FF_FF_FF_FF_FF_FF_FF
@@ -22,19 +24,19 @@ func Add(upperAE1, lowerAE1, upperAE2, lowerAE2 uint64) (carry, upper, lower uin
 		td       = ae1lb32 + ae2lb32
 		td_carry = (td & upper32Mask) >> 32
 
-		tc       = ae1lt32 + ae2lt32
-		tc_carry = td_carry + ((tc & upper32Mask) >> 32)
+		tc       = td_carry + ae1lt32 + ae2lt32
+		tc_carry = ((tc & upper32Mask) >> 32)
 
-		tb       = ae1ub32 + ae2ub32
-		tb_carry = tc_carry + ((tb & upper32Mask) >> 32)
+		tb       = tc_carry + ae1ub32 + ae2ub32
+		tb_carry = ((tb & upper32Mask) >> 32)
 
 		ta = tb_carry + (ae1ut32 + ae2ut32)
 	)
 
 	// Combine terms into carry, upper and lower
 	carry = (ta & upper32Mask) >> 32
-	upper = (ta << 32) | tb
-	lower = (tc << 32) | td
+	upper = ((ta & lower32Mask) << 32) | (tb & lower32Mask)
+	lower = ((tc & lower32Mask) << 32) | (td & lower32Mask)
 
 	return
 }
@@ -49,11 +51,12 @@ func TwosComplement(upper, lower uint64) (upperRes, lowerRes uint64) {
 	return
 }
 
-// Sub subtracts a 128-bit subtrahend from a 128-bit minuend, returning a final borrow and 128-bit result.
-func Sub(upperME, lowerME, upperSE, lowerSE uint64) (borrow, upper, lower uint64) {
+// Sub subtracts a 128-bit subtrahend from a 128-bit minuend, returning a 128-bit result.
+// There is no borrow returned, as this is unsigned subtraction. It is up to the caller to ensure minuend >= subtrahend.
+func Sub(upperME, lowerME, upperSE, lowerSE uint64) (upper, lower uint64) {
 	// Calculate the twos complement and add, it's easier
 	upperSE, lowerSE = TwosComplement(upperSE, lowerSE)
-	borrow, upper, lower = Add(upperME, lowerME, upperSE, lowerSE)
+	_, upper, lower = Add(upperME, lowerME, upperSE, lowerSE)
 
 	return
 }
@@ -192,41 +195,43 @@ func Mul(mp, ma uint64) (upper, lower uint64) {
 //
 // Phase 2: Subtract multiples, shifting multiple and factor right 1 bit at a time.
 // Relevant multiples are <= remainder. Stop when remainder < divisor.
-// 80  <= 121 : q = 16, r = 41, r > 5, m = 40, f = 8
-// 40  <=  41 : q = 24, r =  1, r < 5, stop
+// 80  <= 121 : q = 0  + 16 = 16, r = 121 - 80 = 41, r > 5, m = 40, f = 8
+// 40  <=  41 : q = 16 +  8 = 24, r =  41 - 40 =  1, r < 5, stop
 //
 // Result is 121 / 5 = 24 remainder 1
 //
 // If upper dividend is 0, just uses division and modulus operators for a fast result.
 // Panics if the divisor is 0.
-// func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64) {
-// 	// Die if divisor is 0
-// 	if divisor == 0 {
-// 		// Same error Go provides if you use a,b = 1,0; a/b
-// 		panic(fmt.Errorf("runtime error: integer divide by zero"))
-// 	}
-//
-// 	// Use builtin operators when upper dividend = 0
-// 	if upperDE == 0 {
-// 		lowerQ, remainder = lowerDE/divisor, lowerDE%divisor
-// 		return
-// 	}
-//
-// 	// Use bit shifting when upper dividend > 0
-// 	// Since remainder can be 128-bits for some of the initial subtractions, use dividend parameters for it until we're done
-// 	// Phase 1: Find largest multiple of divisor <= dividend
-// 	// Start with mutiplying by 2 until multiple > dividend (shift while <=)
-// 	var upperM, lowerM, upperF, lowerF uint64 = 0, divisor, 0, 1
-// 	for (upperM < upperDE) || ((upperM == upperDE) && (lowerM <= lowerDE)) {
-// 		_, upperM, lowerM = LshU128(upperM, lowerM)
-// 		_, upperF, lowerF = LshU128(upperF, lowerF)
-// 	}
-//
-// 	// Stopped at multiple > dividend, bring back one shift
-// 	_, upperM, lowerM = RshU128(upperM, lowerM)
-// 	_, upperF, lowerF = RshU128(upperF, lowerF)
-//
-// 	// Phase2: Subtract multiples and shift until multiple < divisor
-//
-// 	return
-// }
+func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64) {
+	// Die if divisor is 0
+	if divisor == 0 {
+		// Same error Go provides if you execute a,b = 1,0; a/b
+		panic(fmt.Errorf("runtime error: integer divide by zero"))
+	}
+
+	// Use builtin operators when upper dividend = 0
+	if upperDE == 0 {
+		lowerQ, remainder = lowerDE/divisor, lowerDE%divisor
+		return
+	}
+
+	// Use bit shifting when upper dividend > 0
+	// Since remainder can be 128-bits for some of the initial subtractions, use dividend parameters for it until we're done
+	// Phase 1: Find largest multiple of divisor <= dividend
+	// Start with shifting until multiple > dividend (shift while <=)
+	// The final shift may require an extra 129th bit that we store in leftCarry
+	var carry, upperM, lowerM, upperF, lowerF uint64 = 0, 0, divisor, 0, 1
+	for (carry == 0) && ((upperM < upperDE) || ((upperM == upperDE) && (lowerM <= lowerDE))) {
+		carry, upperM, lowerM = Lsh(upperM, lowerM)
+		_, upperF, lowerF = Lsh(upperF, lowerF)
+	}
+
+	// Stopped at multiple > dividend, bring back one shift, adding carry to the left in case an extra 129th bit was produced
+	_, upperM, lowerM = Rsh(upperM, lowerM)
+	upperM |= (carry << 63)
+	_, upperF, lowerF = Rsh(upperF, lowerF)
+
+	// Phase2: Subtract multiples and shift until multiple < divisor
+
+	return
+}

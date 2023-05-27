@@ -23,23 +23,21 @@ func TestAdd_(t *testing.T) {
 }
 
 func TestTwosComplement_(t *testing.T) {
-  upper, lower := TwosComplement(0, 0xFF_FF_FF_FF_FF_FF_FF_FF)
-  assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), upper)
-  assert.Equal(t, uint64(1), lower)
+	upper, lower := TwosComplement(0, 0xFF_FF_FF_FF_FF_FF_FF_FF)
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), upper)
+	assert.Equal(t, uint64(1), lower)
 
-  upper, lower = TwosComplement(0x80_00_00_00_00_00_00_00, 0)
-  assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), upper)
-  assert.Equal(t, uint64(0), lower)
+	upper, lower = TwosComplement(0x80_00_00_00_00_00_00_00, 0)
+	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), upper)
+	assert.Equal(t, uint64(0), lower)
 }
 
 func TestSub_(t *testing.T) {
-	borrow, upper, lower := Sub(2, 40, 1, 20)
-	assert.Equal(t, uint64(0), borrow)
+	upper, lower := Sub(2, 40, 1, 20)
 	assert.Equal(t, uint64(1), upper)
 	assert.Equal(t, uint64(20), lower)
 
-	borrow, upper, lower = Sub(0xFF_00_00_00_00_00_00_00, 0, 0x01_00_00_00_00_00_00_00, 0)
-	assert.Equal(t, uint64(0), borrow)
+	upper, lower = Sub(0xFF_00_00_00_00_00_00_00, 0, 0x01_00_00_00_00_00_00_00, 0)
 	assert.Equal(t, uint64(0xFE_00_00_00_00_00_00_00), upper)
 	assert.Equal(t, uint64(0), lower)
 }
@@ -132,7 +130,7 @@ func TestMul_(t *testing.T) {
 	// Calculate actual result
 	c, d = Mul(a, b)
 
-	// Compare result to what we know it should be, based on pattern of multiplying highest bit patterns together
+	// Compare actual result to what we know it should be, based on pattern of multiplying highest bit patterns together
 	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FE), c)
 	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_01), d)
 
