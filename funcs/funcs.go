@@ -475,7 +475,7 @@ func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
 	return falseVal()
 }
 
-// MinOrdered returns the maximum value of two ordered types
+// MinOrdered returns the minimum value of two ordered types
 func MinOrdered[T constraint.Ordered](val1, val2 T) T {
 	if val1 > val2 {
 		return val2

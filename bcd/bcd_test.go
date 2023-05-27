@@ -245,28 +245,6 @@ func TestConvertDecimals_(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("Cannot convert 9999999999999999 to 1 decimal(s), as significant leading digits would be lost"), n.ConvertDecimals(1))
 }
 
-func TestAlignDecimals_(t *testing.T) {
-	// Same decimals
-	a, b := MustString("1.23"), MustString("2.34")
-	assert.Equal(t, tuple.Of2(a, b), tuple.Of2(alignDecimals(a, b)))
-
-	// a decimals > b
-	a, b = MustString("1.234"), MustString("2.34")
-	assert.Equal(t, tuple.Of2(a, MustString("2.340")), tuple.Of2(alignDecimals(a, b)))
-
-	// a decimals > b, extending b would lose precision, requiring rounding of a
-	a, b = MustString("1.234567890123456"), MustString("23.45678901234567")
-	assert.Equal(t, tuple.Of2(MustString("1.23456789012346"), b), tuple.Of2(alignDecimals(a, b)))
-
-	// a < b
-	a, b = MustString("1.23"), MustString("2.345")
-	assert.Equal(t, tuple.Of2(MustString("1.230"), b), tuple.Of2(alignDecimals(a, b)))
-
-	// a decimals < b, extending a would lose precision, requiring rounding of b
-	a, b = MustString("12.34567890123456"), MustString("2.345678901234567")
-	assert.Equal(t, tuple.Of2(a, MustString("2.34567890123457")), tuple.Of2(alignDecimals(a, b)))
-}
-
 func TestCmp_(t *testing.T) {
 	// a == b
 	a, b := MustString("5"), MustString("5")
@@ -517,6 +495,28 @@ func TestCmp_(t *testing.T) {
 	assert.Equal(t, 1, a.Cmp(b))
 }
 
+func TestAlignDecimals_(t *testing.T) {
+	// Same decimals
+	a, b := MustString("1.23"), MustString("2.34")
+	assert.Equal(t, tuple.Of2(a, b), tuple.Of2(alignDecimals(a, b)))
+
+	// a decimals > b
+	a, b = MustString("1.234"), MustString("2.34")
+	assert.Equal(t, tuple.Of2(a, MustString("2.340")), tuple.Of2(alignDecimals(a, b)))
+
+	// a decimals > b, extending b would lose precision, requiring rounding of a
+	a, b = MustString("1.234567890123456"), MustString("23.45678901234567")
+	assert.Equal(t, tuple.Of2(MustString("1.23456789012346"), b), tuple.Of2(alignDecimals(a, b)))
+
+	// a < b
+	a, b = MustString("1.23"), MustString("2.345")
+	assert.Equal(t, tuple.Of2(MustString("1.230"), b), tuple.Of2(alignDecimals(a, b)))
+
+	// a decimals < b, extending a would lose precision, requiring rounding of b
+	a, b = MustString("12.34567890123456"), MustString("2.345678901234567")
+	assert.Equal(t, tuple.Of2(a, MustString("2.34567890123457")), tuple.Of2(alignDecimals(a, b)))
+}
+
 func TestAdd_(t *testing.T) {
 	a, b := MustString("9"), MustString("5")
 	assert.Equal(t, union.OfResultError(OfString("14")), union.OfResult(a.Add(b)))
@@ -661,4 +661,16 @@ func TestSub_(t *testing.T) {
 	// Normal - Underflow stays Underflow
 	a = v9.Sub(a)
 	assert.Equal(t, Number{Negative, 0x9000000000000000, 0, Underflow, "Underflow subtracting Underflow from -9000000000000000"}, a)
+}
+
+func TestToBinary_(t *testing.T) {
+	assert.Equal(t, uint64(0), toBinary(0x0))
+	assert.Equal(t, uint64(12345678), toBinary(0x12345678))
+	assert.Equal(t, uint64(1234567890123456), toBinary(0x1234567890123456))
+}
+
+func TestToBCD_(t *testing.T) {
+	assert.Equal(t, uint64(0), toBinary(0x0))
+	assert.Equal(t, tuple.Of2(uint64(0x12345678), uint(8)), tuple.Of2(toBCD(12345678)))
+	assert.Equal(t, tuple.Of2(uint64(0x1234567890123456), uint(16)), tuple.Of2(toBCD(1234567890123456)))
 }

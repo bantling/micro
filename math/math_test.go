@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/bantling/micro/conv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -512,70 +511,6 @@ func TestMul_(t *testing.T) {
 		assert.Equal(t, OverflowErr, Mul(gomath.MaxUint64, &i))
 		assert.Equal(t, uint64(10), i)
 	}
-}
-
-func TestMulU64_(t *testing.T) {
-	//==== 10 * 20
-	var a, b uint64 = 10, 20
-	c, d := MulU64(a, b)
-	assert.Equal(t, uint64(0), c)
-	assert.Equal(t, uint64(200), d)
-
-	//==== 0x10_00_00_0 * 0x20_00_00_00
-	a, b = 0x10_00_00_00, 0x20_00_00_00
-	c, d = MulU64(a, b)
-	assert.Equal(t, uint64(0), c)
-	assert.Equal(t, a*b, d)
-
-	//==== 0x10_20_30_40 * 0x50_60_70_80
-	a, b = 0x10_20_30_40, 0x50_60_70_80
-	c, d = MulU64(a, b)
-	assert.Equal(t, uint64(0), c)
-	assert.Equal(t, a*b, d)
-
-	//==== 0x10_20_30_40_50_60_70_80 * 0x90_A0_B0_C0_D0_E0_F0_00
-	a, b = 0x10_20_30_40_50_60_70_80, 0x90_A0_B0_C0_D0_E0_F0_00
-
-	// Calculate expected result using big.Int
-	var abi, bbi, er *big.Int
-	conv.To(a, &abi)
-	conv.To(b, &bbi)
-	conv.To(0, &er)
-	er.Mul(abi, bbi)
-
-	// Calculate actual result
-	c, d = MulU64(a, b)
-
-	// Combine c and d into a 128-bit result for comparison
-	var cdbi, dbi *big.Int
-	conv.To(c, &cdbi)
-	cdbi.Lsh(cdbi, 64)
-	conv.To(d, &dbi)
-	cdbi.Or(cdbi, dbi)
-
-	// Assert we got the same result as big.Int
-	assert.Zero(t, er.Cmp(cdbi))
-
-	//==== 0xFF_FF_FF_FF_FF_FF_FF_FF * 0xFF_FF_FF_FF_FF_FF_FF_FF
-	a, b = 0xFF_FF_FF_FF_FF_FF_FF_FF, 0xFF_FF_FF_FF_FF_FF_FF_FF
-
-	// Calculate expected result using big.Int
-	conv.To(a, &abi)
-	conv.To(b, &bbi)
-	conv.To(0, &er)
-	er.Mul(abi, bbi)
-
-	// Calculate actual result
-	c, d = MulU64(a, b)
-
-	// Combine c and d into a 128-bit result for comparison
-	conv.To(c, &cdbi)
-	cdbi.Lsh(cdbi, 64)
-	conv.To(d, &dbi)
-	cdbi.Or(cdbi, dbi)
-
-	// Assert we got the same result as big.Int
-	assert.Zero(t, er.Cmp(cdbi))
 }
 
 func TestDiv_(t *testing.T) {

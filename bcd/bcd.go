@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bantling/micro/funcs"
+	// "github.com/bantling/micro/math"
 	"github.com/bantling/micro/tuple"
 )
 
@@ -460,31 +461,6 @@ func (s *Number) ConvertDecimals(decimals uint) error {
 	return nil
 }
 
-// alignDecimals aligns the decimal point of two numbers so they are the same:
-// - If they are already the same, return them as is
-// - Try ConvertDecimals on number with fewer decimals to extend to larger. If an error occurs, round more decimals to fewer.
-func alignDecimals(a, b Number) (Number, Number) {
-	ad, bd := a.decimals, b.decimals
-
-	switch {
-	case ad < bd:
-		// Try extending a, adding trailing zeroes
-		if a.ConvertDecimals(bd) != nil {
-			// Overflowed, shorten b
-			b.ConvertDecimals(ad)
-		}
-
-	default: // ad > bd
-		// Try extending b, adding trailing zeroes
-		if b.ConvertDecimals(ad) != nil {
-			// Overflowed, shorten a
-			a.ConvertDecimals(bd)
-		}
-	}
-
-	return a, b
-}
-
 // Cmp compares this number against another number, returning:
 //
 // +1 = s > n
@@ -579,6 +555,31 @@ func (s Number) Cmp(n Number) int {
 
 	// Must have same logical value
 	return 0
+}
+
+// alignDecimals aligns the decimal point of two numbers so they are the same:
+// - If they are already the same, return them as is
+// - Try ConvertDecimals on number with fewer decimals to extend to larger. If an error occurs, round more decimals to fewer.
+func alignDecimals(a, b Number) (Number, Number) {
+	ad, bd := a.decimals, b.decimals
+
+	switch {
+	case ad < bd:
+		// Try extending a, adding trailing zeroes
+		if a.ConvertDecimals(bd) != nil {
+			// Overflowed, shorten b
+			b.ConvertDecimals(ad)
+		}
+
+	default: // ad > bd
+		// Try extending b, adding trailing zeroes
+		if b.ConvertDecimals(ad) != nil {
+			// Overflowed, shorten a
+			a.ConvertDecimals(bd)
+		}
+	}
+
+	return a, b
 }
 
 // Add this number to another number, returning a new number with the same number of decimals as the number with the most decimals.
@@ -823,6 +824,37 @@ func (s Number) Sub(o Number) Number {
 	return ofHexInternal(rsgn, sub, a.decimals)
 }
 
+// toBinary converts a bcd uint64 into a binary uint64
+func toBinary(bcd uint64) (bin uint64) {
+	if bcd > 0 {
+		mask, maskShift := highestDigitMask, highestDigitShift
+		for i := 0; i < 16; i++ {
+			bin = (bin * 10) + ((bcd & mask) >> maskShift)
+			mask >>= 4
+			maskShift -= 4
+		}
+	}
+
+	return
+}
+
+// toBCD converts a binary uint64 into a bcd uint64, and returns the number of significant digits,
+// which are all digits except leading zeros.
+func toBCD(bin uint64) (bcd uint64, digits uint) {
+	if bin > 0 {
+		digit, rmdr, i := uint64(0), bin, uint(0)
+		for ; (i < 16) && (rmdr > 0); i++ {
+			rmdr, digit = rmdr/10, rmdr%10
+			bcd = (bcd >> 4) | (digit << highestDigitShift)
+		}
+
+		digits = i
+		bcd >>= ((16 - digits) * 4)
+	}
+
+	return
+}
+
 // Mul multiplies this number by another number, returning a new number.
 // If this number has N decimals and the other number has M decimals, then multiplication produces N+M decimals.
 // If this number has N integer digits and the other number has M integer digits:
@@ -833,9 +865,24 @@ func (s Number) Sub(o Number) Number {
 // If there are not enough decimal digits available to store the resulting number of decimal digits, then the decimal
 // digits are rounded to what is available. Decimal digits may also be rounded further to make room for integer digits.
 //
-// If there are not enough integer digits available to store the resulting number of integer digits, then an overflow
-// (positive number too large) or underflow (negative number too low) occurs.
-func (s Number) Mul(o Number) Number {
-
-	return Number{}
-}
+// If more than 16 integer digits are required, then an overflow (positive number too large) or
+// underflow (negative number too low) occurs.
+// func (s Number) Mul(o Number) Number {
+//   // The sign is Positive if the adjusted signs are the same, else Negative
+//   sign := funcs.Ternary(s.AdjustedToPositive() == o.AdjustedToPositive(), Positive, Negative)
+//
+//   // Convert both Numbers into binary integers and multiply them together
+//   hbin, lbin := math.MulU64(toBinary(s.digits), toBinary(o.digits))
+//
+//   // The number of decimals needed is the sum
+//   decimals := s.decimals + o.decimals
+//
+//   // Convert the high and low results to bcd
+//
+//   // The number of digits is the sum
+//   digits := hdigits + ldigits
+//
+//   // If the number of decimals
+//
+// 	return Number{}
+// }
