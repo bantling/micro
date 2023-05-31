@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/math"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -142,4 +144,36 @@ func TestMul_(t *testing.T) {
 
 	// Assert we got the same result as big.Int
 	assert.Zero(t, er.Cmp(cdbi))
+}
+
+func TestDivQuo_(t *testing.T) {
+  // // Die if division by zero
+  funcs.TryTo(
+    func() { DivQuo(1, 2, 0) },
+    func(e any) { assert.Equal(t, math.DivByZeroErr, e) },
+  )
+
+  // Shortcut that uses built in operators for case of upper quotient = 0
+  uq, lq, rm := DivQuo(0, 100, 11)
+  assert.Equal(t, uint64(0), uq)
+  assert.Equal(t, uint64(9), lq)
+  assert.Equal(t, uint64(1), rm)
+
+  // Long case of upper quotient > 0, where remainder = 0
+  uq, lq, rm = DivQuo(100, 0, 2) // 100 * 2^64 / 2 = 100 * 2^32 rmdr 0
+  assert.Equal(t, uint64(50), uq)
+  assert.Equal(t, uint64(0), lq)
+  assert.Equal(t, uint64(0), rm)
+
+  // Long case of upper quotient > 0, where remainder = 1
+  uq, lq, rm = DivQuo(100, 3, 2) // 100 * 2^64 + 3 / 2 = 50 * 2^64 + 1 rmdr 1
+  assert.Equal(t, uint64(50), uq)
+  assert.Equal(t, uint64(1), lq)
+  assert.Equal(t, uint64(1), rm)
+
+  // Long case of upper quotient > 0, stupidly dividing by 1
+  uq, lq, rm = DivQuo(100, 3, 1) // 100 * 2^64 + 3
+  assert.Equal(t, uint64(100), uq)
+  assert.Equal(t, uint64(3), lq)
+  assert.Equal(t, uint64(0), rm)
 }

@@ -2,7 +2,9 @@ package one28
 
 // SPDX-License-Identifier: Apache-2.0
 
-import "fmt"
+import (
+	"github.com/bantling/micro/math"
+)
 
 const (
 	highestBitMask uint64 = 0x80_00_00_00_00_00_00_00
@@ -206,7 +208,7 @@ func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 	// Die if divisor is 0
 	if divisor == 0 {
 		// Same error Go provides if you execute a,b = 1,0; a/b
-		panic(fmt.Errorf("runtime error: integer divide by zero"))
+		panic(math.DivByZeroErr)
 	}
 
 	// Use builtin operators when upper dividend = 0
@@ -215,11 +217,11 @@ func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 		return
 	}
 
-	// Use bit shifting when upper dividend > 0
-	// Since remainder can be 128-bits for some of the initial subtractions, use dividend parameters for it until we're done
-	// Phase 1: Find largest multiple of divisor <= dividend
-	// Start with shifting until multiple > dividend (shift while <=)
-	// The final shift may require an extra 129th bit that we store in leftCarry
+  // Phase 1: Find largest multiple of divisor <= dividend.
+	// Use bit shifting when upper dividend > 0.
+	// Since remainder can be 128-bits for some of the initial subtractions, use dividend parameters for it until we're done.
+	// Start with shifting until multiple > dividend (shift while <=).
+	// The final shift may require an extra 129th bit that we store in leftCarry.
 	var carry, upperM, lowerM, upperF, lowerF uint64 = 0, 0, divisor, 0, 1
 	for (carry == 0) && ((upperM < upperDE) || ((upperM == upperDE) && (lowerM <= lowerDE))) {
 		carry, upperM, lowerM = Lsh(upperM, lowerM)
@@ -231,7 +233,34 @@ func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 	upperM |= (carry << 63)
 	_, upperF, lowerF = Rsh(upperF, lowerF)
 
-	// Phase2: Subtract multiples and shift until multiple < divisor
+	// Phase2: Subtract multiples and shift until multiple < divisor.
+  // Subtract current multiple from dividend to get new dividend (effectively, new remainder).
+  // It is possible that after subtracting this first multiple, we are done.
+  upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
+
+  // Add factor to quotient - since quotient is zero, just set it
+  upperQ = upperF
+  lowerQ = lowerF
+
+  // Continue searching for more multiples to subtract until dividend (current remainder) < divisor
+  for (upperDE > 0) || (lowerDE >= divisor) {
+    // Find next multiple to subtract from remainder
+    for (upperM > upperDE) || (lowerM > lowerDE) {
+    	_, upperM, lowerM = Rsh(upperM, lowerM)
+    	_, upperF, lowerF = Rsh(upperF, lowerF)
+    }
+
+    // Subtract multiple from dividend (current remainder)
+    upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
+
+    // Add factor to quotient
+    upperQ += upperF
+    lowerQ += lowerF
+  }
+
+  // Copy final dividend (final remainder) to remainder output.
+  // Since the divisor is 64 bits, this final remainder must be 64 bits.
+  remainder = lowerDE
 
 	return
 }
