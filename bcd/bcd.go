@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/bantling/micro/funcs"
-	// "github.com/bantling/micro/math"
+	"github.com/bantling/micro/math/one28"
 	"github.com/bantling/micro/tuple"
 )
 
@@ -838,19 +838,33 @@ func toBinary(bcd uint64) (bin uint64) {
 	return
 }
 
-// toBCD converts a binary uint64 into a bcd uint64, and returns the number of significant digits,
+// toBCD converts a binary pair of uint64s into a bcd pair of uint64s, and returns the number of significant digits,
 // which are all digits except leading zeros.
-func toBCD(bin uint64) (bcd uint64, digits uint) {
-	if bin > 0 {
-		digit, rmdr, i := uint64(0), bin, uint(0)
-		for ; (i < 16) && (rmdr > 0); i++ {
-			rmdr, digit = rmdr/10, rmdr%10
-			bcd = (bcd >> 4) | (digit << highestDigitShift)
+func toBCD(a, b uint64) (c, d uint64, digits uint) {
+	// Repeatedly divide by 10, where quotient is any remaining digits, and remainder is a single digit.
+	// Digits are provided in right to left order, so insert digits into highest position, and shift right 4 bits.
+	// Once all digits are inserted, a final shift of (128 / 4 - numDigits * 4) is required to adjust the result so that
+	// rightmost digit is in rightmost position.
+	var r uint64
+	fmt.Printf("Start\n")
+	for (a > 0) || (b > 0) {
+		a, b, r = one28.QuoRem(a, b, 10)
+		fmt.Printf("cd1: %016x_%016x\n", c, d)
+		c, d, _ = one28.Rsh(c, d, 4)
+		fmt.Printf("cd2: %016x_%016x\n", c, d)
+		c |= (r << 60)
+		fmt.Printf("cd3: %016x_%016x\n", c, d)
+		digits++
+		fmt.Printf("%016x_%016x %016x_%016x, %d\n", a, b, c, d, digits)
+		if digits == 32 {
+			break
 		}
-
-		digits = i
-		bcd >>= ((16 - digits) * 4)
 	}
+
+	// Adjustment to line up right digit with right column
+	fmt.Printf("Shift %d\n", 128-digits*4)
+	c, d, _ = one28.Rsh(c, d, 128-digits*4)
+	fmt.Printf("Answer: %016x_%016x, %d\n", c, d, digits)
 
 	return
 }
@@ -872,17 +886,12 @@ func toBCD(bin uint64) (bcd uint64, digits uint) {
 //   sign := funcs.Ternary(s.AdjustedToPositive() == o.AdjustedToPositive(), Positive, Negative)
 //
 //   // Convert both Numbers into binary integers and multiply them together
-//   hbin, lbin := math.MulU64(toBinary(s.digits), toBinary(o.digits))
+//   hbin, lbin := one28.MulU(toBinary(s.digits), toBinary(o.digits))
 //
 //   // The number of decimals needed is the sum
 //   decimals := s.decimals + o.decimals
 //
-//   // Convert the high and low results to bcd
-//
-//   // The number of digits is the sum
-//   digits := hdigits + ldigits
-//
-//   // If the number of decimals
+//   // Convert the high and low results to bcd by repeatedly dividing by 10 to get the digits from right to left
 //
 // 	return Number{}
 // }

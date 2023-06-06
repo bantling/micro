@@ -833,6 +833,10 @@ var (
 		"float64*big.Int": func(t any, u any) error {
 			return FloatToBigInt(t.(float64), u.(**big.Int))
 		},
+		"*big.Int*big.Int": func(t any, u any) error {
+			BigIntToBigInt(t.(*big.Int), u.(**big.Int))
+			return nil
+		},
 		"*big.Float*big.Int": func(t any, u any) error {
 			return BigFloatToBigInt(t.(*big.Float), u.(**big.Int))
 		},
@@ -892,6 +896,10 @@ var (
 		},
 		"*big.Int*big.Float": func(t any, u any) error {
 			BigIntToBigFloat(t.(*big.Int), u.(**big.Float))
+			return nil
+		},
+		"*big.Float*big.Float": func(t any, u any) error {
+			BigFloatToBigFloat(t.(*big.Float), u.(**big.Float))
 			return nil
 		},
 		"*big.Rat*big.Float": func(t any, u any) error {
@@ -955,6 +963,10 @@ var (
 		},
 		"*big.Float*big.Rat": func(t any, u any) error {
 			return BigFloatToBigRat(t.(*big.Float), u.(**big.Rat))
+		},
+		"*big.Rat*big.Rat": func(t any, u any) error {
+			BigRatToBigRat(t.(*big.Rat), u.(**big.Rat))
+			return nil
 		},
 		"string*big.Rat": func(t any, u any) error {
 			return StringToBigRat(t.(string), u.(**big.Rat))
@@ -1476,6 +1488,12 @@ func FloatToBigInt[T constraint.Float](ival T, oval **big.Int) error {
 	return nil
 }
 
+// BigIntToBigInt makes a copy of a *big.Int such that ival and *oval are different pointers
+func BigIntToBigInt(ival *big.Int, oval **big.Int) {
+	*oval = big.NewInt(0)
+	(*oval).Set(ival)
+}
+
 // BigFloatToBigInt converts a *big.Float to a *big.Int.
 // Returns an error if the *big.Float has any fractional digits.
 func BigFloatToBigInt(ival *big.Float, oval **big.Int) error {
@@ -1538,6 +1556,14 @@ func FloatToBigFloat[T constraint.Float](ival T, oval **big.Float) error {
 // BigIntToBigFloat converts a *big.Int into a *big.Float
 func BigIntToBigFloat(ival *big.Int, oval **big.Float) {
 	StringToBigFloat(ival.String(), oval)
+}
+
+// BigFloatToBigFloat makes a copy of a *big.Float such that ival and *oval are different pointers
+func BigFloatToBigFloat(ival *big.Float, oval **big.Float) {
+	*oval = big.NewFloat(0)
+	(*oval).SetMode(ival.Mode())
+	(*oval).SetPrec(ival.Prec())
+	(*oval).Set(ival)
 }
 
 // BigRatToBigFloat converts a *big.Rat to a *big.Float
@@ -1607,6 +1633,12 @@ func BigFloatToBigRat(ival *big.Float, oval **big.Rat) error {
 	return nil
 }
 
+// BigRatToBigRat makes a copy of a *big.Rat such that ival and *oval are different pointers
+func BigRatToBigRat(ival *big.Rat, oval **big.Rat) {
+	*oval = big.NewRat(0, 1)
+	(*oval).Set(ival)
+}
+
 // StringToBigRat converts a string into a *big.Rat
 func StringToBigRat(ival string, oval **big.Rat) error {
 	var ok bool
@@ -1647,8 +1679,23 @@ func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, t
 	reflect.ToBaseType(&valsrc)
 	reflect.ToBaseType(&valtgt)
 
-	// No conversion function exists if src and *tgt are the same type
-	if valsrc.Type() == valtgt.Elem().Type() {
+	// No conversion function exists if src and *tgt are the same type, unless they are *big types
+	copy := valsrc.Type() == valtgt.Elem().Type()
+	if copy {
+		if _, isa := any(src).(*big.Int); isa {
+			copy = false
+		}
+
+		if _, isa := any(src).(*big.Float); isa {
+			copy = false
+		}
+
+		if _, isa := any(src).(*big.Rat); isa {
+			copy = false
+		}
+	}
+
+	if copy {
 		valtgt.Elem().Set(valsrc)
 		return nil
 	}

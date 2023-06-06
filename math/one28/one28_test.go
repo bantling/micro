@@ -3,6 +3,7 @@ package one28
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	gomath "math"
 	"math/big"
 	"testing"
 
@@ -50,32 +51,64 @@ func TestLsh_(t *testing.T) {
 	assert.Equal(t, uint64(2), upper)
 	assert.Equal(t, uint64(40), lower)
 
+	carry, upper, lower = Lsh(1, 20, 4)
+	assert.Zero(t, carry)
+	assert.Equal(t, uint64(16), upper)
+	assert.Equal(t, uint64(320), lower)
+
 	carry, upper, lower = Lsh(20, 1)
 	assert.Zero(t, carry)
 	assert.Equal(t, uint64(40), upper)
 	assert.Equal(t, uint64(2), lower)
 
+	carry, upper, lower = Lsh(20, 1, 3)
+	assert.Zero(t, carry)
+	assert.Equal(t, uint64(160), upper)
+	assert.Equal(t, uint64(8), lower)
+
+	//                           1000 0111     0001 0010    1000 0111      0001 0002
 	carry, upper, lower = Lsh(0x87_00_00_00_00_00_00_12, 0x87_00_00_00_00_00_00_12)
 	assert.Equal(t, uint64(1), carry)
 	assert.Equal(t, uint64(0x0E_00_00_00_00_00_00_25), upper)
 	assert.Equal(t, uint64(0x0E_00_00_00_00_00_00_24), lower)
+
+	//                          1110 0111      0001 0010    1000 0111      0001 0002
+	carry, upper, lower = Lsh(0xE7_00_00_00_00_00_00_12, 0x87_00_00_00_00_00_00_12, 2)
+	assert.Equal(t, uint64(3), carry)
+	assert.Equal(t, uint64(0x9C_00_00_00_00_00_00_4A), upper)
+	assert.Equal(t, uint64(0x1C_00_00_00_00_00_00_48), lower)
 }
 
 func TestRsh_(t *testing.T) {
-	carry, upper, lower := Rsh(1, 20)
-	assert.Zero(t, carry)
+	upper, lower, carry := Rsh(1, 20)
 	assert.Equal(t, uint64(0), upper)
 	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_0A), lower)
+	assert.Zero(t, carry)
 
-	carry, upper, lower = Rsh(20, 1)
-	assert.Equal(t, uint64(1), carry)
+	upper, lower, carry = Rsh(1, 20, 4)
+	assert.Equal(t, uint64(0), upper)
+	assert.Equal(t, uint64(0x10_00_00_00_00_00_00_01), lower)
+	assert.Equal(t, uint64(0x40_00_00_00_00_00_00_00), carry)
+
+	upper, lower, carry = Rsh(20, 1)
 	assert.Equal(t, uint64(10), upper)
 	assert.Equal(t, uint64(0), lower)
+	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), carry)
 
-	carry, upper, lower = Rsh(0x87_00_00_00_00_00_00_21, 0x87_00_00_00_00_00_00_21)
-	assert.Equal(t, uint64(1), carry)
+	upper, lower, carry = Rsh(20, 1, 3)
+	assert.Equal(t, uint64(2), upper)
+	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), lower)
+	assert.Equal(t, uint64(0x20_00_00_00_00_00_00_00), carry)
+
+	upper, lower, carry = Rsh(0x87_00_00_00_00_00_00_21, 0x87_00_00_00_00_00_00_21)
 	assert.Equal(t, uint64(0x43_80_00_00_00_00_00_10), upper)
 	assert.Equal(t, uint64(0xC3_80_00_00_00_00_00_10), lower)
+	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), carry)
+
+	upper, lower, carry = Rsh(0x87_00_00_00_00_00_00_21, 0x87_00_00_00_00_00_00_21, 2)
+	assert.Equal(t, uint64(0x21_C0_00_00_00_00_00_08), upper)
+	assert.Equal(t, uint64(0x61_C0_00_00_00_00_00_08), lower)
+	assert.Equal(t, uint64(0x40_00_00_00_00_00_00_00), carry)
 }
 
 func TestMul_(t *testing.T) {
@@ -146,34 +179,96 @@ func TestMul_(t *testing.T) {
 	assert.Zero(t, er.Cmp(cdbi))
 }
 
-func TestDivQuo_(t *testing.T) {
-  // // Die if division by zero
-  funcs.TryTo(
-    func() { DivQuo(1, 2, 0) },
-    func(e any) { assert.Equal(t, math.DivByZeroErr, e) },
-  )
+func TestQuoRem_(t *testing.T) {
+	// Die if division by zero
+	funcs.TryTo(
+		func() { QuoRem(1, 2, 0) },
+		func(e any) { assert.Equal(t, math.DivByZeroErr, e) },
+	)
 
-  // Shortcut that uses built in operators for case of upper quotient = 0
-  uq, lq, rm := DivQuo(0, 100, 11)
-  assert.Equal(t, uint64(0), uq)
-  assert.Equal(t, uint64(9), lq)
-  assert.Equal(t, uint64(1), rm)
+	// Shortcut that uses built in operators for case of upper quotient = 0
+	uq, lq, rm := QuoRem(0, 100, 11)
+	assert.Equal(t, uint64(0), uq)
+	assert.Equal(t, uint64(9), lq)
+	assert.Equal(t, uint64(1), rm)
 
-  // Long case of upper quotient > 0, where remainder = 0
-  uq, lq, rm = DivQuo(100, 0, 2) // 100 * 2^64 / 2 = 100 * 2^32 rmdr 0
-  assert.Equal(t, uint64(50), uq)
-  assert.Equal(t, uint64(0), lq)
-  assert.Equal(t, uint64(0), rm)
+	// Long case of upper quotient > 0, where remainder = 0
+	uq, lq, rm = QuoRem(100, 0, 2) // 100 * 2^64 / 2 = 100 * 2^32 rmdr 0
+	assert.Equal(t, uint64(50), uq)
+	assert.Equal(t, uint64(0), lq)
+	assert.Equal(t, uint64(0), rm)
 
-  // Long case of upper quotient > 0, where remainder = 1
-  uq, lq, rm = DivQuo(100, 3, 2) // 100 * 2^64 + 3 / 2 = 50 * 2^64 + 1 rmdr 1
-  assert.Equal(t, uint64(50), uq)
-  assert.Equal(t, uint64(1), lq)
-  assert.Equal(t, uint64(1), rm)
+	// Long case of upper quotient > 0, where remainder = 1
+	uq, lq, rm = QuoRem(100, 3, 2) // 100 * 2^64 + 3 / 2 = 50 * 2^64 + 1 rmdr 1
+	assert.Equal(t, uint64(50), uq)
+	assert.Equal(t, uint64(1), lq)
+	assert.Equal(t, uint64(1), rm)
 
-  // Long case of upper quotient > 0, stupidly dividing by 1
-  uq, lq, rm = DivQuo(100, 3, 1) // 100 * 2^64 + 3
-  assert.Equal(t, uint64(100), uq)
-  assert.Equal(t, uint64(3), lq)
-  assert.Equal(t, uint64(0), rm)
+	// Long case of upper quotient > 0, stupidly dividing by 1
+	uq, lq, rm = QuoRem(100, 3, 1) // 100 * 2^64 + 3
+	assert.Equal(t, uint64(100), uq)
+	assert.Equal(t, uint64(3), lq)
+	assert.Equal(t, uint64(0), rm)
+
+	//// Long case of a 32 digit number
+	var numbi *big.Int
+	conv.To("12345678901234567890123456789012", &numbi)
+
+	// Split long num into upper and lower 64 bits
+	var (
+		unumbi, lnumbi, lmask *big.Int
+		unum, lnum            uint64
+	)
+	// unumbi = upper 64
+	conv.To(numbi, &unumbi)
+	unumbi.Rsh(unumbi, 64)
+
+	// lnumbi = lower 64
+	conv.To(numbi, &lnumbi)
+	conv.To(uint64(gomath.MaxUint64), &lmask)
+	lnumbi.And(lnumbi, lmask)
+
+	// extract upper and lower 64 into uint64s
+	conv.To(unumbi, &unum)
+	conv.To(lnumbi, &lnum)
+
+	// Divide long number by 10 using our function
+	uq, lq, rm = QuoRem(unum, lnum, 10)
+
+	// Calculate expected result using bigInt calcs
+	var (
+		tenbi, uqbi, lqbi, rmbi *big.Int
+		ueq, leq, er            uint64
+	)
+
+	// Divide original numbi by 10
+	conv.To(10, &tenbi)
+	conv.To(0, &uqbi)
+	conv.To(0, &rmbi)
+	uqbi.QuoRem(numbi, tenbi, rmbi)
+
+	// uqbi = 128 bit result, copy it to lqbi
+	conv.To(uqbi, &lqbi)
+
+	// uqbi = upper 64
+	uqbi.Rsh(uqbi, 64)
+
+	// lqbi = lower 64
+	lqbi.And(lqbi, lmask)
+
+	// extract upper and lower 64 and remainder into uint64s
+	conv.To(uqbi, &ueq)
+	conv.To(lqbi, &leq)
+	conv.To(rmbi, &er)
+
+	// Check expected result is correct - combine upper and lower 64, multiply by 10, add remainder, and compare
+	var cbi *big.Int
+	conv.To(uqbi, &cbi)
+	cbi.Lsh(cbi, 64).Or(cbi, lqbi).Mul(cbi, tenbi).Add(cbi, rmbi)
+	assert.Equal(t, numbi, cbi)
+
+	// Check our result
+	assert.Equal(t, ueq, uq)
+	assert.Equal(t, leq, lq)
+	assert.Equal(t, er, rm)
 }

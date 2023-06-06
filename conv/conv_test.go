@@ -612,6 +612,14 @@ func TestFloatToBigInt_(t *testing.T) {
 	assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Int", FloatToBigInt(math.NaN(), &o).Error())
 }
 
+func TestBigIntToBigInt_(t *testing.T) {
+	var i, o *big.Int
+	i = big.NewInt(5)
+	BigIntToBigInt(i, &o)
+	assert.False(t, i == o)
+	assert.Equal(t, 0, i.Cmp(o))
+}
+
 func TestBigFloatToBigInt_(t *testing.T) {
 	var o *big.Int
 	assert.Nil(t, BigFloatToBigInt(big.NewFloat(1), &o))
@@ -709,6 +717,18 @@ func TestBigIntToBigFloat_(t *testing.T) {
 	assert.Equal(t, str, fmt.Sprintf("%.f", o))
 }
 
+func TestBigFloatToBigFloat_(t *testing.T) {
+	var i, o *big.Float
+	i = big.NewFloat(5)
+	i.SetMode(big.ToZero)
+	i.SetPrec(100)
+	BigFloatToBigFloat(i, &o)
+	assert.False(t, i == o)
+	assert.Equal(t, big.ToZero, o.Mode())
+	assert.Equal(t, uint(100), o.Prec())
+	assert.Equal(t, 0, i.Cmp(o))
+}
+
 func TestBigRatToBigFloat_(t *testing.T) {
 	var o *big.Float
 	BigRatToBigFloat(big.NewRat(125, 100), &o)
@@ -800,6 +820,14 @@ func TestBigFloatToBigRat_(t *testing.T) {
 
 	i = big.NewFloat(math.Inf(-1))
 	assert.Equal(t, "The *big.Float value of -Inf cannot be converted to *big.Rat", BigFloatToBigRat(i, &o).Error())
+}
+
+func TestBigRatToBigRat_(t *testing.T) {
+	var i, o *big.Rat
+	i = big.NewRat(100, 99)
+	BigRatToBigRat(i, &o)
+	assert.False(t, i == o)
+	assert.Equal(t, 0, i.Cmp(o))
 }
 
 func TestStringToBigRat_(t *testing.T) {
@@ -1661,7 +1689,9 @@ func TestTo_(t *testing.T) {
 		assert.Equal(t, big.NewInt(25), bi)
 
 		// bigs
-		assert.Nil(t, To(big.NewInt(1), &bi))
+		bisrc := big.NewInt(1)
+		assert.Nil(t, To(bisrc, &bi))
+		assert.False(t, bisrc == bi)
 		assert.Equal(t, big.NewInt(1), bi)
 
 		assert.Nil(t, To(big.NewFloat(125), &bi))
@@ -1735,7 +1765,9 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To(big.NewInt(1), &bf))
 		assert.Equal(t, big.NewFloat(1), bf)
 
-		assert.Nil(t, To(big.NewFloat(1.25), &bf))
+		bfsrc := big.NewFloat(1.25)
+		assert.Nil(t, To(bfsrc, &bf))
+		assert.False(t, bfsrc == bf)
 		assert.Equal(t, big.NewFloat(1.25), bf)
 
 		assert.Nil(t, To(big.NewRat(250, 100), &bf))
@@ -1799,7 +1831,9 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To(big.NewFloat(1.25), &br))
 		assert.Equal(t, big.NewRat(125, 100), br)
 
-		assert.Nil(t, To(big.NewRat(25, 10), &br))
+		brsrc := big.NewRat(25, 10)
+		assert.Nil(t, To(brsrc, &br))
+		assert.False(t, brsrc == br)
 		assert.Equal(t, big.NewRat(25, 10), br)
 
 		// string

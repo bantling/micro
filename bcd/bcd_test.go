@@ -670,7 +670,8 @@ func TestToBinary_(t *testing.T) {
 }
 
 func TestToBCD_(t *testing.T) {
-	assert.Equal(t, uint64(0), toBinary(0x0))
-	assert.Equal(t, tuple.Of2(uint64(0x12345678), uint(8)), tuple.Of2(toBCD(12345678)))
-	assert.Equal(t, tuple.Of2(uint64(0x1234567890123456), uint(16)), tuple.Of2(toBCD(1234567890123456)))
+	assert.Equal(t, tuple.Of3(uint64(0), uint64(0), uint(0)), tuple.Of3(toBCD(0, 0)))
+	assert.Equal(t, tuple.Of3(uint64(0), uint64(0x12345678), uint(8)), tuple.Of3(toBCD(0, 12345678)))
+	assert.Equal(t, tuple.Of3(uint64(0), uint64(0x1234567890123456), uint(16)), tuple.Of3(toBCD(0, 1234567890123456)))
+	// assert.Equal(t, tuple.Of3(uint64(0x1234567890123456), uint64(0x7890123456789012), uint(32)), tuple.Of3(toBCD(1234567890123456, 7890123456789012)))
 }

@@ -3,6 +3,7 @@ package one28
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/math"
 )
 
@@ -63,30 +64,36 @@ func Sub(upperME, lowerME, upperSE, lowerSE uint64) (upper, lower uint64) {
 	return
 }
 
-// Lsh shifts a 128 bit value left 1 bit, returning the highest bit as a carry.
-func Lsh(upper, lower uint64) (carry, upperRes, lowerRes uint64) {
-	// Carry is highest n bits that get shifted out
-	carry = (upper & highestBitMask) >> 63
+// Lsh shifts a 128 bit value left n bits (default 1), returning the highest bit as a carry.
+func Lsh(upper, lower uint64, n ...uint) (carry, upperRes, lowerRes uint64) {
+	upperRes, lowerRes = upper, lower
+	for nv := funcs.SliceIndex(n, 0, 1); nv > 0; nv-- {
+		// Carry is highest bit that get shifted out
+		carry = (carry << 1) | ((upperRes & highestBitMask) >> 63)
 
-	// If highest bit of lower is set, then set lowest bit of higher to shift the bit across to higher value
-	upperRes = (upper << 1) | ((lower & highestBitMask) >> 63)
+		// If highest bit of lower is set, then set lowest bit of higher to shift the bit across to higher value
+		upperRes = (upperRes << 1) | ((lowerRes & highestBitMask) >> 63)
 
-	// Lower is always just shifted
-	lowerRes = lower << 1
+		// Lower is always just shifted
+		lowerRes <<= 1
+	}
 
 	return
 }
 
 // Rsh shifts a 128 bit value right 1 bit, returning the lowest bit as a carry.
-func Rsh(upper, lower uint64) (carry, upperRes, lowerRes uint64) {
-	// Carry is lowest bit that gets shifted out
-	carry = lower & 1
+func Rsh(upper, lower uint64, n ...uint) (upperRes, lowerRes, carry uint64) {
+	upperRes, lowerRes = upper, lower
+	for nv := funcs.SliceIndex(n, 0, 1); nv > 0; nv-- {
+		// Carry is lowest bit that gets shifted out
+		carry = (carry >> 1) | ((lowerRes & 1) << 63)
 
-	// If lowest bit of higher is set, then set highest bit of lower to shift the bit across to lower value
-	lowerRes = ((upper & 1) << 63) | (lower >> 1)
+		// If lowest bit of higher is set, then set highest bit of lower to shift the bit across to lower value
+		lowerRes = ((upperRes & 1) << 63) | (lowerRes >> 1)
 
-	// Higher is always just shifted
-	upperRes = upper >> 1
+		// Higher is always just shifted
+		upperRes >>= 1
+	}
 
 	return
 }
@@ -177,7 +184,7 @@ func Mul(mp, ma uint64) (upper, lower uint64) {
 	return
 }
 
-// DivQuo divides a pair of uint64 values that represent a 128-bit input into a pair of uint64 128-bit output and
+// QuoRem divides a pair of uint64 values that represent a 128-bit input into a pair of uint64 128-bit output and
 // remainder. The division is performed using bit shifting division, which is similar to bit shifting multiplication.
 //
 // Example: dividing 121 by 5
@@ -204,7 +211,7 @@ func Mul(mp, ma uint64) (upper, lower uint64) {
 //
 // If upper dividend is 0, just uses division and modulus operators for a fast result.
 // Panics if the divisor is 0.
-func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64) {
+func QuoRem(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64) {
 	// Die if divisor is 0
 	if divisor == 0 {
 		// Same error Go provides if you execute a,b = 1,0; a/b
@@ -217,7 +224,7 @@ func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 		return
 	}
 
-  // Phase 1: Find largest multiple of divisor <= dividend.
+	// Phase 1: Find largest multiple of divisor <= dividend.
 	// Use bit shifting when upper dividend > 0.
 	// Since remainder can be 128-bits for some of the initial subtractions, use dividend parameters for it until we're done.
 	// Start with shifting until multiple > dividend (shift while <=).
@@ -229,38 +236,38 @@ func DivQuo(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 	}
 
 	// Stopped at multiple > dividend, bring back one shift, adding carry to the left in case an extra 129th bit was produced
-	_, upperM, lowerM = Rsh(upperM, lowerM)
+	upperM, lowerM, _ = Rsh(upperM, lowerM)
 	upperM |= (carry << 63)
-	_, upperF, lowerF = Rsh(upperF, lowerF)
+	upperF, lowerF, _ = Rsh(upperF, lowerF)
 
 	// Phase2: Subtract multiples and shift until multiple < divisor.
-  // Subtract current multiple from dividend to get new dividend (effectively, new remainder).
-  // It is possible that after subtracting this first multiple, we are done.
-  upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
+	// Subtract current multiple from dividend to get new dividend (effectively, new remainder).
+	// It is possible that after subtracting this first multiple, we are done.
+	upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
 
-  // Add factor to quotient - since quotient is zero, just set it
-  upperQ = upperF
-  lowerQ = lowerF
+	// Add factor to quotient - since quotient is zero, just set it
+	upperQ = upperF
+	lowerQ = lowerF
 
-  // Continue searching for more multiples to subtract until dividend (current remainder) < divisor
-  for (upperDE > 0) || (lowerDE >= divisor) {
-    // Find next multiple to subtract from remainder
-    for (upperM > upperDE) || (lowerM > lowerDE) {
-    	_, upperM, lowerM = Rsh(upperM, lowerM)
-    	_, upperF, lowerF = Rsh(upperF, lowerF)
-    }
+	// Continue searching for more multiples to subtract until dividend (current remainder) < divisor
+	for (upperDE > 0) || (lowerDE >= divisor) {
+		// Find next multiple to subtract from remainder
+		for (upperM > upperDE) || (lowerM > lowerDE) {
+			upperM, lowerM, _ = Rsh(upperM, lowerM)
+			upperF, lowerF, _ = Rsh(upperF, lowerF)
+		}
 
-    // Subtract multiple from dividend (current remainder)
-    upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
+		// Subtract multiple from dividend (current remainder)
+		upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
 
-    // Add factor to quotient
-    upperQ += upperF
-    lowerQ += lowerF
-  }
+		// Add factor to quotient
+		upperQ += upperF
+		lowerQ += lowerF
+	}
 
-  // Copy final dividend (final remainder) to remainder output.
-  // Since the divisor is 64 bits, this final remainder must be 64 bits.
-  remainder = lowerDE
+	// Copy final dividend (final remainder) to remainder output.
+	// Since the divisor is 64 bits, this final remainder must be 64 bits.
+	remainder = lowerDE
 
 	return
 }
