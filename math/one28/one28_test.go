@@ -25,12 +25,12 @@ func TestAdd_(t *testing.T) {
 	assert.Equal(t, uint64(0), lower)
 }
 
-func TestTwosComplement_(t *testing.T) {
-	upper, lower := TwosComplement(0, 0xFF_FF_FF_FF_FF_FF_FF_FF)
+func TestNegate_(t *testing.T) {
+	upper, lower := Negate(0, 0xFF_FF_FF_FF_FF_FF_FF_FF)
 	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), upper)
 	assert.Equal(t, uint64(1), lower)
 
-	upper, lower = TwosComplement(0x80_00_00_00_00_00_00_00, 0)
+	upper, lower = Negate(0x80_00_00_00_00_00_00_00, 0)
 	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), upper)
 	assert.Equal(t, uint64(0), lower)
 }
@@ -43,6 +43,113 @@ func TestSub_(t *testing.T) {
 	upper, lower = Sub(0xFF_00_00_00_00_00_00_00, 0, 0x01_00_00_00_00_00_00_00, 0)
 	assert.Equal(t, uint64(0xFE_00_00_00_00_00_00_00), upper)
 	assert.Equal(t, uint64(0), lower)
+}
+
+func TestLeadingBitPos_(t *testing.T) {
+	// Single bits in lower 64
+	assert.Equal(t, 0, LeadingBitPos(0, 0x00_00_00_00_00_00_00_00))
+	assert.Equal(t, 0, LeadingBitPos(0, 0x00_00_00_00_00_00_00_01))
+	assert.Equal(t, 1, LeadingBitPos(0, 0x00_00_00_00_00_00_00_02))
+	assert.Equal(t, 2, LeadingBitPos(0, 0x00_00_00_00_00_00_00_04))
+	assert.Equal(t, 3, LeadingBitPos(0, 0x00_00_00_00_00_00_00_08))
+
+	assert.Equal(t, 4, LeadingBitPos(0, 0x00_00_00_00_00_00_00_10))
+	assert.Equal(t, 5, LeadingBitPos(0, 0x00_00_00_00_00_00_00_20))
+	assert.Equal(t, 6, LeadingBitPos(0, 0x00_00_00_00_00_00_00_40))
+	assert.Equal(t, 7, LeadingBitPos(0, 0x00_00_00_00_00_00_00_80))
+
+	assert.Equal(t, 8, LeadingBitPos(0, 0x00_00_00_00_00_00_01_00))
+	assert.Equal(t, 9, LeadingBitPos(0, 0x00_00_00_00_00_00_02_00))
+	assert.Equal(t, 10, LeadingBitPos(0, 0x00_00_00_00_00_00_04_00))
+	assert.Equal(t, 11, LeadingBitPos(0, 0x00_00_00_00_00_00_08_00))
+
+	assert.Equal(t, 12, LeadingBitPos(0, 0x00_00_00_00_00_00_10_00))
+	assert.Equal(t, 13, LeadingBitPos(0, 0x00_00_00_00_00_00_20_00))
+	assert.Equal(t, 14, LeadingBitPos(0, 0x00_00_00_00_00_00_40_00))
+	assert.Equal(t, 15, LeadingBitPos(0, 0x00_00_00_00_00_00_80_00))
+
+	assert.Equal(t, 16, LeadingBitPos(0, 0x00_00_00_00_00_01_00_00))
+	assert.Equal(t, 17, LeadingBitPos(0, 0x00_00_00_00_00_02_00_00))
+	assert.Equal(t, 18, LeadingBitPos(0, 0x00_00_00_00_00_04_00_00))
+	assert.Equal(t, 19, LeadingBitPos(0, 0x00_00_00_00_00_08_00_00))
+
+	assert.Equal(t, 20, LeadingBitPos(0, 0x00_00_00_00_00_10_00_00))
+	assert.Equal(t, 21, LeadingBitPos(0, 0x00_00_00_00_00_20_00_00))
+	assert.Equal(t, 22, LeadingBitPos(0, 0x00_00_00_00_00_40_00_00))
+	assert.Equal(t, 23, LeadingBitPos(0, 0x00_00_00_00_00_80_00_00))
+
+	assert.Equal(t, 24, LeadingBitPos(0, 0x00_00_00_00_01_00_00_00))
+	assert.Equal(t, 25, LeadingBitPos(0, 0x00_00_00_00_02_00_00_00))
+	assert.Equal(t, 26, LeadingBitPos(0, 0x00_00_00_00_04_00_00_00))
+	assert.Equal(t, 27, LeadingBitPos(0, 0x00_00_00_00_08_00_00_00))
+
+	assert.Equal(t, 28, LeadingBitPos(0, 0x00_00_00_00_10_00_00_00))
+	assert.Equal(t, 29, LeadingBitPos(0, 0x00_00_00_00_20_00_00_00))
+	assert.Equal(t, 30, LeadingBitPos(0, 0x00_00_00_00_40_00_00_00))
+	assert.Equal(t, 31, LeadingBitPos(0, 0x00_00_00_00_80_00_00_00))
+
+	assert.Equal(t, 32, LeadingBitPos(0, 0x00_00_00_01_00_00_00_00))
+	assert.Equal(t, 33, LeadingBitPos(0, 0x00_00_00_02_00_00_00_00))
+	assert.Equal(t, 34, LeadingBitPos(0, 0x00_00_00_04_00_00_00_00))
+	assert.Equal(t, 35, LeadingBitPos(0, 0x00_00_00_08_00_00_00_00))
+
+	assert.Equal(t, 36, LeadingBitPos(0, 0x00_00_00_10_00_00_00_00))
+	assert.Equal(t, 37, LeadingBitPos(0, 0x00_00_00_20_00_00_00_00))
+	assert.Equal(t, 38, LeadingBitPos(0, 0x00_00_00_40_00_00_00_00))
+	assert.Equal(t, 39, LeadingBitPos(0, 0x00_00_00_80_00_00_00_00))
+
+	assert.Equal(t, 40, LeadingBitPos(0, 0x00_00_01_00_00_00_00_00))
+	assert.Equal(t, 41, LeadingBitPos(0, 0x00_00_02_00_00_00_00_00))
+	assert.Equal(t, 42, LeadingBitPos(0, 0x00_00_04_00_00_00_00_00))
+	assert.Equal(t, 43, LeadingBitPos(0, 0x00_00_08_00_00_00_00_00))
+
+	assert.Equal(t, 44, LeadingBitPos(0, 0x00_00_10_00_00_00_00_00))
+	assert.Equal(t, 45, LeadingBitPos(0, 0x00_00_20_00_00_00_00_00))
+	assert.Equal(t, 46, LeadingBitPos(0, 0x00_00_40_00_00_00_00_00))
+	assert.Equal(t, 47, LeadingBitPos(0, 0x00_00_80_00_00_00_00_00))
+
+	assert.Equal(t, 48, LeadingBitPos(0, 0x00_01_00_00_00_00_00_00))
+	assert.Equal(t, 49, LeadingBitPos(0, 0x00_02_00_00_00_00_00_00))
+	assert.Equal(t, 50, LeadingBitPos(0, 0x00_04_00_00_00_00_00_00))
+	assert.Equal(t, 51, LeadingBitPos(0, 0x00_08_00_00_00_00_00_00))
+
+	assert.Equal(t, 52, LeadingBitPos(0, 0x00_10_00_00_00_00_00_00))
+	assert.Equal(t, 53, LeadingBitPos(0, 0x00_20_00_00_00_00_00_00))
+	assert.Equal(t, 54, LeadingBitPos(0, 0x00_40_00_00_00_00_00_00))
+	assert.Equal(t, 55, LeadingBitPos(0, 0x00_80_00_00_00_00_00_00))
+
+	assert.Equal(t, 56, LeadingBitPos(0, 0x01_00_00_00_00_00_00_00))
+	assert.Equal(t, 57, LeadingBitPos(0, 0x02_00_00_00_00_00_00_00))
+	assert.Equal(t, 58, LeadingBitPos(0, 0x04_00_00_00_00_00_00_00))
+	assert.Equal(t, 59, LeadingBitPos(0, 0x08_00_00_00_00_00_00_00))
+
+	assert.Equal(t, 60, LeadingBitPos(0, 0x10_00_00_00_00_00_00_00))
+	assert.Equal(t, 61, LeadingBitPos(0, 0x20_00_00_00_00_00_00_00))
+	assert.Equal(t, 62, LeadingBitPos(0, 0x40_00_00_00_00_00_00_00))
+	assert.Equal(t, 63, LeadingBitPos(0, 0x80_00_00_00_00_00_00_00))
+
+	// Bit pairs in lower 64
+	assert.Equal(t, 1, LeadingBitPos(0, 0x00_00_00_00_00_00_00_03))
+	assert.Equal(t, 2, LeadingBitPos(0, 0x00_00_00_00_00_00_00_06))
+	assert.Equal(t, 3, LeadingBitPos(0, 0x00_00_00_00_00_00_00_0C))
+	assert.Equal(t, 4, LeadingBitPos(0, 0x00_00_00_00_00_00_00_18))
+
+	// Single bits in upper 64
+	assert.Equal(t, 64, LeadingBitPos(0x00_00_00_00_00_00_00_01, 0))
+	assert.Equal(t, 65, LeadingBitPos(0x00_00_00_00_00_00_00_02, 0))
+	assert.Equal(t, 66, LeadingBitPos(0x00_00_00_00_00_00_00_04, 0))
+	assert.Equal(t, 67, LeadingBitPos(0x00_00_00_00_00_00_00_08, 0))
+
+	assert.Equal(t, 124, LeadingBitPos(0x10_00_00_00_00_00_00_00, 0))
+	assert.Equal(t, 125, LeadingBitPos(0x20_00_00_00_00_00_00_00, 0))
+	assert.Equal(t, 126, LeadingBitPos(0x40_00_00_00_00_00_00_00, 0))
+	assert.Equal(t, 127, LeadingBitPos(0x80_00_00_00_00_00_00_00, 0))
+
+	// Bit pairs in upper 64
+	assert.Equal(t, 65, LeadingBitPos(0x00_00_00_00_00_00_00_03, 0))
+	assert.Equal(t, 66, LeadingBitPos(0x00_00_00_00_00_00_00_06, 1))
+	assert.Equal(t, 67, LeadingBitPos(0x00_00_00_00_00_00_00_0C, 2))
+	assert.Equal(t, 68, LeadingBitPos(0x00_00_00_00_00_00_00_18, 3))
 }
 
 func TestLsh_(t *testing.T) {
@@ -77,6 +184,8 @@ func TestLsh_(t *testing.T) {
 	assert.Equal(t, uint64(3), carry)
 	assert.Equal(t, uint64(0x9C_00_00_00_00_00_00_4A), upper)
 	assert.Equal(t, uint64(0x1C_00_00_00_00_00_00_48), lower)
+
+	// Test shifting by more than 64 bits
 }
 
 func TestRsh_(t *testing.T) {

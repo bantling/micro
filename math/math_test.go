@@ -11,6 +11,66 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestAlignedMask(t *testing.T) {
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_00), AlignedMask(0, Right))
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_00), AlignedMask(0, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_01), AlignedMask(1))
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_01), AlignedMask(1, Right))
+	assert.Equal(t, uint64(0x80_00_00_00_00_00_00_00), AlignedMask(1, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_03), AlignedMask(2, Right))
+	assert.Equal(t, uint64(0xC0_00_00_00_00_00_00_00), AlignedMask(2, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_07), AlignedMask(3, Right))
+	assert.Equal(t, uint64(0xE0_00_00_00_00_00_00_00), AlignedMask(3, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_0F), AlignedMask(4, Right))
+	assert.Equal(t, uint64(0xF0_00_00_00_00_00_00_00), AlignedMask(4, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_1F), AlignedMask(5, Right))
+	assert.Equal(t, uint64(0xF8_00_00_00_00_00_00_00), AlignedMask(5, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_3F), AlignedMask(6, Right))
+	assert.Equal(t, uint64(0xFC_00_00_00_00_00_00_00), AlignedMask(6, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_7F), AlignedMask(7, Right))
+	assert.Equal(t, uint64(0xFE_00_00_00_00_00_00_00), AlignedMask(7, Left))
+
+	assert.Equal(t, uint64(0x00_00_00_00_00_00_00_FF), AlignedMask(8, Right))
+	assert.Equal(t, uint64(0xFF_00_00_00_00_00_00_00), AlignedMask(8, Left))
+
+	assert.Equal(t, uint64(0x00_FF_FF_FF_FF_FF_FF_FF), AlignedMask(56, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_00), AlignedMask(56, Left))
+
+	assert.Equal(t, uint64(0x01_FF_FF_FF_FF_FF_FF_FF), AlignedMask(57, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_80), AlignedMask(57, Left))
+
+	assert.Equal(t, uint64(0x03_FF_FF_FF_FF_FF_FF_FF), AlignedMask(58, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_C0), AlignedMask(58, Left))
+
+	assert.Equal(t, uint64(0x07_FF_FF_FF_FF_FF_FF_FF), AlignedMask(59, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_E0), AlignedMask(59, Left))
+
+	assert.Equal(t, uint64(0x0F_FF_FF_FF_FF_FF_FF_FF), AlignedMask(60, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_F0), AlignedMask(60, Left))
+
+	assert.Equal(t, uint64(0x1F_FF_FF_FF_FF_FF_FF_FF), AlignedMask(61, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_F8), AlignedMask(61, Left))
+
+	assert.Equal(t, uint64(0x3F_FF_FF_FF_FF_FF_FF_FF), AlignedMask(62, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FC), AlignedMask(62, Left))
+
+	assert.Equal(t, uint64(0x7F_FF_FF_FF_FF_FF_FF_FF), AlignedMask(63, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FE), AlignedMask(63, Left))
+
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), AlignedMask(64, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), AlignedMask(64, Left))
+
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), AlignedMask(65, Right))
+	assert.Equal(t, uint64(0xFF_FF_FF_FF_FF_FF_FF_FF), AlignedMask(65, Left))
+}
+
 func TestAbs_(t *testing.T) {
 	{
 		// ==== int

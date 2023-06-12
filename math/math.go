@@ -11,7 +11,44 @@ import (
 
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/funcs"
 )
+
+// Signed integer division, for toDiv map above
+func divSInt(de, dv int64, q *int64) {
+	*q = de / dv
+
+	// Calc abs of remainder and of half divisor
+	r, halfdv := de%dv, dv/2
+	if r < 0 {
+		r = -r
+	}
+	if halfdv < 0 {
+		halfdv = -halfdv
+	}
+
+	// If divisor is odd and r >= half divisor, or divisor is even and r > half divisor, adjust quotient by one to round
+	if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
+		if *q >= 0 {
+			*q++
+		} else {
+			*q--
+		}
+	}
+}
+
+// Unsigned division, for toDiv map above
+func divUInt(de, dv uint64, q *uint64) {
+	*q = de / dv
+
+	// Calc remainder and hald divisor
+	r, halfdv := de%dv, dv/2
+
+	// If divisor is odd and r >= half divisor, or divisor is even and r > half divisor, adjust quotient by one to round
+	if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
+		*q++
+	}
+}
 
 // Constants
 var (
@@ -334,40 +371,39 @@ var (
 	}
 )
 
-// Signed integer division, for toDiv map above
-func divSInt(de, dv int64, q *int64) {
-	*q = de / dv
+// Alignment describes whether a bit mask should be left or right aligned
+type Alignment bool
 
-	// Calc abs of remainder and of half divisor
-	r, halfdv := de%dv, dv/2
-	if r < 0 {
-		r = -r
+const (
+	Right Alignment = false
+	Left  Alignment = true
+)
+
+// AlignedMask generates a 64 bit mask of (n 1 consecutive bits) aligned to the left or right.
+// When aligned right, the mask will be of the form (64 - n 0 bits)(n 1 bits).
+// Since the value of (n 1 bits) = 2^n - 1, an aligned right mask is just 2^n - 1, which is (1 << n) - 1.
+//
+// When aligned left, the mask will be of the form (n 1 bits)(64 - n 0 bits) = (n 1 bits) shifted left (64 - n) times.
+// The mask can be calculated as (2^n - 1) << (64 - n) = ((1 << n) - 1) << (64 - n).
+//
+// Notes:
+// - If n = 0, result is 0.
+// - If n > 64, it is capped at 64.
+// - The mask is right aligned by default, unless the optional alignLeft is true.
+func AlignedMask(nOpt uint, alignOpt ...Alignment) uint64 {
+	var (
+		n     = funcs.MinOrdered(nOpt, 64)
+		align = funcs.SliceIndex(alignOpt, 0, Right)
+		// (1 << 0) - 1 = 0
+		// 1 << 64 = 0 (requires a 65th bit), and 0 - 1 in unsigned math wraps around to max value of 64 1 bits
+		mask uint64 = (1 << n) - 1
+	)
+
+	if align == Left {
+		mask <<= 64 - n
 	}
-	if halfdv < 0 {
-		halfdv = -halfdv
-	}
 
-	// If divisor is odd and r >= half divisor, or divisor is even and r > half divisor, adjust quotient by one to round
-	if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
-		if *q >= 0 {
-			*q++
-		} else {
-			*q--
-		}
-	}
-}
-
-// Unsigned division, for toDiv map above
-func divUInt(de, dv uint64, q *uint64) {
-	*q = de / dv
-
-	// Calc remainder and hald divisor
-	r, halfdv := de%dv, dv/2
-
-	// If divisor is odd and r >= half divisor, or divisor is even and r > half divisor, adjust quotient by one to round
-	if (((dv & 1) == 0) && (r >= halfdv)) || (((dv & 1) == 1) && (r > halfdv)) {
-		*q++
-	}
+	return mask
 }
 
 // Abs calculates the absolute value of any numeric type.

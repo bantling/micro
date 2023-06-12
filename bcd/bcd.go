@@ -843,7 +843,7 @@ func toBinary(bcd uint64) (bin uint64) {
 func toBCD(a, b uint64) (c, d uint64, digits uint) {
 	// Repeatedly divide by 10, where quotient is any remaining digits, and remainder is a single digit.
 	// Digits are provided in right to left order, so insert digits into highest position, and shift right 4 bits.
-	// Once all digits are inserted, a final shift of (128 / 4 - numDigits * 4) is required to adjust the result so that
+	// Once all digits are inserted, a final shift of (128 - numDigits * 4) is required to adjust the result so that
 	// rightmost digit is in rightmost position.
 	var r uint64
 	fmt.Printf("Start\n")

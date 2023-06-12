@@ -44,8 +44,8 @@ func Add(upperAE1, lowerAE1, upperAE2, lowerAE2 uint64) (carry, upper, lower uin
 	return
 }
 
-// TwosComplement calculates the twos complement of a 12-bit number (invert all bits and add one)
-func TwosComplement(upper, lower uint64) (upperRes, lowerRes uint64) {
+// Negate calculates the twos complement of a 12-bit number (invert all bits and add one)
+func Negate(upper, lower uint64) (upperRes, lowerRes uint64) {
 	upperRes = upper ^ allBitsMask
 	if lowerRes = (lower ^ allBitsMask) + 1; lowerRes == 0 {
 		upperRes++
@@ -58,41 +58,145 @@ func TwosComplement(upper, lower uint64) (upperRes, lowerRes uint64) {
 // There is no borrow returned, as this is unsigned subtraction. It is up to the caller to ensure minuend >= subtrahend.
 func Sub(upperME, lowerME, upperSE, lowerSE uint64) (upper, lower uint64) {
 	// Calculate the twos complement and add, it's easier
-	upperSE, lowerSE = TwosComplement(upperSE, lowerSE)
+	upperSE, lowerSE = Negate(upperSE, lowerSE)
 	_, upper, lower = Add(upperME, lowerME, upperSE, lowerSE)
 
 	return
 }
 
-// Lsh shifts a 128 bit value left n bits (default 1), returning the highest bit as a carry.
-func Lsh(upper, lower uint64, n ...uint) (carry, upperRes, lowerRes uint64) {
-	upperRes, lowerRes = upper, lower
-	for nv := funcs.SliceIndex(n, 0, 1); nv > 0; nv-- {
-		// Carry is highest bit that get shifted out
-		carry = (carry << 1) | ((upperRes & highestBitMask) >> 63)
+// LeadingBitPos finds the position of the leading 1 bit of a 128-bit number, between 0 and 127.
+// For a result n, 1 << n is a single 1 bit that lines up with the leading 1 bit in the number.
+// Returns 0 if the number is 0.
+// Note: The result is also 0 if the number is 1, since 1 << 0 = 1.
+// It is up to the caller to handle the difference between an input value of 0 and 1.
+func LeadingBitPos(upper, lower uint64) int {
+	// Leading bit is in upper if upper > 0, else it is in lower
+	var search, adjust = lower, 0
+	if upper > 0 {
+		search, adjust = upper, 64
+	}
 
-		// If highest bit of lower is set, then set lowest bit of higher to shift the bit across to higher value
-		upperRes = (upperRes << 1) | ((lowerRes & highestBitMask) >> 63)
+	if search <= 1 {
+		// There are no 1 bits, return 0 to avoid infinite loop in binary search below
+		return int(adjust)
+	}
 
-		// Lower is always just shifted
-		lowerRes <<= 1
+	// Special cases:
+	//
+	// The binary search algorithm below does not work for cases of the two highest bit positions, 62 and 63.
+	// That's because the boundary conditions don't work correctly - we are not searching for an item in a list,
+	// we are searching for a bit in a number and evaluate an expression that involves shifting right by pos bits.
+	// In the above two cases an infinite loop occurs.
+	//
+	// The case of bit 62 looks like this:
+	// 0 - left = 63, right =  0, pos = 31, val = 2147483648
+	// 1 - left = 63, right = 30, pos = 46, val = 65536
+	// 2 - left = 63, right = 45, pos = 54, val = 256
+	// 3 - left = 63, right = 53, pos = 58, val = 16
+	// 4 - left = 63, right = 57, pos = 60, val = 4
+	// 5 - left = 63, right = 59, pos = 61, val = 2
+	// 6 - left = 63, right = 60, pos = 61, val = 2
+	// - infinite loop: (63 + 60 ) / 2 = 123 / 2 = 61, so right = 61 - 1 = 60
+	//
+	// The case of bit 63 looks like this:
+	// 0 - left = 63, right = 0, pos = 31, val = 4294967296
+	// 1 - left = 63, right = 30, pos = 46, val = 131072
+	// 2 - left = 63, right = 45, pos = 54, val = 512
+	// 3 - left = 63, right = 53, pos = 58, val = 32
+	// 4 - left = 63, right = 57, pos = 60, val = 8
+	// 5 - left = 63, right = 59, pos = 61, val = 4
+	// 6 - left = 63, right = 60, pos = 61, val = 4
+	// - infinite loop: (63 + 60 ) / 2 = 123 / 2 = 61, so right = 61 - 1 = 60
+	//
+	// Solve this by checking these special cases first
+	switch {
+	case (search & 0x80_00_00_00_00_00_00_00) != 0:
+		return int(63 + adjust)
+
+	case (search & 0x40_00_00_00_00_00_00_00) != 0:
+		return int(62 + adjust)
+	}
+
+	// Search for a bit position such that search >> pos == 1, so we know it is not just any 1 bit, it is the leading 1 bit
+	var pos int
+	i := 0
+	for left, right, val := 63, 0, uint64(0); val != 1; {
+		pos = (left + right) / 2
+		val = search >> pos
+
+		switch {
+		case val == 0:
+			// pos is too high, we shifted out the entire number, use smaller range of (pos, right)
+			left = pos + 1
+		case val > 1:
+			// pos is too low, we did not shift enough times, use larger range of (left, pos)
+			right = pos - 1
+		}
+
+		if i++; i == 10 {
+			break
+		}
+	}
+
+	return pos + adjust
+}
+
+// Lsh shifts a 128 bit value left n bits (default 1, max 64), returning the highest n bits as a carry.
+// n is capped at 128.
+func Lsh(upper, lower uint64, nOpt ...uint) (carry, upperRes, lowerRes uint64) {
+	// Shift by first max 64 bits
+	// Create a left aligned bit mask for all the leftmost n bits in lower that will get shifted into upper,
+	// and the leftmost n bits of upper that get shifted into carry
+	var (
+		nVal   = funcs.SliceIndex(nOpt, 0, 1)
+		n      = funcs.MinOrdered(nVal, 64)
+		mask   = math.AlignedMask(n, math.Left)
+		adjust = 64 - n
+	)
+
+	carry = (upper & mask) >> adjust
+	upperRes = (upper << n) | ((lower & mask) >> adjust)
+	lowerRes = lower << n
+
+	// If n > 64, shift again by remaining n - 64 bits
+	if nVal > 64 {
+		n = nVal - 64
+		mask = math.AlignedMask(n, math.Left)
+		adjust = 64 - n
+
+		carry = (carry << n) | ((upperRes & mask) >> adjust)
+		upperRes = (upperRes << n) | ((lowerRes & mask) >> adjust)
+		lowerRes <<= n
 	}
 
 	return
 }
 
-// Rsh shifts a 128 bit value right 1 bit, returning the lowest bit as a carry.
-func Rsh(upper, lower uint64, n ...uint) (upperRes, lowerRes, carry uint64) {
-	upperRes, lowerRes = upper, lower
-	for nv := funcs.SliceIndex(n, 0, 1); nv > 0; nv-- {
-		// Carry is lowest bit that gets shifted out
-		carry = (carry >> 1) | ((lowerRes & 1) << 63)
+// Rsh shifts a 128 bit value right n bits (default 1, max 64), returning the lowest n bits as a carry.
+// n is capped at 128.
+func Rsh(upper, lower uint64, nOpt ...uint) (upperRes, lowerRes, carry uint64) {
+	// Create a right aligned bit mask for all the rightmost n bits in upper that will get shifted into lower,
+	// and the rightmost n bits of lower that get shifted into carry
+	var (
+		nVal   = funcs.SliceIndex(nOpt, 0, 1)
+		n      = funcs.MinOrdered(nVal, 64)
+		mask   = math.AlignedMask(n, math.Right)
+		adjust = 64 - n
+	)
 
-		// If lowest bit of higher is set, then set highest bit of lower to shift the bit across to lower value
-		lowerRes = ((upperRes & 1) << 63) | (lowerRes >> 1)
+	carry = (lower & mask) << adjust
+	lowerRes = (lower >> n) | ((upper & mask) << adjust)
+	upperRes = upper >> n
 
-		// Higher is always just shifted
-		upperRes >>= 1
+	// If n > 64, shift again by remaining n - 64 bits
+	if nVal > 64 {
+		n = nVal - 64
+		mask = math.AlignedMask(n, math.Right)
+		adjust = 64 - n
+
+		carry = carry | ((lowerRes & mask) << adjust)
+		lowerRes = (lowerRes >> n) | ((upperRes & mask) << adjust)
+		upperRes >>= n
 	}
 
 	return
@@ -224,11 +328,10 @@ func QuoRem(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 		return
 	}
 
-	// Phase 1: Find largest multiple of divisor <= dividend.
-	// Use bit shifting when upper dividend > 0.
-	// Since remainder can be 128-bits for some of the initial subtractions, use dividend parameters for it until we're done.
-	// Start with shifting until multiple > dividend (shift while <=).
-	// The final shift may require an extra 129th bit that we store in leftCarry.
+	// Phase 1 for upper dividend > 0: Find largest multiple of divisor <= dividend.
+	// Use a binary search to find position of leading one bit in upper dividend and divisor.
+	// Shift divisor left by enough bits to line up its leading 1 with the upper dividend leading 1.
+	// If the shifted divisor is larger than dividend, shifting right one bit will make it smaller.
 	var carry, upperM, lowerM, upperF, lowerF uint64 = 0, 0, divisor, 0, 1
 	for (carry == 0) && ((upperM < upperDE) || ((upperM == upperDE) && (lowerM <= lowerDE))) {
 		carry, upperM, lowerM = Lsh(upperM, lowerM)
