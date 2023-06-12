@@ -67,6 +67,7 @@ func Sub(upperME, lowerME, upperSE, lowerSE uint64) (upper, lower uint64) {
 // LeadingBitPos finds the position of the leading 1 bit of a 128-bit number, between 0 and 127.
 // For a result n, 1 << n is a single 1 bit that lines up with the leading 1 bit in the number.
 // Returns 0 if the number is 0.
+//
 // Note: The result is also 0 if the number is 1, since 1 << 0 = 1.
 // It is up to the caller to handle the difference between an input value of 0 and 1.
 func LeadingBitPos(upper, lower uint64) int {
@@ -119,22 +120,17 @@ func LeadingBitPos(upper, lower uint64) int {
 
 	// Search for a bit position such that search >> pos == 1, so we know it is not just any 1 bit, it is the leading 1 bit
 	var pos int
-	i := 0
 	for left, right, val := 63, 0, uint64(0); val != 1; {
 		pos = (left + right) / 2
 		val = search >> pos
 
 		switch {
 		case val == 0:
-			// pos is too high, we shifted out the entire number, use smaller range of (pos, right)
+			// pos is too high, we shifted out the entire number, use smaller range of (pos + 1, right)
 			left = pos + 1
 		case val > 1:
-			// pos is too low, we did not shift enough times, use larger range of (left, pos)
+			// pos is too low, we did not shift enough times, use larger range of (left, pos - 1)
 			right = pos - 1
-		}
-
-		if i++; i == 10 {
-			break
 		}
 	}
 
