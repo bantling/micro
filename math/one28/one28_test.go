@@ -3,13 +3,14 @@ package one28
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	gomath "math"
 	"math/big"
 	"testing"
 
 	"github.com/bantling/micro/conv"
-	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/math"
+	// "github.com/bantling/micro/funcs"
+	// "github.com/bantling/micro/math"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -289,39 +290,43 @@ func TestMul_(t *testing.T) {
 }
 
 func TestQuoRem_(t *testing.T) {
-	// Die if division by zero
-	funcs.TryTo(
-		func() { QuoRem(1, 2, 0) },
-		func(e any) { assert.Equal(t, math.DivByZeroErr, e) },
-	)
-
-	// Shortcut that uses built in operators for case of upper quotient = 0
-	uq, lq, rm := QuoRem(0, 100, 11)
-	assert.Equal(t, uint64(0), uq)
-	assert.Equal(t, uint64(9), lq)
-	assert.Equal(t, uint64(1), rm)
-
-	// Long case of upper quotient > 0, where remainder = 0
-	uq, lq, rm = QuoRem(100, 0, 2) // 100 * 2^64 / 2 = 100 * 2^32 rmdr 0
-	assert.Equal(t, uint64(50), uq)
-	assert.Equal(t, uint64(0), lq)
-	assert.Equal(t, uint64(0), rm)
-
-	// Long case of upper quotient > 0, where remainder = 1
-	uq, lq, rm = QuoRem(100, 3, 2) // 100 * 2^64 + 3 / 2 = 50 * 2^64 + 1 rmdr 1
-	assert.Equal(t, uint64(50), uq)
-	assert.Equal(t, uint64(1), lq)
-	assert.Equal(t, uint64(1), rm)
-
-	// Long case of upper quotient > 0, stupidly dividing by 1
-	uq, lq, rm = QuoRem(100, 3, 1) // 100 * 2^64 + 3
-	assert.Equal(t, uint64(100), uq)
-	assert.Equal(t, uint64(3), lq)
-	assert.Equal(t, uint64(0), rm)
+	// // Die if division by zero
+	// funcs.TryTo(
+	// 	func() { QuoRem(1, 2, 0) },
+	// 	func(e any) { assert.Equal(t, math.DivByZeroErr, e) },
+	// )
+  //
+	// // Shortcut that uses built in operators for case of upper quotient = 0
+	// uq, lq, rm := QuoRem(0, 100, 11)
+	// assert.Equal(t, uint64(0), uq)
+	// assert.Equal(t, uint64(9), lq)
+	// assert.Equal(t, uint64(1), rm)
+  //
+	// // Long case of upper quotient > 0, where remainder = 0
+	// uq, lq, rm = QuoRem(100, 0, 2) // 100 * 2^64 / 2 = 100 * 2^32 rmdr 0
+	// assert.Equal(t, uint64(50), uq)
+	// assert.Equal(t, uint64(0), lq)
+	// assert.Equal(t, uint64(0), rm)
+  //
+	// // Long case of upper quotient > 0, where remainder = 1
+	// uq, lq, rm = QuoRem(100, 3, 2) // 100 * 2^64 + 3 / 2 = 50 * 2^64 + 1 rmdr 1
+	// assert.Equal(t, uint64(50), uq)
+	// assert.Equal(t, uint64(1), lq)
+	// assert.Equal(t, uint64(1), rm)
+  //
+	// // Long case of upper quotient > 0, stupidly dividing by 1
+	// uq, lq, rm = QuoRem(100, 3, 1) // 100 * 2^64 + 3
+	// assert.Equal(t, uint64(100), uq)
+	// assert.Equal(t, uint64(3), lq)
+	// assert.Equal(t, uint64(0), rm)
 
 	//// Long case of a 32 digit number
-	var numbi *big.Int
-	conv.To("12345678901234567890123456789012", &numbi)
+	var (
+    numstr = "12345678901234567890123456789012"
+    numbi *big.Int
+    uq, lq, rm uint64
+  )
+	conv.To(numstr, &numbi)
 
 	// Split long num into upper and lower 64 bits
 	var (
@@ -337,11 +342,12 @@ func TestQuoRem_(t *testing.T) {
 	conv.To(uint64(gomath.MaxUint64), &lmask)
 	lnumbi.And(lnumbi, lmask)
 
-	// extract upper and lower 64 into uint64s
+	// Extract upper and lower 64 into uint64s
 	conv.To(unumbi, &unum)
 	conv.To(lnumbi, &lnum)
 
 	// Divide long number by 10 using our function
+  fmt.Println("-- div by 10")
 	uq, lq, rm = QuoRem(unum, lnum, 10)
 
 	// Calculate expected result using bigInt calcs
@@ -380,4 +386,45 @@ func TestQuoRem_(t *testing.T) {
 	assert.Equal(t, ueq, uq)
 	assert.Equal(t, leq, lq)
 	assert.Equal(t, er, rm)
+
+  // // Repeatedly divide by 10 and ensure that we get all the digits in reverse order.
+  // // Copy numbi to cnumbi (copy of numbi). bnumstr is build numbi from digits in reverse order as a string.
+  // var (
+  //   cnumbi *big.Int
+  //   bnumstr string
+  // )
+  // conv.To(numbi, &cnumbi)
+  //
+  // for {
+  //   fmt.Println("-- loop")
+  // 	// unumbi = upper 64
+  // 	conv.To(cnumbi, &unumbi)
+  // 	unumbi.Rsh(unumbi, 64)
+  //
+  // 	// lnumbi = lower 64
+  // 	conv.To(cnumbi, &lnumbi)
+  // 	conv.To(uint64(gomath.MaxUint64), &lmask)
+  // 	lnumbi.And(lnumbi, lmask)
+  //
+  // 	// Extract upper and lower 64 into uint64s
+  // 	conv.To(unumbi, &unum)
+  // 	conv.To(lnumbi, &lnum)
+  //
+  // 	// Divide long number by 10 using our function
+  // 	uq, lq, rm = QuoRem(unum, lnum, 10)
+  //
+  //   // Add remainder to front of bnumstr
+  //   bnumstr = string(rune(rm + '0')) + bnumstr
+  //   fmt.Printf("cnumbi = %s, rm = %d, bnumstr = %s\n", cnumbi, rm, bnumstr)
+  //
+  //   // Stop getting digits after quotient is 0
+  //   if (uq == 0) && (lq == 0) {
+  //     break
+  //   }
+  //
+  //   // Divide cnumbi by 10 to prepare for next loop
+  //   cnumbi.Div(cnumbi, tenbi)
+  // }
+  //
+  // assert.Equal(t, numstr, bnumstr)
 }

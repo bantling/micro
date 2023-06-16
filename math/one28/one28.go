@@ -3,6 +3,7 @@ package one28
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/math"
 )
@@ -300,15 +301,18 @@ func QuoRem(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
     diffBitPos = deBitPos - dvBitPos
   )
   _, upperM, lowerM := Lsh(0, divisor, diffBitPos)
+  fmt.Printf("0. DE = %016x_%016x %d\n   M  = %016x_%016x\n   DV = %016x %d, diff = %d\n", upperDE, lowerDE, deBitPos, upperM, lowerM, divisor, dvBitPos, diffBitPos)
 
   // Check if multiple > dividend, and if so shift right one bit and adjust difference
   if (upperM > upperDE) || ((upperM == upperDE) && (lowerM > lowerDE)) {
+    fmt.Println("Drop back")
     upperM, lowerM, _ = Rsh(upperM, lowerM)
     diffBitPos--
   }
 
   // After adjusting multiple, get factor of that multiple (1 << diffBitPos)
   _, upperF, lowerF := Lsh(0, 1, diffBitPos)
+  fmt.Printf("1. DE = %016x_%016x %d\n   M  = %016x_%016x\n   DV = %016x %d, diff = %d\n", upperDE, lowerDE, deBitPos, upperM, lowerM, divisor, dvBitPos, diffBitPos)
 
 	// Phase2: Subtract multiples and shift until multiple < divisor.
 	// Subtract current multiple from dividend to get new dividend (effectively, new remainder).
@@ -318,14 +322,18 @@ func QuoRem(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 	// Add factor to quotient - since quotient is zero, just set it
 	upperQ = upperF
 	lowerQ = lowerF
+  fmt.Printf("2. DE = %016x_%016x\n   Q  = %016x_%016x\n", upperDE, lowerDE, upperQ, lowerQ)
 
 	// Continue searching for more multiples to subtract until dividend (current remainder) < divisor
+  var i int
 	for (upperDE > 0) || (lowerDE >= divisor) {
+    fmt.Printf("-- %d\n", i)
 		// Find next multiple to subtract from remainder
 		for (upperM > upperDE) || (lowerM > lowerDE) {
 			upperM, lowerM, _ = Rsh(upperM, lowerM)
 			upperF, lowerF, _ = Rsh(upperF, lowerF)
 		}
+    fmt.Printf("3. M  = %016x_%016x\n   F  = %016x_%016x\n", upperM, lowerM, upperF, lowerF)
 
 		// Subtract multiple from dividend (current remainder)
 		upperDE, lowerDE = Sub(upperDE, lowerDE, upperM, lowerM)
@@ -333,6 +341,12 @@ func QuoRem(upperDE, lowerDE, divisor uint64) (upperQ, lowerQ, remainder uint64)
 		// Add factor to quotient
 		upperQ += upperF
 		lowerQ += lowerF
+    fmt.Printf("4. DE = %016x_%016x\n   Q  = %016x_%016x\n   F  = %016x_%016x\n", upperDE, lowerDE, upperQ, lowerQ, upperF, lowerF)
+
+    if i++; i == 100 {
+      fmt.Println("Stopping")
+      break
+    }
 	}
 
 	// Copy final dividend (final remainder) to remainder output.
