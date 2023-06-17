@@ -1142,6 +1142,11 @@ func IntToInt[S constraint.SignedInteger, T constraint.SignedInteger](ival S, ov
 	return nil
 }
 
+// MustIntToInt is a Must version of IntToInt
+func MustIntToInt[S constraint.SignedInteger, T constraint.SignedInteger](ival S, oval *T) {
+	funcs.Must(IntToInt(ival, oval))
+}
+
 // IntToUint converts any signed integer type into any unsigned integer type
 // Returns an error if the signed int cannot be represented by the unsigned type
 func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I, oval *U) error {
@@ -1156,6 +1161,11 @@ func IntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I,
 
 	*oval = U(ival)
 	return nil
+}
+
+// MustIntToUint is a Must version of IntToUint
+func MustIntToUint[I constraint.SignedInteger, U constraint.UnsignedInteger](ival I, oval *U) {
+	funcs.Must(IntToUint(ival, oval))
 }
 
 // UintToInt converts any unsigned integer type into any signed integer type
@@ -1174,6 +1184,11 @@ func UintToInt[U constraint.UnsignedInteger, I constraint.SignedInteger](ival U,
 	return nil
 }
 
+// MustUintToInt is a Must version of UintToInt
+func MustUintToInt[U constraint.UnsignedInteger, I constraint.SignedInteger](ival U, oval *I) {
+	funcs.Must(UintToInt(ival, oval))
+}
+
 // UintToUint converts any unsigned integer type into any unsigned integer type
 // Returns an error if the source value cannot be represented by the target type
 func UintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](ival S, oval *T) error {
@@ -1188,6 +1203,11 @@ func UintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](ival
 
 	*oval = T(ival)
 	return nil
+}
+
+// MustUintToInt is a Must version of UintToInt
+func MustUintToUint[S constraint.UnsignedInteger, T constraint.UnsignedInteger](ival S, oval *T) {
+	funcs.Must(UintToUint(ival, oval))
 }
 
 // IntToFloat converts any kind of signed or unssigned integer into any kind of float.
@@ -1205,6 +1225,11 @@ func IntToFloat[I constraint.Integer, F constraint.Float](ival I, oval *F) error
 	return nil
 }
 
+// MustIntToFloat is a Must version of IntToFloat
+func MustIntToFloat[I constraint.Integer, F constraint.Float](ival I, oval *F) {
+	funcs.Must(IntToFloat(ival, oval))
+}
+
 // FloatToInt converts and float type to any signed int type
 // Returns an error if the float value cannot be represented by the int type
 func FloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I) error {
@@ -1220,6 +1245,11 @@ func FloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I)
 	return nil
 }
 
+// MustFloatToInt is a Must version of FloatToInt
+func MustFloatToInt[F constraint.Float, I constraint.SignedInteger](ival F, oval *I) {
+	funcs.Must(FloatToInt(ival, oval))
+}
+
 // FloatToUint converts and float type to any unsigned int type
 // Returns an error if the float value cannot be represented by the unsigned int type
 func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval *I) error {
@@ -1233,6 +1263,11 @@ func FloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval 
 	}
 
 	return nil
+}
+
+// MustFloatToUint is a Must version of FloatToUint
+func MustFloatToUint[F constraint.Float, I constraint.UnsignedInteger](ival F, oval *I) {
+	funcs.Must(FloatToUint(ival, oval))
 }
 
 // FloatToFloat converts a float32 or float64 to a float32 or float64
@@ -1252,6 +1287,11 @@ func FloatToFloat[I constraint.Float, O constraint.Float](ival I, oval *O) error
 	return nil
 }
 
+// MustFloatToFloat is a Must version of FloatToFloat
+func MustFloatToFloat[I constraint.Float, O constraint.Float](ival I, oval *O) {
+	funcs.Must(FloatToFloat(ival, oval))
+}
+
 // ==== ToInt64
 
 // BigIntToInt converts a *big.Int to a signed integer
@@ -1265,6 +1305,11 @@ func BigIntToInt64(ival *big.Int, oval *int64) error {
 	return nil
 }
 
+// MustBigIntToInt64 is a Must version of BigIntToInt64
+func MustBigIntToInt64(ival *big.Int, oval *int64) {
+	funcs.Must(BigIntToInt64(ival, oval))
+}
+
 // BigFloatToInt64 converts a *big.Float to an int64
 // Returns an error if the *big.Float cannot be represented as an int64
 func BigFloatToInt64(ival *big.Float, oval *int64) error {
@@ -1274,6 +1319,11 @@ func BigFloatToInt64(ival *big.Float, oval *int64) error {
 	}
 
 	return nil
+}
+
+// MustBigFloatToInt64 is a Must version of BigFloatToInt64
+func MustBigFloatToInt64(ival *big.Float, oval *int64) {
+	funcs.Must(BigFloatToInt64(ival, oval))
 }
 
 // BigRatToInt64 converts a *big.Rat to an int64
@@ -1287,6 +1337,11 @@ func BigRatToInt64(ival *big.Rat, oval *int64) error {
 	return nil
 }
 
+// MustBigRatToInt64 is a Must version of BigRatToInt64
+func MustBigRatToInt64(ival *big.Rat, oval *int64) {
+	funcs.Must(BigRatToInt64(ival, oval))
+}
+
 // StringToInt64 converts a string to an int64
 // Returns an error if the string cannot be represented as an int64
 func StringToInt64(ival string, oval *int64) error {
@@ -1297,6 +1352,11 @@ func StringToInt64(ival string, oval *int64) error {
 	}
 
 	return nil
+}
+
+// MustStringToInt64 is a Must version of StringToInt64
+func MustStringToInt64(ival string, oval *int64) {
+	funcs.Must(StringToInt64(ival, oval))
 }
 
 // ==== ToUint64
@@ -1312,6 +1372,11 @@ func BigIntToUint64(ival *big.Int, oval *uint64) error {
 	return nil
 }
 
+// MustBigIntToUint64 is a Must version of BigIntToUint64
+func MustBigIntToUint64(ival *big.Int, oval *uint64) {
+	funcs.Must(BigIntToUint64(ival, oval))
+}
+
 // BigFloatToUint64 converts a *big.Float to a uint64
 // Returns an error if the *big.Float cannot be represented as a uint64
 func BigFloatToUint64(ival *big.Float, oval *uint64) error {
@@ -1321,6 +1386,11 @@ func BigFloatToUint64(ival *big.Float, oval *uint64) error {
 	}
 
 	return nil
+}
+
+// MustBigFloatToUint64 is a Must version of BigFloatToUint64
+func MustBigFloatToUint64(ival *big.Float, oval *uint64) {
+	funcs.Must(BigFloatToUint64(ival, oval))
 }
 
 // BigRatToUint64 converts a *big.Rat to a uint64
@@ -1334,6 +1404,11 @@ func BigRatToUint64(ival *big.Rat, oval *uint64) error {
 	return nil
 }
 
+// MustBigRatToUint64 is a Must version of BigRatToUint64
+func MustBigRatToUint64(ival *big.Rat, oval *uint64) {
+	funcs.Must(BigRatToUint64(ival, oval))
+}
+
 // StringToUint64 converts a string to a uint64
 // Returns an error if the string cannot be represented as a uint64
 func StringToUint64(ival string, oval *uint64) error {
@@ -1343,6 +1418,11 @@ func StringToUint64(ival string, oval *uint64) error {
 	}
 
 	return nil
+}
+
+// MustStringToUint64 is a Must version of StringToUint64
+func MustStringToUint64(ival string, oval *uint64) {
+	funcs.Must(StringToUint64(ival, oval))
 }
 
 // ==== ToFloat32
@@ -1362,6 +1442,11 @@ func BigIntToFloat32(ival *big.Int, oval *float32) error {
 	return nil
 }
 
+// MustBigIntToFloat32 is a Must version of BigIntToFloat32
+func MustBigIntToFloat32(ival *big.Int, oval *float32) {
+	funcs.Must(BigIntToFloat32(ival, oval))
+}
+
 // BigFloatToFloat32 converts a *big.Float to a float32
 // Returns an error if the *big.Float cannot be represented as a float32
 func BigFloatToFloat32(ival *big.Float, oval *float32) error {
@@ -1373,6 +1458,11 @@ func BigFloatToFloat32(ival *big.Float, oval *float32) error {
 	return nil
 }
 
+// MustBigFloatToFloat32 is a Must version of BigFloatToFloat32
+func MustBigFloatToFloat32(ival *big.Float, oval *float32) {
+	funcs.Must(BigFloatToFloat32(ival, oval))
+}
+
 // BigRatToFloat32 converts a *big.Rat to a float32
 // Returns an error if the *big.Rat cannot be represented as a float32
 func BigRatToFloat32(ival *big.Rat, oval *float32) error {
@@ -1382,6 +1472,11 @@ func BigRatToFloat32(ival *big.Rat, oval *float32) error {
 	}
 
 	return nil
+}
+
+// MustBigRatToFloat32 is a Must version of BigRatToFloat32
+func MustBigRatToFloat32(ival *big.Rat, oval *float32) {
+	funcs.Must(BigRatToFloat32(ival, oval))
 }
 
 // StringToFloat32 converts a string to a float32
@@ -1399,6 +1494,11 @@ func StringToFloat32(ival string, oval *float32) error {
 	}
 
 	return nil
+}
+
+// MustStringToFloat32 is a Must version of StringToFloat32
+func MustStringToFloat32(ival string, oval *float32) {
+	funcs.Must(StringToFloat32(ival, oval))
 }
 
 // ==== ToFloat64
@@ -1419,6 +1519,11 @@ func BigIntToFloat64(ival *big.Int, oval *float64) error {
 	return nil
 }
 
+// MustBigIntToFloat64 is a Must version of BigIntToFloat64
+func MustBigIntToFloat64(ival *big.Int, oval *float64) {
+	funcs.Must(BigIntToFloat64(ival, oval))
+}
+
 // BigFloatToFloat64 converts a *big.Float to a float64
 // Returns an error if the *big.Float cannot be represented as a float64
 func BigFloatToFloat64(ival *big.Float, oval *float64) error {
@@ -1430,6 +1535,11 @@ func BigFloatToFloat64(ival *big.Float, oval *float64) error {
 	return nil
 }
 
+// MustBigFloatToFloat64 is a Must version of BigFloatToFloat64
+func MustBigFloatToFloat64(ival *big.Float, oval *float64) {
+	funcs.Must(BigFloatToFloat64(ival, oval))
+}
+
 // BigRatToFloat64 converts a *big.Rat to a float64
 // Returns an error if the *big.Rat cannot be represented as a float64
 func BigRatToFloat64(ival *big.Rat, oval *float64) error {
@@ -1439,6 +1549,11 @@ func BigRatToFloat64(ival *big.Rat, oval *float64) error {
 	}
 
 	return nil
+}
+
+// MustBigRatToFloat64 is a Must version of BigRatToFloat64
+func MustBigRatToFloat64(ival *big.Rat, oval *float64) {
+	funcs.Must(BigRatToFloat64(ival, oval))
 }
 
 // StringToFloat64 converts a string to a float64
@@ -1456,6 +1571,11 @@ func StringToFloat64(ival string, oval *float64) error {
 	}
 
 	return nil
+}
+
+// MustStringToFloat64 is a Must version of StringToFloat64
+func MustStringToFloat64(ival string, oval *float64) {
+	funcs.Must(StringToFloat64(ival, oval))
 }
 
 // ==== ToBigInt
@@ -1488,6 +1608,11 @@ func FloatToBigInt[T constraint.Float](ival T, oval **big.Int) error {
 	return nil
 }
 
+// MustFloatToBigInt is a Must version of FloatToBigInt
+func MustFloatToBigInt[T constraint.Float](ival T, oval **big.Int) {
+	funcs.Must(FloatToBigInt(ival, oval))
+}
+
 // BigIntToBigInt makes a copy of a *big.Int such that ival and *oval are different pointers
 func BigIntToBigInt(ival *big.Int, oval **big.Int) {
 	*oval = big.NewInt(0)
@@ -1506,6 +1631,11 @@ func BigFloatToBigInt(ival *big.Float, oval **big.Int) error {
 	return nil
 }
 
+// MustBigFloatToBigInt is a Must version of BigFloatToBigInt
+func MustBigFloatToBigInt(ival *big.Float, oval **big.Int) {
+	funcs.Must(BigFloatToBigInt(ival, oval))
+}
+
 // BigRatToBigInt converts a *big.Rat to a *big.Int
 // Returns an error if the *big.Rat is not an int
 func BigRatToBigInt(ival *big.Rat, oval **big.Int) error {
@@ -1517,7 +1647,12 @@ func BigRatToBigInt(ival *big.Rat, oval **big.Int) error {
 	return nil
 }
 
-// String toBigInt converts a string to a *big.Int.
+// MustBigRatToBigInt is a Must version of BigFloatToBigInt
+func MustBigRatToBigInt(ival *big.Rat, oval **big.Int) {
+	funcs.Must(BigRatToBigInt(ival, oval))
+}
+
+// StringtoBigInt converts a string to a *big.Int.
 // Returns an error if the string is not an integer.
 func StringToBigInt(ival string, oval **big.Int) error {
 	*oval = big.NewInt(0)
@@ -1526,6 +1661,11 @@ func StringToBigInt(ival string, oval **big.Int) error {
 	}
 
 	return nil
+}
+
+// MustStringToBigInt is a Must version of StringToBigInt
+func MustStringToBigInt(ival string, oval **big.Int) {
+	funcs.Must(StringToBigInt(ival, oval))
 }
 
 // ==== ToBigFloat
@@ -1551,6 +1691,11 @@ func FloatToBigFloat[T constraint.Float](ival T, oval **big.Float) error {
 
 	*oval = big.NewFloat(float64(ival))
 	return nil
+}
+
+// MustFloatToBigFloat is a Must version of FloatToBigFloat
+func MustFloatToBigFloat[T constraint.Float](ival T, oval **big.Float) {
+	funcs.Must(FloatToBigFloat(ival, oval))
 }
 
 // BigIntToBigFloat converts a *big.Int into a *big.Float
@@ -1594,6 +1739,11 @@ func StringToBigFloat(ival string, oval **big.Float) error {
 	return nil
 }
 
+// MustStringToBigFloat is a Must version of FloatToBigFloat
+func MustStringToBigFloat(ival string, oval **big.Float) {
+	funcs.Must(StringToBigFloat(ival, oval))
+}
+
 // ==== ToBigRat
 
 // IntToBigRat converts any signed int type into a *big.Rat
@@ -1618,6 +1768,11 @@ func FloatToBigRat[T constraint.Float](ival T, oval **big.Rat) error {
 	return nil
 }
 
+// MustFloatToBigRat is a Must version of FloatToBigRat
+func MustFloatToBigRat[T constraint.Float](ival T, oval **big.Rat) {
+	funcs.Must(FloatToBigRat(ival, oval))
+}
+
 // BigIntToBigRat converts a *big.Int into a *big.Rat
 func BigIntToBigRat(ival *big.Int, oval **big.Rat) {
 	*oval = big.NewRat(1, 1).SetFrac(ival, big.NewInt(1))
@@ -1631,6 +1786,11 @@ func BigFloatToBigRat(ival *big.Float, oval **big.Rat) error {
 
 	*oval, _ = big.NewRat(1, 1).SetString(BigFloatToString(ival))
 	return nil
+}
+
+// MustBigFloatToBigRat is a Must version of FloatToBigRat
+func MustBigFloatToBigRat(ival *big.Float, oval **big.Rat) {
+	funcs.Must(BigFloatToBigRat(ival, oval))
 }
 
 // BigRatToBigRat makes a copy of a *big.Rat such that ival and *oval are different pointers
@@ -1649,6 +1809,11 @@ func StringToBigRat(ival string, oval **big.Rat) error {
 	return nil
 }
 
+// MustStringToBigRat is a Must version of StringToBigRat
+func MustStringToBigRat(ival string, oval **big.Rat) {
+	funcs.Must(StringToBigRat(ival, oval))
+}
+
 // FloatStringToBigRat converts a float string to a *big.Rat.
 // Unlike StringToBigRat, it will not accept a ratio string like 5/4.
 func FloatStringToBigRat(ival string, oval **big.Rat) error {
@@ -1665,6 +1830,11 @@ func FloatStringToBigRat(ival string, oval **big.Rat) error {
 	// If it is a float string, cannot fail to be parsed by StringToBigRat
 	StringToBigRat(ival, oval)
 	return nil
+}
+
+// MustFloatStringToBigRat is a Must version of FloatStringToBigRat
+func MustFloatStringToBigRat(ival string, oval **big.Rat) {
+	funcs.Must(FloatStringToBigRat(ival, oval))
 }
 
 // To converts any signed integer, float, or big type into any other such type.
@@ -1704,6 +1874,11 @@ func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, t
 	return convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()](valsrc.Interface(), valtgt.Interface())
 }
 
+// MustTo is a Must version of To
+func MustTo[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, tgt *T) {
+	funcs.Must(To(src, tgt))
+}
+
 // ToBigOps is the BigOps version of To
 func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) error {
 	var (
@@ -1722,4 +1897,9 @@ func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt
 
 	// Types differ, lookup conversion using base types and execute it, returning result
 	return convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()](valsrc.Interface(), valtgt.Interface())
+}
+
+// MustToBigOps is a Must version of ToBigOps
+func MustToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) {
+	funcs.Must(ToBigOps(src, tgt))
 }

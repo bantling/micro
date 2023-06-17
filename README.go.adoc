@@ -198,7 +198,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Arbitrary precision type using BCD
 * Add must funcs where needed that call funcs.Must/MustValue{,2,3}
 * Move some funcs around, checking all packages
 ** eg, funcs package has stuff like MaxOrdered, which shd be in math package

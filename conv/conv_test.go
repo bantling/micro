@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -108,6 +109,17 @@ func TestIntToInt_(t *testing.T) {
 	assert.Equal(t, int8(math.MaxInt8), d)
 
 	assert.Equal(t, "The int value of 32767 cannot be converted to int8", IntToInt(math.MaxInt16, &d).Error())
+
+	MustIntToInt(2, &d)
+	assert.Equal(t, int8(2), d)
+
+	funcs.TryTo(
+		func() {
+      MustIntToInt(math.MaxInt16, &d)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) { assert.Equal(t, "The int value of 32767 cannot be converted to int8", e.(error).Error()) },
+	)
 }
 
 func TestIntToUint_(t *testing.T) {
@@ -129,6 +141,18 @@ func TestIntToUint_(t *testing.T) {
 		assert.Equal(t, "The int value of -1 cannot be converted to uint8", IntToUint(-1, &d).Error())
 		assert.Equal(t, "The int value of 65535 cannot be converted to uint8", IntToUint(math.MaxUint16, &d).Error())
 	}
+
+	{
+		var d uint8
+
+		funcs.TryTo(
+			func() {
+        MustIntToUint(-1, &d)
+  			assert.Fail(t, "Never execute")
+       },
+			func(e any) { assert.Equal(t, "The int value of -1 cannot be converted to uint8", e.(error).Error()) },
+		)
+	}
 }
 
 func TestUintToInt_(t *testing.T) {
@@ -148,6 +172,19 @@ func TestUintToInt_(t *testing.T) {
 		var d int8
 		assert.Equal(t, "The uint value of 32767 cannot be converted to int8", UintToInt(uint(math.MaxInt16), &d).Error())
 	}
+
+	{
+		var d int8
+		funcs.TryTo(
+			func() {
+        MustUintToInt(uint64(math.MaxUint16), &d)
+  			assert.Fail(t, "Never execute")
+       },
+			func(e any) {
+				assert.Equal(t, "The uint64 value of 65535 cannot be converted to int8", e.(error).Error())
+			},
+		)
+	}
 }
 
 func TestUintToUint_(t *testing.T) {
@@ -166,6 +203,19 @@ func TestUintToUint_(t *testing.T) {
 	{
 		var d uint8
 		assert.Equal(t, "The uint value of 32767 cannot be converted to uint8", UintToUint(uint(math.MaxInt16), &d).Error())
+	}
+
+	{
+		var d uint8
+		funcs.TryTo(
+			func() {
+        MustUintToUint(uint64(math.MaxUint16), &d)
+  			assert.Fail(t, "Never execute")
+       },
+			func(e any) {
+				assert.Equal(t, "The uint64 value of 65535 cannot be converted to uint8", e.(error).Error())
+			},
+		)
 	}
 }
 
@@ -219,6 +269,19 @@ func TestIntToFloat_(t *testing.T) {
 		for _, ival := range badCases {
 			assert.Equal(t, fmt.Sprintf("The int32 value of %d cannot be converted to float32", ival), IntToFloat(ival, &fval).Error())
 		}
+
+		{
+			var d float32
+			funcs.TryTo(
+				func() {
+           MustIntToFloat(math.MaxUint32, &d)
+     			assert.Fail(t, "Never execute")
+         },
+				func(e any) {
+					assert.Equal(t, "The int value of 4294967295 cannot be converted to float32", e.(error).Error())
+				},
+			)
+		}
 	}
 
 	// The following code tries int values that start at maximum value a float64 can hold, and continue for 8 values after
@@ -270,6 +333,19 @@ func TestIntToFloat_(t *testing.T) {
 		for _, ival := range badCases {
 			assert.Equal(t, fmt.Sprintf("The int64 value of %d cannot be converted to float64", ival), IntToFloat(ival, &fval).Error())
 		}
+
+		{
+			var d float64
+			funcs.TryTo(
+				func() {
+          MustIntToFloat(int64((1<<60)+1), &d)
+    			assert.Fail(t, "Never execute")
+        },
+				func(e any) {
+					assert.Equal(t, "The int64 value of 1152921504606846977 cannot be converted to float64", e.(error).Error())
+				},
+			)
+		}
 	}
 }
 
@@ -282,6 +358,16 @@ func TestFloatToInt_(t *testing.T) {
 	assert.Equal(t, "The float64 value of -Inf cannot be converted to int", FloatToInt(math.Inf(-1), &d).Error())
 	assert.Equal(t, "The float64 value of +Inf cannot be converted to int", FloatToInt(math.Inf(1), &d).Error())
 	assert.Equal(t, "The float64 value of NaN cannot be converted to int", FloatToInt(math.NaN(), &d).Error())
+
+	funcs.TryTo(
+		func() {
+      MustFloatToInt(1.25, &d)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The float64 value of 1.25 cannot be converted to int", e.(error).Error())
+		},
+	)
 }
 
 func TestFloatToUint_(t *testing.T) {
@@ -293,6 +379,16 @@ func TestFloatToUint_(t *testing.T) {
 	assert.Equal(t, "The float64 value of -Inf cannot be converted to uint", FloatToUint(math.Inf(-1), &d).Error())
 	assert.Equal(t, "The float64 value of +Inf cannot be converted to uint", FloatToUint(math.Inf(1), &d).Error())
 	assert.Equal(t, "The float64 value of NaN cannot be converted to uint", FloatToUint(math.NaN(), &d).Error())
+
+	funcs.TryTo(
+		func() {
+       MustFloatToUint(1.25, &d)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The float64 value of 1.25 cannot be converted to uint", e.(error).Error())
+		},
+	)
 }
 
 func TestFloatToFloat_(t *testing.T) {
@@ -334,6 +430,16 @@ func TestFloatToFloat_(t *testing.T) {
 
 	i = -math.SmallestNonzeroFloat64
 	assert.Equal(t, "The float64 value of -5e-324 cannot be converted to float32", FloatToFloat(i, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustFloatToFloat(i, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The float64 value of -5e-324 cannot be converted to float32", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToInt64
@@ -352,6 +458,16 @@ func TestBigIntToInt64_(t *testing.T) {
 	)
 	StringToBigInt(str, &inter)
 	assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to int64", BigIntToInt64(inter, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigIntToInt64(inter, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to int64", e.(error).Error())
+		},
+	)
 }
 
 func TestBigFloatToInt64_(t *testing.T) {
@@ -369,6 +485,16 @@ func TestBigFloatToInt64_(t *testing.T) {
 
 	posInf := big.NewFloat(0).Quo(big.NewFloat(1), big.NewFloat(0))
 	assert.Equal(t, "The *big.Float value of +Inf cannot be converted to int64", BigFloatToInt64(posInf, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigFloatToInt64(posInf, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Float value of +Inf cannot be converted to int64", e.(error).Error())
+		},
+	)
 }
 
 func TestBigRatToInt64_(t *testing.T) {
@@ -380,6 +506,16 @@ func TestBigRatToInt64_(t *testing.T) {
 	assert.Equal(t, int64(100_000), o)
 
 	assert.Equal(t, "The *big.Rat value of 5/4 cannot be converted to int64", BigRatToInt64(big.NewRat(125, 100), &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustBigRatToInt64(big.NewRat(125, 100), &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Rat value of 5/4 cannot be converted to int64", e.(error).Error())
+		},
+	)
 }
 
 func TestStringToInt64_(t *testing.T) {
@@ -392,6 +528,16 @@ func TestStringToInt64_(t *testing.T) {
 
 	str := "123456789012345678901"
 	assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to int64", StringToInt64(str, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustStringToInt64(str, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to int64", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToUint64
@@ -407,6 +553,16 @@ func TestBigIntToUint64_(t *testing.T) {
 	var inter *big.Int
 	StringToBigInt("123456789012345678901", &inter)
 	assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to uint64", BigIntToUint64(inter, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigIntToUint64(inter, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to uint64", e.(error).Error())
+		},
+	)
 }
 
 func TestBigFloatToUint64_(t *testing.T) {
@@ -420,6 +576,16 @@ func TestBigFloatToUint64_(t *testing.T) {
 	assert.Equal(t, "The *big.Float value of 1.25 cannot be converted to uint64", BigFloatToUint64(big.NewFloat(1.25), &o).Error())
 	assert.Equal(t, "The *big.Float value of -Inf cannot be converted to uint64", BigFloatToUint64(big.NewFloat(math.Inf(-1)), &o).Error())
 	assert.Equal(t, "The *big.Float value of +Inf cannot be converted to uint64", BigFloatToUint64(big.NewFloat(math.Inf(1)), &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustBigFloatToUint64(big.NewFloat(math.Inf(1)), &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Float value of +Inf cannot be converted to uint64", e.(error).Error())
+		},
+	)
 }
 
 func TestBigRatToUint64_(t *testing.T) {
@@ -431,6 +597,16 @@ func TestBigRatToUint64_(t *testing.T) {
 	assert.Equal(t, uint64(100_000), o)
 
 	assert.Equal(t, "The *big.Rat value of 5/4 cannot be converted to uint64", BigRatToUint64(big.NewRat(125, 100), &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigRatToUint64(big.NewRat(125, 100), &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Rat value of 5/4 cannot be converted to uint64", e.(error).Error())
+		},
+	)
 }
 
 func TestStringToUint64_(t *testing.T) {
@@ -443,6 +619,16 @@ func TestStringToUint64_(t *testing.T) {
 
 	str := "123456789012345678901"
 	assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to uint64", StringToUint64(str, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustStringToUint64(str, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to uint64", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToFloat32
@@ -461,6 +647,16 @@ func TestBigIntToFloat32_(t *testing.T) {
 	)
 	StringToBigInt(str, &inter)
 	assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to float32", BigIntToFloat32(inter, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigIntToFloat32(inter, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to float32", e.(error).Error())
+		},
+	)
 }
 
 func TestBigFloatToFloat32_(t *testing.T) {
@@ -477,6 +673,16 @@ func TestBigFloatToFloat32_(t *testing.T) {
 	)
 	StringToBigFloat(str, &inter)
 	assert.Equal(t, "The *big.Float value of 123456789012345678901 cannot be converted to float32", BigFloatToFloat32(inter, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigFloatToFloat32(inter, &o)
+			assert.Fail(t, "Never execute")
+    },
+		func(e any) {
+			assert.Equal(t, "The *big.Float value of 123456789012345678901 cannot be converted to float32", e.(error).Error())
+		},
+	)
 }
 
 func TestBigRatToFloat32_(t *testing.T) {
@@ -489,6 +695,16 @@ func TestBigRatToFloat32_(t *testing.T) {
 
 	i := big.NewRat(math.MaxInt64, 100)
 	assert.Equal(t, "The *big.Rat value of 9223372036854775807/100 cannot be converted to float32", BigRatToFloat32(i, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigRatToFloat32(i, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Rat value of 9223372036854775807/100 cannot be converted to float32", e.(error).Error())
+		},
+	)
 }
 
 func TestStringToFloat32_(t *testing.T) {
@@ -510,6 +726,16 @@ func TestStringToFloat32_(t *testing.T) {
 
 	str := "123456789012345678901"
 	assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to float32", StringToFloat32(str, &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustStringToFloat32(str, &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to float32", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToFloat64
@@ -528,6 +754,16 @@ func TestBigIntToFloat64_(t *testing.T) {
 	)
 	StringToBigInt(str, &inter)
 	assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to float64", BigIntToFloat64(inter, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigIntToFloat64(inter, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Int value of 123456789012345678901 cannot be converted to float64", e.(error).Error())
+		},
+	)
 }
 
 func TestBigFloatToFloat64_(t *testing.T) {
@@ -543,6 +779,16 @@ func TestBigFloatToFloat64_(t *testing.T) {
 	)
 	StringToBigFloat(str, &inter)
 	assert.Equal(t, "The *big.Float value of 123456789012345678901 cannot be converted to float64", BigFloatToFloat64(inter, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigFloatToFloat64(inter, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Float value of 123456789012345678901 cannot be converted to float64", e.(error).Error())
+		},
+	)
 }
 
 func TestBigRatToFloat64_(t *testing.T) {
@@ -555,6 +801,16 @@ func TestBigRatToFloat64_(t *testing.T) {
 
 	i := big.NewRat(math.MaxInt64, 100)
 	assert.Equal(t, "The *big.Rat value of 9223372036854775807/100 cannot be converted to float64", BigRatToFloat64(i, &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustBigRatToFloat64(i, &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Rat value of 9223372036854775807/100 cannot be converted to float64", e.(error).Error())
+		},
+	)
 }
 
 func TestStringToFloat64_(t *testing.T) {
@@ -576,6 +832,16 @@ func TestStringToFloat64_(t *testing.T) {
 
 	str := "123456789012345678901"
 	assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to float64", StringToFloat64(str, &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustStringToFloat64(str, &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The string value of 123456789012345678901 cannot be converted to float64", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToBigInt
@@ -610,6 +876,16 @@ func TestFloatToBigInt_(t *testing.T) {
 	assert.Equal(t, "The float64 value of +Inf cannot be converted to *big.Int", FloatToBigInt(math.Inf(1), &o).Error())
 	assert.Equal(t, "The float64 value of -Inf cannot be converted to *big.Int", FloatToBigInt(math.Inf(-1), &o).Error())
 	assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Int", FloatToBigInt(math.NaN(), &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustFloatToBigInt(math.NaN(), &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Int", e.(error).Error())
+		},
+	)
 }
 
 func TestBigIntToBigInt_(t *testing.T) {
@@ -631,6 +907,16 @@ func TestBigFloatToBigInt_(t *testing.T) {
 	assert.Equal(t, "The *big.Float value of 1.25 cannot be converted to *big.Int", BigFloatToBigInt(big.NewFloat(1.25), &o).Error())
 	assert.Equal(t, "The *big.Float value of +Inf cannot be converted to *big.Int", BigFloatToBigInt(big.NewFloat(math.Inf(1)), &o).Error())
 	assert.Equal(t, "The *big.Float value of -Inf cannot be converted to *big.Int", BigFloatToBigInt(big.NewFloat(math.Inf(-1)), &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustBigFloatToBigInt(big.NewFloat(math.Inf(1)), &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Float value of +Inf cannot be converted to *big.Int", e.(error).Error())
+		},
+	)
 }
 
 func TestBigRatToBigInt_(t *testing.T) {
@@ -642,6 +928,16 @@ func TestBigRatToBigInt_(t *testing.T) {
 	assert.Equal(t, big.NewInt(100_000), o)
 
 	assert.Equal(t, "The *big.Rat value of 5/4 cannot be converted to *big.Int", BigRatToBigInt(big.NewRat(125, 100), &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustBigRatToBigInt(big.NewRat(125, 100), &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Rat value of 5/4 cannot be converted to *big.Int", e.(error).Error())
+		},
+	)
 }
 
 func TestStringToBigInt_(t *testing.T) {
@@ -657,6 +953,16 @@ func TestStringToBigInt_(t *testing.T) {
 	assert.Equal(t, str, o.String())
 
 	assert.Equal(t, "The string value of 1.25 cannot be converted to *big.Int", StringToBigInt("1.25", &o).Error())
+
+	funcs.TryTo(
+		func() {
+      MustStringToBigInt("1.25", &o)
+			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The string value of 1.25 cannot be converted to *big.Int", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToBigFloat
@@ -698,6 +1004,16 @@ func TestFloatToBigFloat_(t *testing.T) {
 	assert.Equal(t, big.NewFloat(math.Inf(-1)), o)
 
 	assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Float", FloatToBigFloat(math.NaN(), &o).Error())
+
+	funcs.TryTo(
+		func() {
+			MustFloatToBigFloat(math.NaN(), &o)
+			assert.Fail(t, "Never execute")
+		},
+		func(e any) {
+			assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Float", e.(error).Error())
+		},
+	)
 }
 
 func TestBigIntToBigFloat_(t *testing.T) {
@@ -758,6 +1074,16 @@ func TestStringToBigFloat_(t *testing.T) {
 
 	assert.Equal(t, "The string value of 1.25p cannot be converted to *big.Float", StringToBigFloat("1.25p", &o).Error())
 	assert.Equal(t, "The string value of NaN cannot be converted to *big.Float", StringToBigFloat("NaN", &o).Error())
+
+	funcs.TryTo(
+		func() {
+			MustStringToBigFloat("NaN", &o)
+			assert.Fail(t, "Never execute")
+		},
+		func(e any) {
+			assert.Equal(t, "The string value of NaN cannot be converted to *big.Float", e.(error).Error())
+		},
+	)
 }
 
 // ==== ToBigRat
@@ -796,6 +1122,16 @@ func TestFloatToBigRat_(t *testing.T) {
 
 	i = math.NaN()
 	assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Rat", FloatToBigRat(i, &o).Error())
+
+	funcs.TryTo(
+		func() {
+			MustFloatToBigRat(i, &o)
+			assert.Fail(t, "Never execute")
+		},
+		func(e any) {
+			assert.Equal(t, "The float64 value of NaN cannot be converted to *big.Rat", e.(error).Error())
+		},
+	)
 }
 
 func TestBigIntToBigRat_(t *testing.T) {
@@ -820,6 +1156,16 @@ func TestBigFloatToBigRat_(t *testing.T) {
 
 	i = big.NewFloat(math.Inf(-1))
 	assert.Equal(t, "The *big.Float value of -Inf cannot be converted to *big.Rat", BigFloatToBigRat(i, &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustBigFloatToBigRat(i, &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The *big.Float value of -Inf cannot be converted to *big.Rat", e.(error).Error())
+		},
+	)
 }
 
 func TestBigRatToBigRat_(t *testing.T) {
@@ -845,6 +1191,16 @@ func TestStringToBigRat_(t *testing.T) {
 	assert.Equal(t, "The string value of +Inf cannot be converted to *big.Rat", StringToBigRat("+Inf", &o).Error())
 	assert.Equal(t, "The string value of -Inf cannot be converted to *big.Rat", StringToBigRat("-Inf", &o).Error())
 	assert.Equal(t, "The string value of NaN cannot be converted to *big.Rat", StringToBigRat("NaN", &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustStringToBigRat("NaN", &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The string value of NaN cannot be converted to *big.Rat", e.(error).Error())
+		},
+	)
 }
 
 func TestFloatStringToBigRat_(t *testing.T) {
@@ -856,6 +1212,16 @@ func TestFloatStringToBigRat_(t *testing.T) {
 	assert.Equal(t, "The float string value of +Inf cannot be converted to *big.Rat", FloatStringToBigRat("+Inf", &o).Error())
 	assert.Equal(t, "The float string value of -Inf cannot be converted to *big.Rat", FloatStringToBigRat("-Inf", &o).Error())
 	assert.Equal(t, "The float string value of NaN cannot be converted to *big.Rat", FloatStringToBigRat("NaN", &o).Error())
+
+	funcs.TryTo(
+		func() {
+       MustFloatStringToBigRat("NaN", &o)
+ 			assert.Fail(t, "Never execute")
+     },
+		func(e any) {
+			assert.Equal(t, "The float string value of NaN cannot be converted to *big.Rat", e.(error).Error())
+		},
+	)
 }
 
 func TestTo_(t *testing.T) {
@@ -909,6 +1275,16 @@ func TestTo_(t *testing.T) {
 		bi := big.NewInt(math.MaxInt64)
 		bi = bi.Mul(bi, big.NewInt(2))
 		assert.Equal(t, fmt.Errorf("The *big.Int value of 18446744073709551614 cannot be converted to int64"), To(bi, &i))
+
+		funcs.TryTo(
+			func() {
+         MustTo(bi, &i)
+   			assert.Fail(t, "Never execute")
+       },
+			func(e any) {
+				assert.Equal(t, "The *big.Int value of 18446744073709551614 cannot be converted to int64", e.(error).Error())
+			},
+		)
 
 		assert.Nil(t, To(big.NewFloat(2), &i))
 		assert.Equal(t, 2, i)
@@ -1945,4 +2321,22 @@ func TestToBigOps_(t *testing.T) {
 		assert.Nil(t, ToBigOps(br, &br))
 		assert.Equal(t, big.NewRat(3, 1), br)
 	}
+
+	{
+		var br *big.Rat
+		assert.Nil(t, ToBigOps(3, &br))
+		assert.Equal(t, big.NewRat(3, 1), br)
+
+		assert.Nil(t, ToBigOps(br, &br))
+		assert.Equal(t, big.NewRat(3, 1), br)
+	}
+
+	funcs.TryTo(
+		func() {
+			var br *big.Int
+			MustToBigOps("a", &br)
+			assert.Fail(t, "Never execute")
+		},
+		func(e any) { assert.Equal(t, fmt.Sprintf(errMsg, "a", "a", "*big.Int"), e.(error).Error()) },
+	)
 }

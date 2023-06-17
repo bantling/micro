@@ -162,7 +162,7 @@ depgraph: have-dot
 	# Only iter and above
 	grep -Ev 'constraint|conv|funcs|reflect|tuple|union|util' .depgraph.dot | dot -Tsvg > depgraph.above.svg
 	# Only iter and below
-	grep -Ev 'bcd|json|math|stream|writer' .depgraph.dot | dot -Tsvg > depgraph.below.svg
+	grep -Ev 'json|math|stream|writer' .depgraph.dot | dot -Tsvg > depgraph.below.svg
 
 .PHONY: have-asciidoc
 have-asciidoc:
