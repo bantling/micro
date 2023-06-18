@@ -3,6 +3,7 @@ package write
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/json"
 	"github.com/bantling/micro/writer"
 )
@@ -23,6 +24,11 @@ func Write(jv json.Value, dst writer.Writer[rune]) error {
 	}
 
 	return dst.Write('n', 'u', 'l', 'l')
+}
+
+// MustWrite is a must version of Write
+func MustWrite(jv json.Value, dst writer.Writer[rune]) {
+  funcs.Must(Write(jv, dst))
 }
 
 // WriteObject writes an object to a writer
@@ -53,6 +59,11 @@ func WriteObject(jv json.Value, dst writer.Writer[rune]) error {
 	return dst.Write('}')
 }
 
+// MustWriteObject is a must version of WriteObject
+func MustWriteObject(jv json.Value, dst writer.Writer[rune]) {
+  funcs.Must(WriteObject(jv, dst))
+}
+
 // WriteArray writes an array to a writer
 func WriteArray(jv json.Value, dst writer.Writer[rune]) error {
 	if err := dst.Write('['); err != nil {
@@ -72,4 +83,9 @@ func WriteArray(jv json.Value, dst writer.Writer[rune]) error {
 	}
 
 	return dst.Write(']')
+}
+
+// MustWriteArray is a must version of WriteArray
+func MustWriteArray(jv json.Value, dst writer.Writer[rune]) {
+  funcs.Must(WriteArray(jv, dst))
 }

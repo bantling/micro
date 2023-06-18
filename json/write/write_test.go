@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/json"
 	"github.com/bantling/micro/util"
 	"github.com/bantling/micro/writer"
@@ -40,6 +41,15 @@ func TestWrite_(t *testing.T) {
 	str.Reset()
 	assert.Nil(t, Write(json.NullValue, writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "null", str.String())
+
+  var err = fmt.Errorf("died")
+  funcs.TryTo(
+    func() {
+      MustWrite(json.FalseValue, writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+      assert.Fail(t, "Must die")
+    },
+    func(e any) { assert.Equal(t, err, e.(error)) },
+  )
 }
 
 func TestWriteObject_(t *testing.T) {
@@ -79,6 +89,14 @@ func TestWriteObject_(t *testing.T) {
 	// Fail to write first value
 	w = util.NewErrorWriter(7, err)
 	assert.Equal(t, err, Write(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(w)))
+
+  funcs.TryTo(
+    func() {
+      MustWriteObject(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+      assert.Fail(t, "Must die")
+    },
+    func(e any) { assert.Equal(t, err, e.(error)) },
+  )
 }
 
 func TestWriteArray_(t *testing.T) {
@@ -111,4 +129,12 @@ func TestWriteArray_(t *testing.T) {
 	// Fail to write second value
 	w = util.NewErrorWriter(15, err)
 	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
+
+  funcs.TryTo(
+    func() {
+      MustWriteArray(json.FromSlice(s), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+      assert.Fail(t, "Must die")
+    },
+    func(e any) { assert.Equal(t, err, e.(error)) },
+  )
 }

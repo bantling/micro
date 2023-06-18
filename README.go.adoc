@@ -198,37 +198,36 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Add must funcs where needed that call funcs.Must/MustValue{,2,3}
 * Move some funcs around, checking all packages
 ** eg, funcs package has stuff like MaxOrdered, which shd be in math package
 * In every occurrence of a var whose value has to be adjusted, declare param name ending in Opt
 ** eg, a vararg is for an optional arg. declare it as nameOpt, and in func declare var as name = funcs.SliceIndex(nameOpt, 0, defaultVal)
 * Create a BASIC interpreter
-** All decimal math uses bcd
-* Create a code generator
-** Just use plain old Go text template
-** For specific purposes, like HTTP handlers and SQL DTO/DAO structs
-** Define data types
-*** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
-*** Self-referencing types (eg animal contains animal)
-*** Use a set of pre-defined types (including arbitrary precision) and adapt to/from actual types supported by language(s)
-*** Predefined operations like convert string to/from UTF-8 bytes
-* Update this README feature list
-* Rewrite UTF-8 streaming decoder using code generator
-* Rewrite JSON streaming lexer/parser using code generator - provide line number, character number, and path in error messages
-** JSONValue look up a string path of key names and indexes in objects and arrays, as in "addresses[0].city"
+** Nothing fancy, capable of evaluating an expression
+* JSONValue look up a string path of key names and indexes in objects and arrays, as in "addresses[0].city"
 * Update this README feature list
 * Create an rc style event handling system using code generator
 ** Event types may be defined to come before and/or after other event types
 ** System resolves an acceptable system or rejects it as unobtainable (eg x is before y is before x)
 ** Event objects can be a union
 * Update this README feature list
-** Generate code to convert data types to/from a map[string]any
+* Create a code generator
+** Just use plain old Go text template
+** For specific purposes, like HTTP handlers and SQL DTO/DAO structs
+** Use a JSON file as input to determine what to generate
+** Use BASIC interpreter for evaluating expressions in JSON file for stuff like validation
+** Generate code for DTOs, DAOs, REST handlers, HTML
+** Define data types
+*** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
+*** Self-referencing types (eg animal contains animal)
+*** Use a set of pre-defined types (including arbitrary precision) and adapt to/from actual types supported by language(s)
+*** Predefined operations like convert string to/from UTF-8 bytes
 ** DAO objects that CRUD DTOs to all supported free databases
 ** queries stored in sql files, where some files are generated, some can be handwritten
 ** associate handwritten queries with a name
 ** handwritten in a separate dir from generated, so that generated can be cleared and regenerated
 ** versioned so that a single code base can handle different versions of data structures and persistence
+** generate queries that use decimal type for accurate math calculations
 ** DDL generator that can reconcile current database structure with desired structure
 *** One to one: parent has child id
 *** One to many: child has parent id
@@ -238,6 +237,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 *** Full text support
 *** Some auto trigger support (eg, deletes cause an insert to a delete tracking table, insert/update puts full text in a separate full text table)
 *** Generate new columns on the fly, not just during reconcile (eg, users can define a new column to store)
+* Update this README feature list
+** Generate code to convert data types to/from a map[string]any
 *** Generate HTTP handling, default CRUD = PUT, GET, PUT, DELETE (can specify POST for create)
 * Update this README feature list
 * ETL operations
@@ -246,3 +247,4 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 *** Split streams
 *** Generate streams
 ** Look at steps Pentaho and Talend provide as a rough guide
+* Consider porting https://github.com/dnotq/decNumber to Go for arbitrary precision decimal math

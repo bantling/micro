@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/iter"
 	"github.com/bantling/micro/json"
 	"github.com/bantling/micro/stream"
@@ -133,4 +134,12 @@ func TestParse_(t *testing.T) {
 	assert.Equal(t, union.OfError[json.Value](anErr), union.OfResultError(Parse(util.NewErrorReader([]byte(`{`), anErr))))
 	// Case 4
 	assert.Equal(t, union.OfError[json.Value](errObjectOrArrayRequired), union.OfResultError(Parse(strings.NewReader(`:`))))
+
+  funcs.TryTo(
+    func() {
+      MustParse(strings.NewReader(``))
+      assert.Fail(t, "Must die")
+    },
+    func(e any) { assert.Equal(t, errEmptyDocument, e.(error)) },
+  )
 }

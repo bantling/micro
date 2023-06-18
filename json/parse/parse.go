@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/iter"
 	"github.com/bantling/micro/json"
 	"github.com/bantling/micro/stream"
@@ -328,4 +329,9 @@ func Parse(src io.Reader) (json.Value, error) {
 
 	// Die if some other token exists that is not a brace or bracket
 	return zv, errObjectOrArrayRequired // Case 4
+}
+
+// MustParse is a must version of Parse
+func MustParse(src io.Reader) json.Value {
+  return funcs.MustValue(Parse(src))
 }

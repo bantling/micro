@@ -507,17 +507,26 @@ func TestNillable_(t *testing.T) {
 	)
 
 	TryTo(
-		func() { IsNil[int]() },
+		func() {
+			IsNil[int]()
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
 
 	TryTo(
-		func() { IsNonNil[int]() },
+		func() {
+			IsNonNil[int]()
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
 
 	TryTo(
-		func() { MustBeNillable(reflect.TypeOf(0)) },
+		func() {
+			MustBeNillable(reflect.TypeOf(0))
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
 
@@ -569,7 +578,10 @@ func TestMust_(t *testing.T) {
 
 	e = fmt.Errorf("bob")
 	TryTo(
-		func() { Must(e) },
+		func() {
+			Must(e)
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, e, err) },
 	)
 }
@@ -583,7 +595,10 @@ func TestMustValue_(t *testing.T) {
 
 	e = fmt.Errorf("bob")
 	TryTo(
-		func() { MustValue(i, e); assert.Fail(t, "Must die") },
+		func() {
+			MustValue(i, e)
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, e, err) },
 	)
 }
@@ -600,7 +615,10 @@ func TestMustValue2_(t *testing.T) {
 
 	e = fmt.Errorf("bob")
 	TryTo(
-		func() { MustValue2(p1, p2, e); assert.Fail(t, "Must die") },
+		func() {
+			MustValue2(p1, p2, e)
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, e, err) },
 	)
 }
@@ -618,7 +636,10 @@ func TestMustValue3_(t *testing.T) {
 
 	e = fmt.Errorf("bob")
 	TryTo(
-		func() { MustValue3(p1, p2, p3, e); assert.Fail(t, "Must die") },
+		func() {
+			MustValue3(p1, p2, p3, e)
+			assert.Fail(t, "Must die")
+		},
 		func(err any) { assert.Equal(t, e, err) },
 	)
 }
