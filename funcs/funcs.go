@@ -475,60 +475,6 @@ func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
 	return falseVal()
 }
 
-// MinOrdered returns the minimum value of two ordered types
-func MinOrdered[T constraint.Ordered](val1, val2 T) T {
-	if val1 > val2 {
-		return val2
-	}
-
-	return val1
-}
-
-// MinComplex returns the minimum value of two complex types
-func MinComplex[T constraint.Complex](val1, val2 T) T {
-	if cmplx.Abs(complex128(val1)) > cmplx.Abs(complex128(val2)) {
-		return val2
-	}
-
-	return val1
-}
-
-// MinCmp returns the minimum value of two comparable types
-func MinCmp[T constraint.Cmp[T]](val1, val2 T) T {
-	if val1.Cmp(val2) > 0 {
-		return val2
-	}
-
-	return val1
-}
-
-// MaxOrdered returns the maximum value of two ordered types
-func MaxOrdered[T constraint.Ordered](val1, val2 T) T {
-	if val1 < val2 {
-		return val2
-	}
-
-	return val1
-}
-
-// MaxComplex returns the maximum value of two complex types
-func MaxComplex[T constraint.Complex](val1, val2 T) T {
-	if cmplx.Abs(complex128(val1)) < cmplx.Abs(complex128(val2)) {
-		return val2
-	}
-
-	return val1
-}
-
-// MaxCmp returns the maximum value of two comparable types
-func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
-	if val1.Cmp(val2) < 0 {
-		return val2
-	}
-
-	return val1
-}
-
 // ==== Nil
 
 // IsNil generates a filter func (func(T) bool) that returns true if the value given is nil.

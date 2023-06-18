@@ -198,8 +198,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Move some funcs around, checking all packages
-** eg, funcs package has stuff like MaxOrdered, which shd be in math package
 * In every occurrence of a var whose value has to be adjusted, declare param name ending in Opt
 ** eg, a vararg is for an optional arg. declare it as nameOpt, and in func declare var as name = funcs.SliceIndex(nameOpt, 0, defaultVal)
 * Create a BASIC interpreter

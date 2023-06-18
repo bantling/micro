@@ -3,7 +3,7 @@ package util
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/math"
 )
 
 // ErrorReader is an io.Reader that returns a non-eof error after some input bytes have been read.
@@ -40,7 +40,7 @@ func (r *ErrorReader) Read(p []byte) (int, error) {
 	}
 
 	// Return the number of bytes asked for, or what we have remaining, whichever is less
-	numBytes := funcs.MinOrdered(len(r.input), len(p))
+	numBytes := math.MinOrdered(len(r.input), len(p))
 
 	copy(p[:numBytes], r.input[r.pos:r.pos+numBytes])
 	r.pos += numBytes
@@ -57,7 +57,7 @@ type ErrorWriter struct {
 
 // NewErrorWriter constructs an ErrorWriter from a count of output bytes to allow and an error
 func NewErrorWriter(count int, err error) *ErrorWriter {
-	return &ErrorWriter{count, make([]byte, 0, funcs.MaxOrdered(0, count)), err}
+	return &ErrorWriter{count, make([]byte, 0, math.MaxOrdered(0, count)), err}
 }
 
 // Write is the io.Writer method, that eventually returns with the provided error
@@ -73,7 +73,7 @@ func (w *ErrorWriter) Write(p []byte) (int, error) {
 	}
 
 	// Return the number of bytes copied, or what we have remaining, whichever is less
-	numBytes := funcs.MinOrdered(len(p), w.count-len(w.output))
+	numBytes := math.MinOrdered(len(p), w.count-len(w.output))
 
 	w.output = append(w.output, p[:numBytes]...)
 	return numBytes, nil

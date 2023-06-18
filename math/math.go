@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/cmplx"
 	"reflect"
 	"strings"
 
@@ -392,7 +393,7 @@ const (
 // - The mask is right aligned by default, unless the optional alignLeft is true.
 func AlignedMask(nOpt uint, alignOpt ...Alignment) uint64 {
 	var (
-		n     = funcs.MinOrdered(nOpt, 64)
+		n     = MinOrdered(nOpt, 64)
 		align = funcs.SliceIndex(alignOpt, 0, Right)
 		// (1 << 0) - 1 = 0
 		// 1 << 64 = 0 (requires a 65th bit), and 0 - 1 in unsigned math wraps around to max value of 64 1 bits
@@ -523,4 +524,58 @@ func DivBigOps[T constraint.BigOps[T]](dividend T, divisor T, quotient *T) error
 	// Cast args to any for functions to accept
 	var typ, ade, adv, aq = reflect.TypeOf(dividend).String(), any(dividend), any(divisor), any(quotient)
 	return toDiv[typ](ade, adv, aq)
+}
+
+// MinOrdered returns the minimum value of two ordered types
+func MinOrdered[T constraint.Ordered](val1, val2 T) T {
+	if val1 > val2 {
+		return val2
+	}
+
+	return val1
+}
+
+// MinComplex returns the minimum value of two complex types
+func MinComplex[T constraint.Complex](val1, val2 T) T {
+	if cmplx.Abs(complex128(val1)) > cmplx.Abs(complex128(val2)) {
+		return val2
+	}
+
+	return val1
+}
+
+// MinCmp returns the minimum value of two comparable types
+func MinCmp[T constraint.Cmp[T]](val1, val2 T) T {
+	if val1.Cmp(val2) > 0 {
+		return val2
+	}
+
+	return val1
+}
+
+// MaxOrdered returns the maximum value of two ordered types
+func MaxOrdered[T constraint.Ordered](val1, val2 T) T {
+	if val1 < val2 {
+		return val2
+	}
+
+	return val1
+}
+
+// MaxComplex returns the maximum value of two complex types
+func MaxComplex[T constraint.Complex](val1, val2 T) T {
+	if cmplx.Abs(complex128(val1)) < cmplx.Abs(complex128(val2)) {
+		return val2
+	}
+
+	return val1
+}
+
+// MaxCmp returns the maximum value of two comparable types
+func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
+	if val1.Cmp(val2) < 0 {
+		return val2
+	}
+
+	return val1
 }
