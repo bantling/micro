@@ -54,11 +54,16 @@ which means import statements in go can import any package as `import github.com
 ** Value type that describes any kind of JSON value
 ** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
 ** default numeric type is NumberString, but custom conversion functions can be used for some other numeric type
+** streaming parser that can provide individual elements of top level array as they are read in, so that a large number
+   of elements can be processed without having to read entire input.
+** write a json.Value to a writer
 * math
 ** absolute value calculation that returns an error for lowest negative value of integers
    (eg for int8, abs(-128) = -128 because highest positive value is 127)
 ** add/subtract/multiply integers and return an error if over/underflow occurs
 ** integer division that rounds quotient up when remainder >= half way point
+** generate a mask of n consecutive 1 bits that are left or right aligned
+** min and mask functions for all numeric types
 * reflect
 ** utilities to make reflection usage easier
 ** DerefType derefs a Type until it is not a pointer
@@ -198,17 +203,13 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* In every occurrence of a var whose value has to be adjusted, declare param name ending in Opt
-** eg, a vararg is for an optional arg. declare it as nameOpt, and in func declare var as name = funcs.SliceIndex(nameOpt, 0, defaultVal)
-* Create a BASIC interpreter
-** Nothing fancy, capable of evaluating an expression
-* JSONValue look up a string path of key names and indexes in objects and arrays, as in "addresses[0].city"
-* Update this README feature list
 * Create an rc style event handling system using code generator
 ** Event types may be defined to come before and/or after other event types
 ** System resolves an acceptable system or rejects it as unobtainable (eg x is before y is before x)
 ** Event objects can be a union
 * Update this README feature list
+* Create a BASIC interpreter
+** Nothing fancy, capable of evaluating an expression
 * Create a code generator
 ** Just use plain old Go text template
 ** For specific purposes, like HTTP handlers and SQL DTO/DAO structs
