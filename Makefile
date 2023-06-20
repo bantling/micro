@@ -61,7 +61,7 @@ PODMAN_GO_CACHE_BUILD := $(GO_CACHE_ROOT)/podman/build
 
 # Make using host packages - the default way of building (host, docker, podman)
 .PHONY: all
-all: vars tidy compile lint format test
+all: spdx vars tidy compile lint format test
 
 # Make using docker - the docker image uses all target (host)
 .PHONY: docker
@@ -198,3 +198,15 @@ vars:
 .PHONY: clean
 clean:
 	rm -rf "$(GO_CACHE_ROOT)"
+
+# Check that every README and .go file contains the string SPDX-License-Identifier: Apache-2.0
+.PHONY: spdx
+.SILENT: spdx
+spdx:
+		# Recursive search for all README and .go files
+		for f in $$(find $(THIS_MAKEFILE_DIR) -type f \( -iname 'README*' -o -iname '*.go' \)); do \
+			[ $$(grep -c "SPDX-License-Identifier: Apache-2.0" "$$f") -gt 0 ] || { \
+				echo "$$f: missing SPDX-License-Identifier: Apache-2.0"; \
+				exit 1; \
+			} \
+		done

@@ -42,14 +42,14 @@ func TestWrite_(t *testing.T) {
 	assert.Nil(t, Write(json.NullValue, writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "null", str.String())
 
-  var err = fmt.Errorf("died")
-  funcs.TryTo(
-    func() {
-      MustWrite(json.FalseValue, writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
-      assert.Fail(t, "Must die")
-    },
-    func(e any) { assert.Equal(t, err, e.(error)) },
-  )
+	var err = fmt.Errorf("died")
+	funcs.TryTo(
+		func() {
+			MustWrite(json.FalseValue, writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, err, e.(error)) },
+	)
 }
 
 func TestWriteObject_(t *testing.T) {
@@ -90,13 +90,13 @@ func TestWriteObject_(t *testing.T) {
 	w = util.NewErrorWriter(7, err)
 	assert.Equal(t, err, Write(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(w)))
 
-  funcs.TryTo(
-    func() {
-      MustWriteObject(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
-      assert.Fail(t, "Must die")
-    },
-    func(e any) { assert.Equal(t, err, e.(error)) },
-  )
+	funcs.TryTo(
+		func() {
+			MustWriteObject(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, err, e.(error)) },
+	)
 }
 
 func TestWriteArray_(t *testing.T) {
@@ -130,11 +130,11 @@ func TestWriteArray_(t *testing.T) {
 	w = util.NewErrorWriter(15, err)
 	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
 
-  funcs.TryTo(
-    func() {
-      MustWriteArray(json.FromSlice(s), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
-      assert.Fail(t, "Must die")
-    },
-    func(e any) { assert.Equal(t, err, e.(error)) },
-  )
+	funcs.TryTo(
+		func() {
+			MustWriteArray(json.FromSlice(s), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, err, e.(error)) },
+	)
 }

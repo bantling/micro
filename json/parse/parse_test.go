@@ -135,11 +135,11 @@ func TestParse_(t *testing.T) {
 	// Case 4
 	assert.Equal(t, union.OfError[json.Value](errObjectOrArrayRequired), union.OfResultError(Parse(strings.NewReader(`:`))))
 
-  funcs.TryTo(
-    func() {
-      MustParse(strings.NewReader(``))
-      assert.Fail(t, "Must die")
-    },
-    func(e any) { assert.Equal(t, errEmptyDocument, e.(error)) },
-  )
+	funcs.TryTo(
+		func() {
+			MustParse(strings.NewReader(``))
+			assert.Fail(t, "Must die")
+		},
+		func(e any) { assert.Equal(t, errEmptyDocument, e.(error)) },
+	)
 }

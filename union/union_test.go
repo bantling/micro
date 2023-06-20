@@ -29,7 +29,7 @@ func Test2_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u2T.U()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -50,7 +50,7 @@ func Test2_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u2U.T()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -75,7 +75,7 @@ func Test3_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u3T.U()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -86,7 +86,7 @@ func Test3_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u3T.V()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -107,7 +107,7 @@ func Test3_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u3U.T()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -118,7 +118,7 @@ func Test3_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u3U.V()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -139,7 +139,7 @@ func Test3_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u3V.T()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -150,7 +150,7 @@ func Test3_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u3V.U()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -175,7 +175,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4T.U()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -186,7 +186,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4T.V()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -197,7 +197,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4T.W()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -218,7 +218,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4U.T()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -229,7 +229,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4U.V()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -240,7 +240,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4U.W()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -261,7 +261,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4V.T()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -272,7 +272,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4V.U()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -283,7 +283,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4V.W()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -304,7 +304,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4W.T()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -315,7 +315,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4W.U()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -326,7 +326,7 @@ func Test4_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				u4W.V()
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -358,7 +358,7 @@ func TestResult_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				OfError[string](nil)
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)
@@ -385,7 +385,7 @@ func TestResult_(t *testing.T) {
 		funcs.TryTo(
 			func() {
 				OfResultError(1, e)
-        assert.Fail(t, "Must die")
+				assert.Fail(t, "Must die")
 			},
 			func(r any) {
 				e = r.(error)

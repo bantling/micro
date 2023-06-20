@@ -333,5 +333,5 @@ func Parse(src io.Reader) (json.Value, error) {
 
 // MustParse is a must version of Parse
 func MustParse(src io.Reader) json.Value {
-  return funcs.MustValue(Parse(src))
+	return funcs.MustValue(Parse(src))
 }

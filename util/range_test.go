@@ -16,7 +16,7 @@ func TestOpenRange_(t *testing.T) {
 	funcs.TryTo(
 		func() {
 			OfRange(3, Open, 1, Closed, 2)
-      assert.Fail(t, "Must die")
+			assert.Fail(t, "Must die")
 		},
 		func(e any) {
 			assert.Equal(t, fmt.Errorf("The (min, max) values of (3, 1) are not allowed, min must be < max and max must be > min"), e)
