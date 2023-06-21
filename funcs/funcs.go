@@ -107,6 +107,71 @@ func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
 	return zv
 }
 
+// SliceRemove removes a slice element from a slice.
+// By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
+// The slice is modified to point to a new slice with the element(s) removed.
+//
+// Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
+// the occurrence, and again fior all elelemts after it. Otherwise, a new slice is populated with all other elements.
+func SliceRemove[T comparable](slc *[]T, val T, all ...bool) {
+	// Handle case of first occurrence
+	if !SliceIndex(all, 0, false) {
+		for i, t := range *slc {
+			if t == val {
+				newSlc := make([]T, 0, len(*slc)-1)
+				newSlc = append(append(newSlc, (*slc)[0:i]...), (*slc)[i+1:]...)
+				*slc = newSlc
+				return
+			}
+		}
+
+		// No occurrences found, leave slc as is
+	}
+
+	// Handle case of all occurrences
+	newSlc := []T{}
+	for _, t := range *slc {
+		if t != val {
+			newSlc = append(newSlc, t)
+		}
+	}
+	*slc = newSlc
+}
+
+// SliceRemoveUncomparable removes a slice element from a slice of uncomparable values.
+// By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
+// The slice is modified to point to a new slice with the element(s) removed.
+//
+// Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
+// the occurrence, and again fior all elelemts after it. Otherwise, a new slice is populated with all other elements.
+func SliceRemoveUncomparable[T any](slc *[]T, val T, all ...bool) {
+	// Get unsafe pointer of val
+	valUintptr := fmt.Sprintf("%p", any(val))
+
+	// Handle case of first occurrence
+	if !SliceIndex(all, 0, false) {
+		for i, t := range *slc {
+			if fmt.Sprintf("%p", any(t)) == valUintptr {
+				newSlc := make([]T, 0, len(*slc)-1)
+				newSlc = append(append(newSlc, (*slc)[0:i]...), (*slc)[i+1:]...)
+				*slc = newSlc
+				return
+			}
+		}
+
+		// No occurrences found, leave slc as is
+	}
+
+	// Handle case of all occurrences
+	newSlc := []T{}
+	for _, t := range *slc {
+		if fmt.Sprintf("%p", any(t)) != valUintptr {
+			newSlc = append(newSlc, t)
+		}
+	}
+	*slc = newSlc
+}
+
 // SliceReverse reverses the elements of a slice, so that [1,2,3] becomes [3,2,1].
 func SliceReverse[T any](slc []T) {
 	l := len(slc)

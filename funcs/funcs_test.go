@@ -62,6 +62,48 @@ func TestSliceIndex_(t *testing.T) {
 	assert.Equal(t, 3, SliceIndex(slc, 2, 3))
 }
 
+func TestSliceRemove_(t *testing.T) {
+	slc := []int{}
+	SliceRemove(&slc, 0)
+	assert.Equal(t, []int{}, slc)
+
+	slc = []int{1, 2, 3, 4}
+	SliceRemove(&slc, 3)
+	assert.Equal(t, []int{1, 2, 4}, slc)
+
+	slc = []int{1, 2, 3, 4, 3, 3}
+	SliceRemove(&slc, 3)
+	assert.Equal(t, []int{1, 2, 4, 3, 3}, slc)
+
+	slc = []int{1, 2, 3, 4, 3, 3}
+	SliceRemove(&slc, 3, true)
+	assert.Equal(t, []int{1, 2, 4}, slc)
+}
+
+type Uncomparable[T any] interface {
+	Op(T) T
+}
+
+type UncomparableFunc[T any] func(T) T
+
+func (u UncomparableFunc[T]) Op(t T) T {
+	return u(t)
+}
+
+func TestSliceRemoveUncomparable_(t *testing.T) {
+	var (
+		f1  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + 1 })
+		f2  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + i })
+		slc                   = []Uncomparable[int]{f1, f2, f1, f2}
+	)
+
+	SliceRemoveUncomparable(&slc, f1)
+	assert.Equal(t, 3, len(slc))
+
+	SliceRemoveUncomparable(&slc, f2, true)
+	assert.Equal(t, 1, len(slc))
+}
+
 func TestSliceReverse_(t *testing.T) {
 	slc := []int{}
 	SliceReverse(slc)

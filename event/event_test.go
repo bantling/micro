@@ -3,26 +3,23 @@ package event
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	// "fmt"
 	"testing"
 
-	"github.com/bantling/micro/conv"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestRegistry
 func TestRegistry(t *testing.T) {
 	var (
-		r   Registry[int, string]
-		str string
-		d                             = Data[int, string]{0, 0, &str}
-		f   ReceiverFunc[int, string] = ReceiverFunc[int, string](func(d Data[int, string]) {
-			conv.To(d.Input, d.Result)
+		r Registry[string]
+		f Receiver[string] = ReceiverFunc[string](func(d string) string {
+			return d + d
 		})
 	)
-	r.Register(0, f)
 
-	d.Input = 5
-	assert.True(t, r.Send(d))
-	assert.Equal(t, "5", *d.Result)
+	r.Register(f)
+	assert.Equal(t, "55", r.Send("5"))
+
+	r.Remove(f)
+	assert.Equal(t, "5", r.Send("5"))
 }
