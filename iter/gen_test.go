@@ -4,13 +4,13 @@ package iter
 
 import (
 	"fmt"
-	"io"
+	goio "io"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/bantling/micro/io"
 	"github.com/bantling/micro/tuple"
-	"github.com/bantling/micro/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -236,7 +236,7 @@ func TestFibonnaciIterGen_(t *testing.T) {
 
 func TestReaderIterGen_(t *testing.T) {
 	// nil
-	var src io.Reader
+	var src goio.Reader
 	assert.Zero(t, src)
 	iter := ReaderIterGen(src)
 
@@ -278,7 +278,7 @@ func TestReaderIterGen_(t *testing.T) {
 
 	// non-eof-eoi error occurs after one byte
 	anErr := fmt.Errorf("An error")
-	src = util.NewErrorReader([]byte("a"), anErr)
+	src = io.NewErrorReader([]byte("a"), anErr)
 	iter = ReaderIterGen(src)
 
 	val, err = iter()
@@ -292,7 +292,7 @@ func TestReaderIterGen_(t *testing.T) {
 
 func TestReaderAsRunesIterGen_(t *testing.T) {
 	// nil
-	var src io.Reader
+	var src goio.Reader
 	assert.Zero(t, src)
 	iter := ReaderAsRunesIterGen(src)
 
@@ -368,7 +368,7 @@ func TestReaderAsRunesIterGen_(t *testing.T) {
 
 	// non-eof error occurs after one byte
 	anErr := fmt.Errorf("An error")
-	src = util.NewErrorReader([]byte("a"), anErr)
+	src = io.NewErrorReader([]byte("a"), anErr)
 	iter = ReaderAsRunesIterGen(src)
 
 	val, err = iter()

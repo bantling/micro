@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/bantling/micro/encoding/json"
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/iter"
-	"github.com/bantling/micro/json"
 	"github.com/bantling/micro/stream"
 )
 

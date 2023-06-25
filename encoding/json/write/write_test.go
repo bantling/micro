@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/encoding/json"
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/json"
-	"github.com/bantling/micro/util"
-	"github.com/bantling/micro/writer"
+	"github.com/bantling/micro/io"
+	"github.com/bantling/micro/io/writer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,7 +45,7 @@ func TestWrite_(t *testing.T) {
 	var err = fmt.Errorf("died")
 	funcs.TryTo(
 		func() {
-			MustWrite(json.FalseValue, writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+			MustWrite(json.FalseValue, writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
 			assert.Fail(t, "Must die")
 		},
 		func(e any) { assert.Equal(t, err, e.(error)) },
@@ -79,20 +79,20 @@ func TestWriteObject_(t *testing.T) {
 	err := fmt.Errorf("An error")
 
 	// Fail to write opening {
-	w := util.NewErrorWriter(0, err)
+	w := io.NewErrorWriter(0, err)
 	assert.Equal(t, err, Write(json.FromMap(m), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write first key
-	w = util.NewErrorWriter(1, err)
+	w = io.NewErrorWriter(1, err)
 	assert.Equal(t, err, Write(json.FromMap(m), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write first value
-	w = util.NewErrorWriter(7, err)
+	w = io.NewErrorWriter(7, err)
 	assert.Equal(t, err, Write(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(w)))
 
 	funcs.TryTo(
 		func() {
-			MustWriteObject(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+			MustWriteObject(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
 			assert.Fail(t, "Must die")
 		},
 		func(e any) { assert.Equal(t, err, e.(error)) },
@@ -119,20 +119,20 @@ func TestWriteArray_(t *testing.T) {
 	err := fmt.Errorf("An error")
 
 	// Fail to write opening [
-	w := util.NewErrorWriter(0, err)
+	w := io.NewErrorWriter(0, err)
 	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write first comma
-	w = util.NewErrorWriter(14, err)
+	w = io.NewErrorWriter(14, err)
 	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write second value
-	w = util.NewErrorWriter(15, err)
+	w = io.NewErrorWriter(15, err)
 	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
 
 	funcs.TryTo(
 		func() {
-			MustWriteArray(json.FromSlice(s), writer.OfIOWriterAsRunes(util.NewErrorWriter(0, err)))
+			MustWriteArray(json.FromSlice(s), writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
 			assert.Fail(t, "Must die")
 		},
 		func(e any) { assert.Equal(t, err, e.(error)) },

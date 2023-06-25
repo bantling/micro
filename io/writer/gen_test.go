@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/conv"
+	"github.com/bantling/micro/io"
 	"github.com/bantling/micro/tuple"
-	"github.com/bantling/micro/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -60,7 +60,7 @@ func TestIOWriterGen_(t *testing.T) {
 	// Write partial alphabet to an error writer
 	var (
 		err = fmt.Errorf("An error")
-		ew  = util.NewErrorWriter(5, err)
+		ew  = io.NewErrorWriter(5, err)
 	)
 	w = IOWriterGen(ew)
 
@@ -74,7 +74,7 @@ func TestIOWriterGen_(t *testing.T) {
 	assert.Equal(t, "ABCDE", string(ew.Output()))
 
 	// Write 0 bytes with no error
-	ew = util.NewErrorWriter(-1, err)
+	ew = io.NewErrorWriter(-1, err)
 	w = IOWriterGen(ew)
 
 	assert.Equal(t, fmt.Errorf("The byte 0x47 could not be written"), w(0x47))
@@ -103,7 +103,7 @@ func TestIOWriterAsRunesGen_(t *testing.T) {
 	// Write to an error writer
 	var (
 		err = fmt.Errorf("An error")
-		ew  = util.NewErrorWriter(len(string(runes)), err)
+		ew  = io.NewErrorWriter(len(string(runes)), err)
 	)
 	w = IOWriterAsRunesGen(ew)
 
@@ -116,7 +116,7 @@ func TestIOWriterAsRunesGen_(t *testing.T) {
 	assert.Equal(t, "a\u00e0\u1e01\U00010348", string(ew.Output()))
 
 	// Write 0 runes with no error
-	ew = util.NewErrorWriter(-1, err)
+	ew = io.NewErrorWriter(-1, err)
 	w = IOWriterAsRunesGen(ew)
 
 	assert.Equal(t, fmt.Errorf("The rune \\U00000099 could not be written"), w(0x99))
@@ -145,7 +145,7 @@ func TestIOWriterAsStringsGen_(t *testing.T) {
 	// Write to an error writer
 	var (
 		err = fmt.Errorf("An error")
-		ew  = util.NewErrorWriter(10, err)
+		ew  = io.NewErrorWriter(10, err)
 	)
 	w = IOWriterAsStringsGen(ew)
 
@@ -158,7 +158,7 @@ func TestIOWriterAsStringsGen_(t *testing.T) {
 	assert.Equal(t, "a\u00e0\u1e01\U00010348", string(ew.Output()))
 
 	// Write 0 runes with no error
-	ew = util.NewErrorWriter(-1, err)
+	ew = io.NewErrorWriter(-1, err)
 	w = IOWriterAsStringsGen(ew)
 
 	assert.Equal(t, fmt.Errorf("Only the first 0 bytes were written of a string of 1 runes that is encoded as 1 UTF-8 bytes"), w("c"))
@@ -194,7 +194,7 @@ func TestIOWriterAsLinesGen_(t *testing.T) {
 	// Write to an error writer
 	var (
 		err = fmt.Errorf("An error")
-		ew  = util.NewErrorWriter(10+len(strings)*len(osEOLSequence), err)
+		ew  = io.NewErrorWriter(10+len(strings)*len(osEOLSequence), err)
 	)
 	w = IOWriterAsLinesGen(ew)
 
@@ -221,7 +221,7 @@ func TestIOWriterAsLinesGen_(t *testing.T) {
 	)
 
 	// Write 0 runes with no error
-	ew = util.NewErrorWriter(-1, err)
+	ew = io.NewErrorWriter(-1, err)
 	w = IOWriterAsLinesGen(ew)
 
 	assert.Equal(t, fmt.Errorf(errIOStringWriterMsg, 0, 1+len(osEOLSequence), 1+len(osEOLSequence)), w("c"))

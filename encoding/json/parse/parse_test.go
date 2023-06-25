@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bantling/micro/encoding/json"
 	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/io"
 	"github.com/bantling/micro/iter"
-	"github.com/bantling/micro/json"
 	"github.com/bantling/micro/stream"
 	"github.com/bantling/micro/union"
-	"github.com/bantling/micro/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -113,7 +113,7 @@ func TestIterate_(t *testing.T) {
 	// Case 1
 	assert.Equal(t, union.OfError[json.Value](errEmptyDocument), iter.Maybe(Iterate(strings.NewReader(``))))
 	// Case 2
-	assert.Equal(t, union.OfError[json.Value](anErr), iter.Maybe(Iterate(util.NewErrorReader([]byte(``), anErr))))
+	assert.Equal(t, union.OfError[json.Value](anErr), iter.Maybe(Iterate(io.NewErrorReader([]byte(``), anErr))))
 	// Case 3
 	assert.Equal(t, union.OfError[json.Value](errObjectRequiresKeyOrBrace), iter.Maybe(Iterate(strings.NewReader(`{`))))
 	// Case 4
@@ -129,9 +129,9 @@ func TestParse_(t *testing.T) {
 	// Case 1
 	assert.Equal(t, union.OfError[json.Value](errEmptyDocument), union.OfResultError(Parse(strings.NewReader(``))))
 	// Case 2
-	assert.Equal(t, union.OfError[json.Value](anErr), union.OfResultError(Parse(util.NewErrorReader([]byte(``), anErr))))
+	assert.Equal(t, union.OfError[json.Value](anErr), union.OfResultError(Parse(io.NewErrorReader([]byte(``), anErr))))
 	// Case 3
-	assert.Equal(t, union.OfError[json.Value](anErr), union.OfResultError(Parse(util.NewErrorReader([]byte(`{`), anErr))))
+	assert.Equal(t, union.OfError[json.Value](anErr), union.OfResultError(Parse(io.NewErrorReader([]byte(`{`), anErr))))
 	// Case 4
 	assert.Equal(t, union.OfError[json.Value](errObjectOrArrayRequired), union.OfResultError(Parse(strings.NewReader(`:`))))
 

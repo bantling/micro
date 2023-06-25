@@ -160,9 +160,9 @@ depgraph: have-dot
 	} > .depgraph.dot
 	dot -Tsvg .depgraph.dot > depgraph.svg
 	# Only iter and above
-	grep -Ev 'constraint|conv|funcs|reflect|tuple|union|util' .depgraph.dot | dot -Tsvg > depgraph.above.svg
+	grep -Ev '"constraint"|"conv"|"event"|"funcs"|"io"|"io/writer"|"math"|"reflect"|"tuple"|"union"|"util"' .depgraph.dot | dot -Tsvg > depgraph.above.svg
 	# Only iter and below
-	grep -Ev 'json|math|stream|writer' .depgraph.dot | dot -Tsvg > depgraph.below.svg
+	grep -Ev '"encoding"|"encoding/json"|"encoding/json/parse"|"encoding/json/write"|"stream"' .depgraph.dot | dot -Tsvg > depgraph.below.svg
 
 .PHONY: have-asciidoc
 have-asciidoc:

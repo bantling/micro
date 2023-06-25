@@ -16,10 +16,15 @@ which means import statements in go can import any package as `import github.com
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
 * conv
 ** converts between numeric types, returning an error if any loss of precision would occur
+* event
+** A simple system for sending events and getting results back
+** Same generic type is used for input and output
+** default registry can be used to send and receive json.Value objects
 * funcs
 ** slices:
 *** flatten multiple dimensions into one
 *** access elements safely
+*** remove elements
 *** reverse elements
 *** sort elements
 ** maps:
@@ -203,23 +208,26 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Create an rc style event handling system using code generator
-** Event types may be defined to come before and/or after other event types
-** System resolves an acceptable system or rejects it as unobtainable (eg x is before y is before x)
-** Event objects can be a union
-* Update this README feature list
-* Create a BASIC interpreter
-** Nothing fancy, capable of evaluating an expression
-* Create a code generator
+* Create a BASIC language and code generator to convert it into Go/SQL code
+** funcs, sql style case statements, vars of int (int64), uint (uint64), string, double, arrays, maps, structs
+** stream-style ability to easily process JSON (pick it apart and reconstruct) - eg, pick apart json object as 2d array,
+   mess with inner array like rows, combine rows back into an object
+** send events over the wall
+*** allows easily changing code and deployment organization eg, monorepo to multiple repos, one docker to many dockers
+** validate values
+** native sql support for vanilla insert, update, delete, select, upsert, views
+*** common types - string, fulltext, int, int64, decimal
+*** read sql standards for types
+*** allow mixing vendor specific sql with standard sql
+*** generate DDL automatically from struct definitions for each supported database
+*** start with support for postgres, mysql, mariadb, oracle, tsql, h2, hsql, sqlite
 ** Just use plain old Go text template
 ** For specific purposes, like HTTP handlers and SQL DTO/DAO structs
-** Use a JSON file as input to determine what to generate
-** Use BASIC interpreter for evaluating expressions in JSON file for stuff like validation
 ** Generate code for DTOs, DAOs, REST handlers, HTML
 ** Define data types
 *** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
 *** Self-referencing types (eg animal contains animal)
-*** Use a set of pre-defined types (including arbitrary precision) and adapt to/from actual types supported by language(s)
+*** Use a set of pre-defined types and adapt to/from actual types supported by Go/databases
 *** Predefined operations like convert string to/from UTF-8 bytes
 ** DAO objects that CRUD DTOs to all supported free databases
 ** queries stored in sql files, where some files are generated, some can be handwritten
@@ -235,7 +243,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 *** Option for change columns (last_changed timestamp, last_changed_by string)
 *** Full text support
 *** Some auto trigger support (eg, deletes cause an insert to a delete tracking table, insert/update puts full text in a separate full text table)
-*** Generate new columns on the fly, not just during reconcile (eg, users can define a new column to store)
 * Update this README feature list
 ** Generate code to convert data types to/from a map[string]any
 *** Generate HTTP handling, default CRUD = PUT, GET, PUT, DELETE (can specify POST for create)

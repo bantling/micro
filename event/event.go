@@ -3,13 +3,18 @@ package event
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"github.com/bantling/micro/encoding/json"
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/json"
 )
 
 var (
 	// DefaultRegistry is a JSON registry that is easy to use
 	DefaultRegistry = Registry[json.Value]{}
+)
+
+const (
+	// The ALL constant is for the Remove method
+	ALL = true
 )
 
 // None is an empty struct, for cases where receivers do not need any data to process
@@ -106,6 +111,6 @@ func Remove(rcvr Receiver[json.Value], all ...bool) {
 }
 
 // Send a JSONData to DefaultRegistry receivers
-func Send(data json.Value) {
-	DefaultRegistry.Send(data)
+func Send(data json.Value) json.Value {
+	return DefaultRegistry.Send(data)
 }
