@@ -208,46 +208,25 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Create a BASIC language and code generator to convert it into Go/SQL code
-** funcs, sql style case statements, vars of int (int64), uint (uint64), string, double, arrays, maps, structs
-** stream-style ability to easily process JSON (pick it apart and reconstruct) - eg, pick apart json object as 2d array,
-   mess with inner array like rows, combine rows back into an object
-** send events over the wall
-*** allows easily changing code and deployment organization eg, monorepo to multiple repos, one docker to many dockers
-** validate values
-** native sql support for vanilla insert, update, delete, select, upsert, views
-*** common types - string, fulltext, int, int64, decimal
-*** read sql standards for types
-*** allow mixing vendor specific sql with standard sql
-*** generate DDL automatically from struct definitions for each supported database
-*** start with support for postgres, mysql, mariadb, oracle, tsql, h2, hsql, sqlite
-** Just use plain old Go text template
-** For specific purposes, like HTTP handlers and SQL DTO/DAO structs
-** Generate code for DTOs, DAOs, REST handlers, HTML
+* Code generation
 ** Define data types
-*** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
-*** Self-referencing types (eg animal contains animal)
-*** Use a set of pre-defined types and adapt to/from actual types supported by Go/databases
-*** Predefined operations like convert string to/from UTF-8 bytes
-** DAO objects that CRUD DTOs to all supported free databases
-** queries stored in sql files, where some files are generated, some can be handwritten
-** associate handwritten queries with a name
-** handwritten in a separate dir from generated, so that generated can be cleared and regenerated
-** versioned so that a single code base can handle different versions of data structures and persistence
-** generate queries that use decimal type for accurate math calculations
-** DDL generator that can reconcile current database structure with desired structure
-*** One to one: parent has child id
-*** One to many: child has parent id
-*** Many to many: bridge table of unique (parent id, child id) rows
-*** Surrogate key called relid that uses auto generated values from a sequence
-*** Option for change columns (last_changed timestamp, last_changed_by string)
-*** Full text support
-*** Some auto trigger support (eg, deletes cause an insert to a delete tracking table, insert/update puts full text in a separate full text table)
-* Update this README feature list
-** Generate code to convert data types to/from a map[string]any
-*** Generate HTTP handling, default CRUD = PUT, GET, PUT, DELETE (can specify POST for create)
-* Update this README feature list
-* ETL operations
+** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
+** Self-referencing types (eg animal contains animal)
+** required fields
+** user defined fields stored in a map[string]any
+** allow int8/16/32/64,uint8/16/32/64 (not int or uint as they vary in size), string, float (32), double (64)
+** date in iso 8601
+*** date as YYYY-MM-DD
+*** month as YYYY-MM
+*** time as THH:MM:SS, or THH:MM:SS.SSS
+*** duration/intervals as PnYnMnDTnHnMnS, nY years, nM months, etc (days, hours, minutes, seconds)
+*** smallest specified part in duration may have a fraction (eg P0.5Y or P0,5Y both mean half a year)
+** other defined structs
+** arrays of a specific type (eg array of string, array of animal, etc)
+** maps of a specific key and value type (eg map of string to int)
+** no any type or generics
+** generate structs using text/template
+* ETL
 ** Mainly operating on streams, with 3 basic operation types:
 *** Combine streams
 *** Split streams
