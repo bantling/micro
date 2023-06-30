@@ -10,23 +10,49 @@ import (
 )
 
 func TestString(t *testing.T) {
-  dt := DataType{
-    Comment: "Foo is very fooey",
+  var (
+    dt generate.DataType
+    es string
+  )
+
+  // One string field, no comments
+  dt = generate.DataType{
     Name: "Foo",
-    Fields: []Field{
-      Field{
-        Comment: "Bar is very bary",
+    Fields: []generate.Field{
+      generate.Field{
         Name: "Bar",
         Type: generate.String_t,
       },
     },
   }
 
-  es := `// Foo is very fooey
-type Foo struct {
-  Bar string // Bar is very bary
+  es = `type Foo struct {
+  Bar string
 }
 `
 
-  assert.Equal(t, es, dt.String())
+  assert.Equal(t, es, DataTypeString(dt))
+
+  // One []*string field, comments on type and field
+  dt = generate.DataType{
+    Comment: "Foo is very fooey",
+    Name: "Foo",
+    Fields: []generate.Field{
+      generate.Field{
+        Comment: "Bar is very bary",
+        Name: "Bar",
+        Type: generate.String_t,
+        Array: true,
+        Ref: true,
+      },
+    },
+  }
+
+  es = `// Foo is very fooey
+type Foo struct {
+  Bar []*string // Bar is very bary
+}
+`
+
+  assert.Equal(t, es, DataTypeString(dt))
 }

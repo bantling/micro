@@ -40,26 +40,8 @@ func FieldTypeString(ft generate.FieldType) string {
   return fieldTypeString[ft]
 }
 
-// Field represents a single field of a data type
-type Field struct {
-  Comment string
-  Name string
-  Type generate.FieldType
-  Ref bool // true for a reference (pointer), not applicable to arrays or maps
-  Array bool // true if it is an array (slice) of Type
-  ValueType generate.FieldType // for maps only, the value type (ignored if Type is not a map), limited to int8_t .. string_t
-  Union []generate.FieldType // for unions only, the types in the union
-}
-
-// DataType represents a data type that needs to be transferred over the wire (eg HTTPS, SQL)
-type DataType struct {
-  Comment string
-  Name string
-  Fields []Field
-}
-
-// String is the Stringer implementation
-func (dt DataType) String() string {
+// String is the external Stringer implementation of DataType
+func DataTypeString(dt generate.DataType) string {
   var str strings.Builder
 
   tmpl, err := template.New(
@@ -68,7 +50,7 @@ func (dt DataType) String() string {
     template.FuncMap{"FieldTypeString": FieldTypeString},
   ).ParseFiles(structTemplate)
   funcs.Must(err)
-  
+
   funcs.Must(tmpl.Execute(&str, dt))
   return str.String()
 }

@@ -28,16 +28,15 @@ const (
 type Field struct {
   Comment string
   Name string
-  Type FieldType
-  Ref bool // true for a reference (pointer), not applicable to arrays or maps
+  Type FieldType // Field type
   Array bool // true if it is an array (slice) of Type
-  ValueType FieldType // for maps only, the value type (ignored if Type is not a map), limited to int8_t .. string_t
-  Union []FieldType // for unions only, the types in the union
+  Ref bool // true for a reference (pointer), when used with arrays it is applied to Type, not the array (eg []*Type)
 }
 
 // DataType represents a data type that needs to be transferred over the wire (eg HTTPS, SQL)
 type DataType struct {
   Comment string
   Name string
+  Union bool // True if this type is a union, which means only one field actually available to be used
   Fields []Field
 }

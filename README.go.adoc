@@ -208,6 +208,12 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
+* Reference app
+** Every file in this app is something that can be produced by code generator
+** DDL scripts
+** Persistence
+** REST code
+** Server side HTML templates
 * Code generation
 ** Define data types
 ** Unions with a discriminator enum (eg animal that is union of bird, fish, or dog, and enum specifies which one)
