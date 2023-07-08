@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+:doctype: article
+
+== Applications
+
+The applications in this directory are for demonstration purposes.
+
+See README.doc in each directory for details.

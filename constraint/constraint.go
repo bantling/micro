@@ -1,5 +1,6 @@
-// Package constraint defines useful constraints that are not in the go builtin package
 package constraint
+
+// SPDX-License-Identifier: Apache-2.0
 
 import (
 	"math/big"

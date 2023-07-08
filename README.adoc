@@ -5,4 +5,4 @@
 
 Micro is a small library of useful stuff for small projects, particularly (but not limited to) REST/database projects.
 
-See RADME.go.adoc for details on Go port
+See README.go.adoc for details on Go port
