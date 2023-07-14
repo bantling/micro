@@ -31,6 +31,7 @@ var (
   // defaultConfiguration is the default Configuration, where default values are not necessarily zero values.
   defaultConfiguration = Configuration {
     Database: Database {
+      Name: "myapp",
       Locale: "en_US",
       Encoding: "UTF8",
       AccentSensitive: true,
