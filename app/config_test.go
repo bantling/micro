@@ -16,7 +16,7 @@ func TestLoadAllValues(t *testing.T) {
 [database]
 name = "mydb"
 description = "my great database"
-locale = "en_US"
+locale = "en_CA"
 encoding = "UTF8"
 accent_sensitive = false
 case_sensitive = false
@@ -40,7 +40,7 @@ ext_descriptor = {terms = ["line", "city", "region", "country", "mail_code"], de
       Database: Database {
         Name: "mydb",
         Description: "my great database",
-        Locale: "en_US",
+        Locale: "en_CA",
         Encoding: "UTF8",
         AccentSensitive: false,
         CaseSensitive: false,
