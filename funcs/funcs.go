@@ -138,20 +138,20 @@ func SliceRemove[T comparable](slc *[]T, val T, all ...bool) {
 	*slc = newSlc
 }
 
-// SliceRemoveUncomparable removes a slice element from a slice of uncomparable values.
+// SliceRemoveUncomparable removes a slice element from a slice of uncomparable values (they must be pointers).
 // By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
 // The slice is modified to point to a new slice with the element(s) removed.
 //
 // Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
-// the occurrence, and again fior all elelemts after it. Otherwise, a new slice is populated with all other elements.
+// the occurrence, and again fior all elements after it. Otherwise, a new slice is populated with all other elements.
 func SliceRemoveUncomparable[T any](slc *[]T, val T, all ...bool) {
-	// Get unsafe pointer of val
-	valUintptr := fmt.Sprintf("%p", any(val))
+	// Get pointer of val
+	valPtr := fmt.Sprintf("%p", any(val))
 
 	// Handle case of first occurrence
 	if !SliceIndex(all, 0, false) {
 		for i, t := range *slc {
-			if fmt.Sprintf("%p", any(t)) == valUintptr {
+			if fmt.Sprintf("%p", any(t)) == valPtr {
 				newSlc := make([]T, 0, len(*slc)-1)
 				newSlc = append(append(newSlc, (*slc)[0:i]...), (*slc)[i+1:]...)
 				*slc = newSlc
@@ -165,7 +165,7 @@ func SliceRemoveUncomparable[T any](slc *[]T, val T, all ...bool) {
 	// Handle case of all occurrences
 	newSlc := []T{}
 	for _, t := range *slc {
-		if fmt.Sprintf("%p", any(t)) != valUintptr {
+		if fmt.Sprintf("%p", any(t)) != valPtr {
 			newSlc = append(newSlc, t)
 		}
 	}

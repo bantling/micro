@@ -208,6 +208,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
+* Rename util package to range, funcs is really a util package
 * Reference app
 ** Every file in this app is something that can be produced by code generator
 ** DDL scripts

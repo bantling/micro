@@ -114,18 +114,18 @@
 // relationships between tables. It is an error for a table to define a column name starting with ext_.
 //
 // Notes about types:
-// - The type names provided are logical type names, they get translated to whatever the database calls them.
-// - The decimal scale defaults to 0, and must be in range [0, precision] for portability.
-// - The string type with no limit is translated to some column type that allows for some large upper limit, with
-//   reasonable efficiency. Limiting the length of the string often results in pain and suffering down the line, and is generally not needed.
+//   - The type names provided are logical type names, they get translated to whatever the database calls them.
+//   - The decimal scale defaults to 0, and must be in range [0, precision] for portability.
+//   - The string type with no limit is translated to some column type that allows for some large upper limit, with
+//     reasonable efficiency. Limiting the length of the string often results in pain and suffering down the line, and is generally not needed.
 //
 // The ext_descriptor column defines the columns used for search terms, and the format of a text description.
 // If at least one table has an ext_descriptor, full text searching is enabled:
-// - <schema_name.>ext_shared_search table has tbl_oid oid, tbl_rel_id integer, descriptor varchar, terms <full text search type>
-// - all tables use statement level triggers to insert/update/delete entries in ext_shared_search table.
-// - format is recursive - eg, in example above, the format of a region is code, while the format of country is name.
-//   So when address format refers to $region it means the code, and $country means the name.
-// - format has three special values:
+//   - <schema_name.>ext_shared_search table has tbl_oid oid, tbl_rel_id integer, descriptor varchar, terms <full text search type>
+//   - all tables use statement level triggers to insert/update/delete entries in ext_shared_search table.
+//   - format is recursive - eg, in example above, the format of a region is code, while the format of country is name.
+//     So when address format refers to $region it means the code, and $country means the name.
+//   - format has three special values:
 //   - $column is replaced by the column value
 //   - (...) is an optional string that is only displayed if at least one $ expression inside the () is non-empty.
 //     any characters inside () except $column is literal text.
