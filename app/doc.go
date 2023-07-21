@@ -96,7 +96,7 @@ package app
 // The following types are supported for each column:
 // - bool
 // - date
-// - decimal(5), decimal(5,2)
+// - decimal(precision), decimal(precision, scale)
 // - float32
 // - float64
 // - int32

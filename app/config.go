@@ -4,7 +4,9 @@ package app
 
 import (
 	"io"
+  "regexp"
 
+	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml/v2"
@@ -72,7 +74,6 @@ var (
   fieldStrings = map[string]FieldType {
     "bool": Bool,
     "date": Date,
-    "decimal": Decimal,
     "float32": Float32,
     "float64": Float64,
     "int32": Int32,
@@ -84,17 +85,70 @@ var (
     "time": Time,
     "timestamp": Timestamp,
     "uuid": UUID,
-  }
+  },
+
+  decimalPrecisionScaleRegex = regexp.MustCompile(`decimal[(]([0-9]+)(?:, *([0-9]+))?[)]`)
+  refRegex = regexp.MustCompile(`ref:(one|manyToMany|many)`) // have to put prefix many after manyToMany
+  stringLengthRegex = regexp.MustCompile(`string[(]([0-9]+)[)]`)
 )
+
+// stringToTypeDef converts a field string to a field type def, as follows:
+//
+// decimal(precision) -> Decimal, precision, 0
+// decimal(precision, scale) -> Decimal, precision, scale
+// ref:one -> RefOne
+// ref:many -> RefManyToOne
+// ref:manyToMany -> RefManyToMany
+// string -> String, 0, 0
+// string(limit) -> String, limit, 0
+//
+// any type can be followed by ? to make it nullable, else it is non-nullable
+func stringToTypeDef(str string) typ FieldType, length, scale int, nullable bool {
+  // Handle common cases, including string - but not string(limit)
+  // Strip ? suffix if it exists
+  nullable = str[len(str)-1] == '?'
+  if nullable {
+    str = str[:len(str)-1]
+  }
+
+  switch {
+  case ft, isa := fieldStrings[str]; isa
+    typ = ft
+
+  // Try decimal(precision, scale)
+  case match := decimalPrecisionScaleRegex.FindStringSubmatch(str)); match != nil
+    typ = Decimal
+    conv.To(match[1], &length)
+    conv.To(match[2], &scale) // Ignore error if string is empty, leaving scale at 0
+
+  // Try ref:one, ref:many, ref:manyToMany
+  case match := refRegex.FindStringSubmatch(str)); match != nil
+    switch match[1] {
+    case "one":
+      typ = RefOne
+    case "many":
+      typ = RefManyToOne
+    default:
+      typ = RefManyToMany
+    }
+
+  // Try string(limit)
+  case match := stringLengthRegex.FindStringSubmatch(str)); match != nil
+    typ = String
+    conv.To(match[1], &length)
+  }
+
+  return
+}
 
 // Field describes a single database field
 type Field struct {
   Name string
   Type FieldType
-  TypeName string // Ref* other type name, or custom type name
-  Length int // length of string or precision of decimal
+  TypeName string // The other type name for ref*, custom type name, else empty
+  Precision int // precision of decimal
   Scale int // scale of decimal
-  TableName string // name of other table for TableRow
+  Length // length of string
   Nullable bool // true if nullable
 }
 
@@ -245,7 +299,7 @@ func Load(src io.Reader) Configuration {
                 panic(err)
               }
 
-              
+
             }
           }
         }

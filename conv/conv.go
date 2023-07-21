@@ -1837,7 +1837,7 @@ func MustFloatStringToBigRat(ival string, oval **big.Rat) {
 	funcs.Must(FloatStringToBigRat(ival, oval))
 }
 
-// To converts any signed integer, float, or big type into any other such type.
+// To converts any numeric or string into any other such type.
 // The actual conversion is performed by other funcs.
 func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, tgt *T) error {
 	var (
