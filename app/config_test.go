@@ -6,8 +6,64 @@ import (
 	"strings"
 	"testing"
 
+  "github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestStringToTypeDef_(t *testing.T) {
+  // typ FieldType, length, scale int, nullable bool
+  assert.Equal(t, tuple.Of4(stringToTypeDef("bool")), tuple.Of4(Bool, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("bool?")), tuple.Of4(Bool, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("date")), tuple.Of4(Date, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("date?")), tuple.Of4(Date, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("decimal(5)")), tuple.Of4(Decimal, 5, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("decimal(5,2)")), tuple.Of4(Decimal, 5, 2, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("decimal(5, 2)?")), tuple.Of4(Decimal, 5, 2, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("float32")), tuple.Of4(Float32, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("float32?")), tuple.Of4(Float32, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("float64")), tuple.Of4(Float64, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("float64?")), tuple.Of4(Float64, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("int32")), tuple.Of4(Int32, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("int32?")), tuple.Of4(Int32, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("int64")), tuple.Of4(Int64, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("int64?")), tuple.Of4(Int64, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("interval")), tuple.Of4(Interval, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("interval?")), tuple.Of4(Interval, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("json")), tuple.Of4(JSON, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("json?")), tuple.Of4(JSON, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("ref:one")), tuple.Of4(RefOne, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("ref:one?")), tuple.Of4(RefOne, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("ref:many")), tuple.Of4(RefManyToOne, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("ref:many?")), tuple.Of4(RefManyToOne, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("ref:manyToMany")), tuple.Of4(RefManyToMany, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("ref:manyToMany?")), tuple.Of4(RefManyToMany, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("string")), tuple.Of4(String, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("string(5)?")), tuple.Of4(String, 5, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("table_row")), tuple.Of4(TableRow, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("table_row?")), tuple.Of4(TableRow, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("time")), tuple.Of4(Time, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("time?")), tuple.Of4(Time, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("timestamp")), tuple.Of4(Timestamp, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("timestamp?")), tuple.Of4(Timestamp, 0, 0, true))
+
+  assert.Equal(t, tuple.Of4(stringToTypeDef("uuid")), tuple.Of4(UUID, 0, 0, false))
+  assert.Equal(t, tuple.Of4(stringToTypeDef("uuid?")), tuple.Of4(UUID, 0, 0, true))
+}
 
 func TestLoadAllValues(t *testing.T) {
 	// Load that specifies all values
@@ -30,7 +86,7 @@ mail_code = "string?"
 descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
 `)
 
-		config = Load(data)
+		config, err = Load(data)
 	)
 
 	assert.Equal(
@@ -53,11 +109,11 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
             },
             Field {
               Name: "country",
-              Type: RefMany,
+              Type: RefManyToOne,
             },
             Field {
               Name: "region",
-              Type: RefMany,
+              Type: RefManyToOne,
               Nullable: true,
             },
             Field {
@@ -74,7 +130,7 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
               Nullable: true,
             },
           },
-          Descriptor: Descriptor {
+          Descriptor: &Descriptor {
             Terms: []string{"line", "city", "region", "country", "mail_code"},
             Description: "$line $city(, $region), $country(, $mail_code)",
           },
@@ -83,6 +139,8 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 		},
 		config,
 	)
+
+  assert.Nil(t, err)
 }
 
 // func TestLoadDefaults(t *testing.T) {

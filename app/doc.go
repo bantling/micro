@@ -101,6 +101,7 @@ package app
 // - float64
 // - int32
 // - int64
+// - interval
 // - json
 // - ref
 // - row

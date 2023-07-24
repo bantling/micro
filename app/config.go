@@ -3,6 +3,7 @@ package app
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	"io"
   "regexp"
 
@@ -56,6 +57,7 @@ const (
   Float64
   Int32
   Int64
+  Interval
   JSON
   RefOne
   RefManyToOne
@@ -78,6 +80,7 @@ var (
     "float64": Float64,
     "int32": Int32,
     "int64": Int64,
+    "interval": Interval,
     "json": JSON,
     "row": Row,
     "string": String,
@@ -85,7 +88,7 @@ var (
     "time": Time,
     "timestamp": Timestamp,
     "uuid": UUID,
-  },
+  }
 
   decimalPrecisionScaleRegex = regexp.MustCompile(`decimal[(]([0-9]+)(?:, *([0-9]+))?[)]`)
   refRegex = regexp.MustCompile(`ref:(one|manyToMany|many)`) // have to put prefix many after manyToMany
@@ -103,26 +106,26 @@ var (
 // string(limit) -> String, limit, 0
 //
 // any type can be followed by ? to make it nullable, else it is non-nullable
-func stringToTypeDef(str string) typ FieldType, length, scale int, nullable bool {
+func stringToTypeDef(str string) (typ FieldType, length, scale int, nullable bool) {
   // Handle common cases, including string - but not string(limit)
-  // Strip ? suffix if it exists
+  // Strip ? suffix if it exists, setting nullable to true/false
   nullable = str[len(str)-1] == '?'
   if nullable {
     str = str[:len(str)-1]
   }
 
-  switch {
-  case ft, isa := fieldStrings[str]; isa
+  // Try fieldStrings map
+  if ft, isa := fieldStrings[str]; isa {
     typ = ft
 
-  // Try decimal(precision, scale)
-  case match := decimalPrecisionScaleRegex.FindStringSubmatch(str)); match != nil
+    // Try decimal(precision, scale)
+  } else if match := decimalPrecisionScaleRegex.FindStringSubmatch(str); match != nil {
     typ = Decimal
     conv.To(match[1], &length)
     conv.To(match[2], &scale) // Ignore error if string is empty, leaving scale at 0
 
   // Try ref:one, ref:many, ref:manyToMany
-  case match := refRegex.FindStringSubmatch(str)); match != nil
+  } else if match := refRegex.FindStringSubmatch(str); match != nil {
     switch match[1] {
     case "one":
       typ = RefOne
@@ -132,10 +135,13 @@ func stringToTypeDef(str string) typ FieldType, length, scale int, nullable bool
       typ = RefManyToMany
     }
 
-  // Try string(limit)
-  case match := stringLengthRegex.FindStringSubmatch(str)); match != nil
+    // Try string(limit)
+  } else if match := stringLengthRegex.FindStringSubmatch(str); match != nil {
     typ = String
     conv.To(match[1], &length)
+  } else {
+    // Must be a custom or invalid type, treat it as custom
+    typ = Custom
   }
 
   return
@@ -148,7 +154,7 @@ type Field struct {
   TypeName string // The other type name for ref*, custom type name, else empty
   Precision int // precision of decimal
   Scale int // scale of decimal
-  Length // length of string
+  Length int // length of string
   Nullable bool // true if nullable
 }
 
@@ -190,9 +196,10 @@ var (
 // The approach used is to simply decode into a map[string]any, and look for knowable stuff like the database config
 // (which is necessarily a sub map[string]any), which gets converted into Configuration.Database via mapstruct.
 // All unrecognized top level keys are assumed to be user defined types.
-func Load(src io.Reader) Configuration {
+func Load(src io.Reader) (config Configuration, err error) {
+  config      = defaultConfiguration
+
 	var (
-		config      = defaultConfiguration
 		configMap   = map[string]any{}
 		tomlDecoder = toml.NewDecoder(src)
 	)
@@ -202,6 +209,7 @@ func Load(src io.Reader) Configuration {
 	// Iterate all top level keys of configMap:
 	// - Recognize keys are decoded into appropriate field
 	// - Remaining keys are mapped in the UserDefinedTypes field
+  TopLevel:
 	for k, v := range configMap {
 		switch k {
 		case "database_":
@@ -255,8 +263,8 @@ func Load(src io.Reader) Configuration {
               }
 
               udf.Descriptor = &Descriptor{
-                Terms = slcTerms,
-                Description = strDesc,
+                Terms: slcTerms,
+                Description: strDesc,
               }
             }
 
@@ -290,24 +298,49 @@ func Load(src io.Reader) Configuration {
 
             default: {
               // Must be a column, the value must be a string of a recognized type
-              var (
-                colName, isa := fv.(string)
-                err = fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, colName)
-              )
+              if str, isa := fv.(string); isa {
+                var (
+                  typ, length, scale, nullable = stringToTypeDef(str)
+                )
 
-              if !(isa && (len(colName) > 0) && (colName[len(colName)-1] != '_')) {
-                panic(err)
+                // If the type name is empty or ends in an underscore, it is invalid
+                if ((fk == "") || (fk[len(fk)-1] != '_')) {
+                  err = fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk)
+                } else {
+                    // Assume it is a valid definition
+                    fld := Field{
+                      Name: fk,
+                      Type: typ,
+                      TypeName: "",
+                      Nullable: nullable,
+                    }
+
+                    // Copy length and scale values, if relevant
+                    switch typ {
+                    case String:
+                      fld.Length = length
+                    case Decimal:
+                      fld.Precision = length
+                      fld.Scale = scale
+                    }
+
+                    udf.Fields = append(udf.Fields, fld)
+                }
+              } else {
+                // Not a string, reject it
+                err = fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk)
+                break TopLevel
               }
-
-
             }
           }
         }
 
-  			config.UserDefinedTypes = append(config.UserDefinedTypes, udf)
+        if err == nil {
+			    config.UserDefinedTypes = append(config.UserDefinedTypes, udf)
+        }
 			}
 		}
 	}
 
-	return config
+	return
 }
