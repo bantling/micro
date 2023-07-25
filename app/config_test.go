@@ -65,7 +65,7 @@ func TestStringToTypeDef_(t *testing.T) {
   assert.Equal(t, tuple.Of4(stringToTypeDef("uuid?")), tuple.Of4(UUID, 0, 0, true))
 }
 
-func TestLoadAllValues(t *testing.T) {
+func TestLoadAllValues_(t *testing.T) {
 	// Load that specifies all values
 	var (
 		data = strings.NewReader(`
@@ -75,6 +75,7 @@ description = "my great database"
 locale = "en_CA"
 accent_sensitive = false
 case_sensitive = false
+vendor_types = []
 
 [address]
 id = "uuid"
@@ -89,6 +90,8 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 		config, err = Load(data)
 	)
 
+  assert.Nil(t, err)
+
 	assert.Equal(
 		t,
 		Configuration{
@@ -98,6 +101,13 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 				Locale:          "en_CA",
 				AccentSensitive: false,
 				CaseSensitive:   false,
+        Vendors: []string{vendors[0]},
+        VendorTypes: CustomType{
+            Name: "foo",
+            VendorTypes: map[string]string{
+              vendors[0]: "bar",
+            },
+        },
 			},
 			UserDefinedTypes: []UserDefinedType{
         UserDefinedType {
@@ -139,46 +149,69 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 		},
 		config,
 	)
-
-  assert.Nil(t, err)
 }
 
-// func TestLoadDefaults(t *testing.T) {
-// 	// Load that specifies only values with no default
-// 	var (
-// 		data = strings.NewReader(`
-// [address]
-// id = "uuid"
-// country = "ref:many"
-// region = "ref:many?"
-// line = "string"
-// city = "string"
-// mail_code = "string?"
-// ext_descriptor = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
-// `)
-//
-// 		config = Load(data)
-// 	)
-//
-// 	assert.Equal(
-// 		t,
-// 		Configuration{
-// 			Database: defaultConfiguration.Database,
-// 			UserDefinedTypes: map[string]any{
-// 				"address": map[string]any{
-// 					"id":        "uuid",
-// 					"country":   "ref:many",
-// 					"region":    "ref:many?",
-// 					"line":      "string",
-// 					"city":      "string",
-// 					"mail_code": "string?",
-// 					"ext_descriptor": map[string]any{
-// 						"terms":       []any{"line", "city", "region", "country", "mail_code"},
-// 						"description": "$line $city(, $region), $country(, $mail_code)",
-// 					},
-// 				},
-// 			},
-// 		},
-// 		config,
-// 	)
-// }
+func TestLoadDefaults_(t *testing.T) {
+	// Load that specifies only values with no default
+	var (
+		data = strings.NewReader(`
+[address]
+id = "uuid"
+country = "ref:many"
+region = "ref:many?"
+line = "string"
+city = "string"
+mail_code = "string?"
+ext_descriptor = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
+`)
+
+		config, err = Load(data)
+	)
+
+  assert.Nil(t, err)
+
+	assert.Equal(
+		t,
+		Configuration{
+			Database: defaultConfiguration.Database,
+			UserDefinedTypes: []UserDefinedType{
+        UserDefinedType {
+          Name: "address",
+          Fields: []Field {
+            Field {
+              Name: "id",
+              Type: UUID,
+            },
+            Field {
+              Name: "country",
+              Type: RefManyToOne,
+            },
+            Field {
+              Name: "region",
+              Type: RefManyToOne,
+              Nullable: true,
+            },
+            Field {
+              Name: "line",
+              Type: String,
+            },
+            Field {
+              Name: "city",
+              Type: String,
+            },
+            Field {
+              Name: "mail_code",
+              Type: String,
+              Nullable: true,
+            },
+          },
+          Descriptor: &Descriptor {
+            Terms: []string{"line", "city", "region", "country", "mail_code"},
+            Description: "$line $city(, $region), $country(, $mail_code)",
+          },
+        },
+			},
+		},
+		config,
+	)
+}

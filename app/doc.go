@@ -55,6 +55,7 @@ package app
 //   SELECT * FROM <schema>.<table> WHERE <schema>.f_unaccent(name) ILIKE ('%' || <schema>.f_unaccent(<value>) || '%');
 //
 // schemas = ["myapp"] // default is no schema name. If multiple schemas provided, each type has to state schema.
+// vendors = ["postgres", ...] // specify which vendors we want to actually use, default is just postgres
 // vendor_types = [{"custom_type_name" = {"vendor_name" = "vendor_type"}+} // define custom type names for other types, per vendor
 //                eg, [{"currency" = {"postgres" = "money"}}]
 //

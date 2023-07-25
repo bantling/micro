@@ -9,14 +9,14 @@ import (
 
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml/v2"
 )
 
 var (
+  errConfigInvalidMsg = "%s is not the correct type, expected %s"
   errDescriptorMustHaveTermsAndDescriptionMsg = "%s: descriptor_ must contain terms array of at least one string and non-empty description string"
   errUniqueMustHaveAtLeastOneColumnMsg = "%s: unique_ must contain at least key of at least one column"
-  errColumnTypeNotRecognizedMsg = "%s: the column %s is not a valid column name, or the type ias not a recognized type"
+  errColumnTypeNotRecognizedMsg = "%s: the column %s is not a valid column name, or the type is not a recognized type"
 )
 
 // Vendor is a database vendor
@@ -39,9 +39,10 @@ type Database struct {
 	Description     string
 	Locale          string
 	Encoding        string
-	AccentSensitive bool `mapstructure:"accent_sensitive"`
-	CaseSensitive   bool `mapstructure:"case_sensitive"`
+	AccentSensitive bool
+	CaseSensitive   bool
   Schemas         []string
+  Vendors         []Vendor
   VendorTypes     []CustomType
 }
 
@@ -151,7 +152,7 @@ func stringToTypeDef(str string) (typ FieldType, length, scale int, nullable boo
 type Field struct {
   Name string
   Type FieldType
-  TypeName string // The other type name for ref*, custom type name, else empty
+  TypeName string // custom type name
   Precision int // precision of decimal
   Scale int // scale of decimal
   Length int // length of string
@@ -187,6 +188,8 @@ var (
 			Locale:          "en_US",
 			AccentSensitive: true,
 			CaseSensitive:   true,
+      Vendors: []Vendor{Postgres},
+      VendorTypes: []CustomType{},
 		},
 		UserDefinedTypes: []UserDefinedType{},
 	}
@@ -194,10 +197,13 @@ var (
 
 // Load a TOML file into a Configuration.
 // The approach used is to simply decode into a map[string]any, and look for knowable stuff like the database config
-// (which is necessarily a sub map[string]any), which gets converted into Configuration.Database via mapstruct.
-// All unrecognized top level keys are assumed to be user defined types.
+// (which is necessarily a sub map[string]any), and manually convert it into Configuration.Database.
+// All unrecognized top level keys are manually converted into Configuration.Database.UserDefinedTypes.
+//
+// Manual conversion from maps to structs is used because mapstructure cannot handle things like the Database.Vendors,
+// or the CustomType.VendorTypes
 func Load(src io.Reader) (config Configuration, err error) {
-  config      = defaultConfiguration
+  config = defaultConfiguration
 
 	var (
 		configMap   = map[string]any{}
@@ -213,13 +219,32 @@ func Load(src io.Reader) (config Configuration, err error) {
 	for k, v := range configMap {
 		switch k {
 		case "database_":
-      // Decode into config.Database automatically
+      // Decode into config.Database manually
 			{
-				var (
-					msdc      = mapstructure.DecoderConfig{ErrorUnused: true, Result: &config.Database}
-					msDecoder = funcs.MustValue(mapstructure.NewDecoder(&msdc))
-				)
-				funcs.Must(msDecoder.Decode(v))
+        database, isa := v.(map[string]any)
+        if !isa {
+          err = fmt.Errorf(errConfigInvalidMsg, "database_", "map[string]any")
+          return
+        }
+
+        for k, v := range database {
+          switch k {
+          case "name":
+            config.Database.Name = v
+
+          case "description":
+            config.Database.Description = v
+
+          case "locale":
+            config.Database.Locale = v
+
+          case "encoding":
+            config.Database.Encoding = v
+
+          case "accent_sensitive":
+            config.Database.AccentSensitive = v
+          }
+        }
 			}
 
 		default:
@@ -341,6 +366,11 @@ func Load(src io.Reader) (config Configuration, err error) {
 			}
 		}
 	}
+
+  // Validate that the udfs make sense
+
+  // 1. If a field is a Ref* type, the field name is a type name
+  // 2. If a field is a Custom type, then the field name is defined in Database.VendorTypes
 
 	return
 }

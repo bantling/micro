@@ -16,6 +16,7 @@ const (
 	notNilableMsg              = "Type %s is not a nillable type"
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
+  assertTypeMsg              = "expected %s to be %T, not %T"
 )
 
 // ==== Slices
@@ -627,6 +628,26 @@ func MustValue3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
 	}
 
 	return t, u, v
+}
+
+// ==== AssertType
+
+// AssertType asserts that v is of type T
+// returns (v type asserted to T, nil) if v is of type T
+// returns (T zero value, error) if v is not of type T
+func AssertType[T any](msg string, v any) (T, error) {
+  val, isa := v.(T)
+  if !isa {
+    var zv T
+    return zv, fmt.Errorf(assertTypeMsg, msg, zv, v)
+  }
+
+  return val, nil
+}
+
+// MustAssertType is a must version of AssertType
+func MustAssertType[T any](msg string, v any) T {
+  return MustValue(AssertType[T](msg, v))
 }
 
 // ==== Supplier

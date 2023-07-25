@@ -610,6 +610,36 @@ func TestMustValue3_(t *testing.T) {
 	)
 }
 
+func TestAssertType_(t *testing.T) {
+  assert.Equal(t, tuple.Of2[bool, error](true, nil), tuple.Of2(AssertType[bool]("", true)))
+  assert.Equal(t, tuple.Of2[bool, error](false, fmt.Errorf("expected foo to be bool, not string")), tuple.Of2(AssertType[bool]("foo", "")))
+
+  assert.Equal(t, tuple.Of2[int8, error](1, nil), tuple.Of2(AssertType[int8]("", int8(1))))
+  assert.Equal(t, tuple.Of2[int8, error](0, fmt.Errorf("expected foo to be int8, not bool")), tuple.Of2(AssertType[int8]("foo", false)))
+
+  assert.Equal(t, true, MustAssertType[bool]("", true))
+  TryTo(
+    func() {
+      MustAssertType[bool]("foo", "")
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("expected foo to be bool, not string"), e)
+    },
+  )
+
+  assert.Equal(t, int8(1), MustAssertType[int8]("", int8(1)))
+  TryTo(
+    func() {
+      MustAssertType[int8]("foo", false)
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("expected foo to be int8, not bool"), e)
+    },
+  )
+}
+
 func TestSupplier_(t *testing.T) {
 	supplier := SupplierOf(5)
 	assert.Equal(t, 5, supplier())
