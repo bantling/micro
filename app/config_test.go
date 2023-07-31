@@ -87,10 +87,8 @@ mail_code = "string?"
 descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
 `)
 
-		config, err = Load(data)
+		config = Load(data)
 	)
-
-  assert.Nil(t, err)
 
 	assert.Equal(
 		t,
@@ -101,12 +99,14 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 				Locale:          "en_CA",
 				AccentSensitive: false,
 				CaseSensitive:   false,
-        Vendors: []string{vendors[0]},
-        VendorTypes: CustomType{
+        Vendors: []Vendor{Postgres},
+        CustomTypes: []CustomType{
+          CustomType{
             Name: "foo",
-            VendorTypes: map[string]string{
-              vendors[0]: "bar",
+            VendorColDefs: map[Vendor]string{
+              Postgres: "bar",
             },
+          },
         },
 			},
 			UserDefinedTypes: []UserDefinedType{
@@ -165,10 +165,8 @@ mail_code = "string?"
 ext_descriptor = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
 `)
 
-		config, err = Load(data)
+		config = Load(data)
 	)
-
-  assert.Nil(t, err)
 
 	assert.Equal(
 		t,

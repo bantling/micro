@@ -13,10 +13,12 @@ import (
 )
 
 var (
-  errConfigInvalidMsg = "%s is not the correct type, expected %s"
+  errNoSuchVendorMsg = "%q is not a recognized database vendor name"
   errDescriptorMustHaveTermsAndDescriptionMsg = "%s: descriptor_ must contain terms array of at least one string and non-empty description string"
-  errUniqueMustHaveAtLeastOneColumnMsg = "%s: unique_ must contain at least key of at least one column"
+  errUniqueMustHaveAtLeastOneColumnMsg = "%s: unique_ must contain at least one key, and each key must have at least one column"
   errColumnTypeNotRecognizedMsg = "%s: the column %s is not a valid column name, or the type is not a recognized type"
+  errUnrecognizedDatabaseKeyMsg = "%s is not a valid database_ configuration key"
+  errUDTCannotEndWithUnderscoreMsg = "%s: user defined type names cannot end with an underscore"
 )
 
 // Vendor is a database vendor
@@ -27,10 +29,17 @@ const (
   Postgres Vendor = iota
 )
 
-// CustomType is any type that is not directly supported, that can have different names for different vendors
+// Vendor string names
+var (
+  vendorStrings = map[string]Vendor{
+    "postgres": Postgres,
+  }
+)
+
+// CustomType is a custom type, a string name associated with a string column definition, one per vendior
 type CustomType struct {
   Name string
-  VendorTypes map[Vendor]string
+  VendorColDefs map[Vendor]string
 }
 
 // Database contains the database portion of configuration
@@ -38,12 +47,11 @@ type Database struct {
 	Name            string
 	Description     string
 	Locale          string
-	Encoding        string
 	AccentSensitive bool
 	CaseSensitive   bool
   Schemas         []string
   Vendors         []Vendor
-  VendorTypes     []CustomType
+  CustomTypes     []CustomType
 }
 
 // FieldType is an enum of known field types
@@ -83,6 +91,9 @@ var (
     "int64": Int64,
     "interval": Interval,
     "json": JSON,
+    "ref:one": RefOne,
+    "ref:many": RefManyToOne,
+    "ref:manyToMany": RefManyToMany,
     "row": Row,
     "string": String,
     "table_row": TableRow,
@@ -92,7 +103,7 @@ var (
   }
 
   decimalPrecisionScaleRegex = regexp.MustCompile(`decimal[(]([0-9]+)(?:, *([0-9]+))?[)]`)
-  refRegex = regexp.MustCompile(`ref:(one|manyToMany|many)`) // have to put prefix many after manyToMany
+  //refRegex = regexp.MustCompile(`ref:(one|manyToMany|many)`) // have to put prefix many after manyToMany
   stringLengthRegex = regexp.MustCompile(`string[(]([0-9]+)[)]`)
 )
 
@@ -100,9 +111,6 @@ var (
 //
 // decimal(precision) -> Decimal, precision, 0
 // decimal(precision, scale) -> Decimal, precision, scale
-// ref:one -> RefOne
-// ref:many -> RefManyToOne
-// ref:manyToMany -> RefManyToMany
 // string -> String, 0, 0
 // string(limit) -> String, limit, 0
 //
@@ -125,16 +133,16 @@ func stringToTypeDef(str string) (typ FieldType, length, scale int, nullable boo
     conv.To(match[1], &length)
     conv.To(match[2], &scale) // Ignore error if string is empty, leaving scale at 0
 
-  // Try ref:one, ref:many, ref:manyToMany
-  } else if match := refRegex.FindStringSubmatch(str); match != nil {
-    switch match[1] {
-    case "one":
-      typ = RefOne
-    case "many":
-      typ = RefManyToOne
-    default:
-      typ = RefManyToMany
-    }
+  // // Try ref:one, ref:many, ref:manyToMany
+  // } else if match := refRegex.FindStringSubmatch(str); match != nil {
+  //   switch match[1] {
+  //   case "one":
+  //     typ = RefOne
+  //   case "many":
+  //     typ = RefManyToOne
+  //   default:
+  //     typ = RefManyToMany
+  //   }
 
     // Try string(limit)
   } else if match := stringLengthRegex.FindStringSubmatch(str); match != nil {
@@ -188,8 +196,9 @@ var (
 			Locale:          "en_US",
 			AccentSensitive: true,
 			CaseSensitive:   true,
+      Schemas:         []string{},
       Vendors: []Vendor{Postgres},
-      VendorTypes: []CustomType{},
+      CustomTypes: []CustomType{},
 		},
 		UserDefinedTypes: []UserDefinedType{},
 	}
@@ -199,11 +208,8 @@ var (
 // The approach used is to simply decode into a map[string]any, and look for knowable stuff like the database config
 // (which is necessarily a sub map[string]any), and manually convert it into Configuration.Database.
 // All unrecognized top level keys are manually converted into Configuration.Database.UserDefinedTypes.
-//
-// Manual conversion from maps to structs is used because mapstructure cannot handle things like the Database.Vendors,
-// or the CustomType.VendorTypes
-func Load(src io.Reader) (config Configuration, err error) {
-  config = defaultConfiguration
+func Load(src io.Reader) Configuration {
+  config := defaultConfiguration
 
 	var (
 		configMap   = map[string]any{}
@@ -213,36 +219,88 @@ func Load(src io.Reader) (config Configuration, err error) {
 	funcs.Must(tomlDecoder.Decode(&configMap))
 
 	// Iterate all top level keys of configMap:
-	// - Recognize keys are decoded into appropriate field
+	// - Recognized keys are decoded into appropriate field
 	// - Remaining keys are mapped in the UserDefinedTypes field
-  TopLevel:
 	for k, v := range configMap {
 		switch k {
 		case "database_":
-      // Decode into config.Database manually
+      // Decode into config.Database
 			{
-        database, isa := v.(map[string]any)
-        if !isa {
-          err = fmt.Errorf(errConfigInvalidMsg, "database_", "map[string]any")
-          return
-        }
+        database := funcs.MustAssertType[map[string]any](k, v)
 
-        for k, v := range database {
-          switch k {
+        for fk, fv := range database {
+          databasePath := k + "." + fk
+
+          switch fk {
           case "name":
-            config.Database.Name = v
+            config.Database.Name = funcs.MustAssertType[string](databasePath, fv)
 
           case "description":
-            config.Database.Description = v
+            config.Database.Description = funcs.MustAssertType[string](databasePath, fv)
 
           case "locale":
-            config.Database.Locale = v
-
-          case "encoding":
-            config.Database.Encoding = v
+            config.Database.Locale = funcs.MustAssertType[string](databasePath, fv)
 
           case "accent_sensitive":
-            config.Database.AccentSensitive = v
+            config.Database.AccentSensitive = funcs.MustAssertType[bool](databasePath, fv)
+
+          case "case_sensitive":
+            config.Database.CaseSensitive = funcs.MustAssertType[bool](databasePath, fv)
+
+          case "schemas":
+            config.Database.Schemas = funcs.MustAssertType[[]string](databasePath, fv)
+
+          case "vendors": {
+            var (
+              vendors = funcs.MustAssertType[[]string](databasePath, fv)
+              uniqueVendors = map[Vendor]int{}
+            )
+
+            // Collect unique vendor names, don't care if same vendor specified multiple times
+            for _, vendorName := range vendors {
+              if vendor, hasIt := vendorStrings[vendorName]; hasIt {
+                uniqueVendors[vendor] = 0
+              } else {
+                panic(fmt.Errorf(errNoSuchVendorMsg, vendorName))
+              }
+            }
+
+            config.Database.Vendors = funcs.MapKeysToSlice(uniqueVendors)
+          }
+
+        case "custom_types": {
+          var (
+            customTypeDefs = funcs.MustAssertType[map[string]any](databasePath, fv)
+            customTypes = []CustomType{}
+          )
+
+          for customTypeName, vendorColDefsVal := range customTypeDefs {
+            var (
+              ctPath = databasePath + "." + customTypeName
+              vendorColDefsVal = funcs.MustAssertType[map[string]string](ctPath, vendorColDefsVal)
+              vendorColDefs = map[Vendor]string{}
+            )
+
+            for vendorName, colDef := range vendorColDefsVal {
+              if vendor, hasIt := vendorStrings[vendorName]; hasIt {
+                vendorColDefs[vendor] = colDef
+              } else {
+                panic(fmt.Errorf(errNoSuchVendorMsg, vendorName))
+              }
+            }
+
+            customTypes = append(
+              customTypes,
+              CustomType{
+                Name: customTypeName,
+                VendorColDefs: vendorColDefs,
+              },
+            )
+          }
+        }
+
+          default:
+            panic(fmt.Errorf(errUnrecognizedDatabaseKeyMsg, fk))
           }
         }
 			}
@@ -250,9 +308,13 @@ func Load(src io.Reader) (config Configuration, err error) {
 		default:
       // Decode into config.UserDefinedTypes manually
 			{
+        if k[len(k)-1] == '_' {
+          panic(fmt.Errorf(errUDTCannotEndWithUnderscoreMsg, k))
+        }
+
         var (
           udf UserDefinedType
-          data = v.(map[string]any)
+          data = funcs.MustAssertType[map[string]any](k, v)
         )
 
         // Top level table name is type name
@@ -260,48 +322,38 @@ func Load(src io.Reader) (config Configuration, err error) {
 
         // Iterate keys of table
         for fk, fv := range data {
+          udtPath := k + "." + fk
+
           switch fk {
             // descriptor_ -> *Descriptor
             case "descriptor_": {
               // Grab terms and description
               var (
-                fdata = fv.(map[string]any)
-                terms, haveTerms = fdata["terms"]
-                desc, haveDesc = fdata["description"]
-                err = fmt.Errorf(errDescriptorMustHaveTermsAndDescriptionMsg, udf.Name)
+                fdata = funcs.MustAssertType[map[string]any](udtPath, fv)
+                terms = funcs.MustAssertType[[]string](udtPath + ".terms", fdata["terms"])
+                desc = funcs.MustAssertType[string](udtPath + ".description", fdata["description"])
               )
 
               // Must have terms and description
-              if !(haveTerms && haveDesc) {
-                panic(err)
-              }
-
-              // Terms must be a []string and Description must be a string
-              var (
-                slcTerms, isSlc = terms.([]string)
-                strDesc, isStr = desc.(string)
-              )
-
-              // Terms and Description must not be empty
-              if !(isSlc && isStr && (len(slcTerms) > 0) && (len(strDesc) > 0)) {
-                panic(err)
+              if (len(terms) == 0) || (len(desc) == 0) {
+                panic(fmt.Errorf(errDescriptorMustHaveTermsAndDescriptionMsg, udtPath))
               }
 
               udf.Descriptor = &Descriptor{
-                Terms: slcTerms,
-                Description: strDesc,
+                Terms: terms,
+                Description: desc,
               }
             }
 
             case "unique_": {
               // Grab set of unique keys
               var (
-                uks, isa = fv.([][]string)
+                uks = funcs.MustAssertType[[][]string](udtPath, fv)
                 err = fmt.Errorf(errUniqueMustHaveAtLeastOneColumnMsg, udf.Name)
               )
 
               // Must have at least one unique key
-              if !(isa && (len(uks) > 0)) {
+              if len(uks) == 0 {
                 panic(err)
               }
 
@@ -323,6 +375,7 @@ func Load(src io.Reader) (config Configuration, err error) {
 
             default: {
               // Must be a column, the value must be a string of a recognized type
+
               if str, isa := fv.(string); isa {
                 var (
                   typ, length, scale, nullable = stringToTypeDef(str)
@@ -330,7 +383,7 @@ func Load(src io.Reader) (config Configuration, err error) {
 
                 // If the type name is empty or ends in an underscore, it is invalid
                 if ((fk == "") || (fk[len(fk)-1] != '_')) {
-                  err = fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk)
+                  panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk))
                 } else {
                     // Assume it is a valid definition
                     fld := Field{
@@ -353,16 +406,13 @@ func Load(src io.Reader) (config Configuration, err error) {
                 }
               } else {
                 // Not a string, reject it
-                err = fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk)
-                break TopLevel
+                panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk))
               }
             }
           }
         }
 
-        if err == nil {
-			    config.UserDefinedTypes = append(config.UserDefinedTypes, udf)
-        }
+		    config.UserDefinedTypes = append(config.UserDefinedTypes, udf)
 			}
 		}
 	}
@@ -372,5 +422,5 @@ func Load(src io.Reader) (config Configuration, err error) {
   // 1. If a field is a Ref* type, the field name is a type name
   // 2. If a field is a Custom type, then the field name is defined in Database.VendorTypes
 
-	return
+	return config
 }

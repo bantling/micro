@@ -12,6 +12,9 @@ package app
 // locale = "en_US" // default is en_US
 // accent_sensitive = boolean // default is true
 // case_sensitive = boolean   // default is true
+// schemas = ["s1", "s2", ...] // default is no schemas
+// vendors = ["v1", "v2", ...] // default is "postgres"
+// customTypes = {"whatever": {"postgres": "psqlType", "mysql": "mysqlType", ...}}
 //
 // when accent_sensitive and/or case_sensitive is false:
 // (see https://stackoverflow.com/questions/11005036/does-postgresql-support-accent-insensitive-collations)
@@ -56,8 +59,6 @@ package app
 //
 // schemas = ["myapp"] // default is no schema name. If multiple schemas provided, each type has to state schema.
 // vendors = ["postgres", ...] // specify which vendors we want to actually use, default is just postgres
-// vendor_types = [{"custom_type_name" = {"vendor_name" = "vendor_type"}+} // define custom type names for other types, per vendor
-//                eg, [{"currency" = {"postgres" = "money"}}]
 //
 // if one schema is specified in [database], then address would actually be s.address
 // For two schemas s1 and s2, each table name would have to specify [s1.table_name] or [s2.table_name], else an error occurs

@@ -276,6 +276,17 @@ func MapSortBy[K comparable, V any](mp map[K]V, less func(K, K) bool) []tuple.Tw
 	return slc
 }
 
+// MapKeysToSlice collects the map keys into a slice, for scenarios that require a slice of unique values only.
+// If the map is empty, an empty slice is returned; the result is never nil.
+func MapKeysToSlice[K comparable, V any](mp map[K]V) []K {
+  var slc = []K{}
+  for k, _ := range mp {
+    slc = append(slc, k)
+  }
+
+  return slc
+}
+
 // ==== Filters - and, not, or
 
 // And converts any number of filter funcs (func(T) bool) into the conjunction of all the funcs.

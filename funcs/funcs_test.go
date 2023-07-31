@@ -198,6 +198,13 @@ func TestMapSort_(t *testing.T) {
 	}
 }
 
+func TestMapKeysToSlice_(t *testing.T) {
+  assert.Equal(t, []int{}, MapKeysToSlice((map[int]int)(nil)))
+  assert.Equal(t, []int{}, MapKeysToSlice(map[int]int{}))
+  assert.Equal(t, []int{1}, MapKeysToSlice(map[int]int{1: 0}))
+  assert.Equal(t, []int{1, 2, 3}, MapKeysToSlice(map[int]int{1: 0, 2: 0, 3: 0}))
+}
+
 func lessThan5(i int) bool {
 	return i < 5
 }
