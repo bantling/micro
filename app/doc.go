@@ -14,7 +14,7 @@ package app
 // case_sensitive = boolean   // default is true
 // schemas = ["s1", "s2", ...] // default is no schemas
 // vendors = ["v1", "v2", ...] // default is "postgres"
-// customTypes = {"whatever": {"postgres": "psqlType", "mysql": "mysqlType", ...}}
+// vendor_types = {"whatever": {"postgres": "psqlType", "mysql": "mysqlType", ...}}
 //
 // when accent_sensitive and/or case_sensitive is false:
 // (see https://stackoverflow.com/questions/11005036/does-postgresql-support-accent-insensitive-collations)

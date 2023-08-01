@@ -647,6 +647,22 @@ func TestAssertType_(t *testing.T) {
   )
 }
 
+func TestAssertSliceValuesType_(t *testing.T) {
+  assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(AssertSliceValuesType[bool]("", []any{true})))
+  assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(AssertSliceValuesType[bool]("foo", []any{""})))
+
+  assert.Equal(t, []int8{1}, MustAssertSliceValuesType[int8]("", []any{int8(1)}))
+  TryTo(
+    func() {
+      MustAssertSliceValuesType[int8]("foo", []any{false})
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("expected foo[0] to be int8, not bool"), e)
+    },
+  )
+}
+
 func TestSupplier_(t *testing.T) {
 	supplier := SupplierOf(5)
 	assert.Equal(t, 5, supplier())

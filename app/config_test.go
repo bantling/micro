@@ -75,7 +75,8 @@ description = "my great database"
 locale = "en_CA"
 accent_sensitive = false
 case_sensitive = false
-vendor_types = []
+vendors = ["postgres"]
+vendor_types = {"whatever" = {"postgres" = "psqlType"}}
 
 [address]
 id = "uuid"
@@ -100,11 +101,11 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 				AccentSensitive: false,
 				CaseSensitive:   false,
         Vendors: []Vendor{Postgres},
-        CustomTypes: []CustomType{
-          CustomType{
-            Name: "foo",
+        VendorTypes: []VendorType{
+          VendorType{
+            Name: "whatever",
             VendorColDefs: map[Vendor]string{
-              Postgres: "bar",
+              Postgres: "psqlType",
             },
           },
         },

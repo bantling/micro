@@ -36,8 +36,8 @@ var (
   }
 )
 
-// CustomType is a custom type, a string name associated with a string column definition, one per vendior
-type CustomType struct {
+// VendorType is a vendor type, a string name associated with a string column definition, one per vendior
+type VendorType struct {
   Name string
   VendorColDefs map[Vendor]string
 }
@@ -51,7 +51,7 @@ type Database struct {
 	CaseSensitive   bool
   Schemas         []string
   Vendors         []Vendor
-  CustomTypes     []CustomType
+  VendorTypes     []VendorType
 }
 
 // FieldType is an enum of known field types
@@ -198,7 +198,7 @@ var (
 			CaseSensitive:   true,
       Schemas:         []string{},
       Vendors: []Vendor{Postgres},
-      CustomTypes: []CustomType{},
+      VendorTypes: []VendorType{},
 		},
 		UserDefinedTypes: []UserDefinedType{},
 	}
@@ -252,7 +252,7 @@ func Load(src io.Reader) Configuration {
 
           case "vendors": {
             var (
-              vendors = funcs.MustAssertType[[]string](databasePath, fv)
+              vendors = funcs.MustAssertSliceValuesType[string](databasePath, funcs.MustAssertType[[]any](databasePath, fv))
               uniqueVendors = map[Vendor]int{}
             )
 
@@ -268,15 +268,15 @@ func Load(src io.Reader) Configuration {
             config.Database.Vendors = funcs.MapKeysToSlice(uniqueVendors)
           }
 
-        case "custom_types": {
+        case "vendor_types": {
           var (
-            customTypeDefs = funcs.MustAssertType[map[string]any](databasePath, fv)
-            customTypes = []CustomType{}
+            vendorTypeDefs = funcs.MustAssertType[map[string]any](databasePath, fv)
+            vendorTypes = []VendorType{}
           )
 
-          for customTypeName, vendorColDefsVal := range customTypeDefs {
+          for vendorTypeName, vendorColDefsVal := range vendorTypeDefs {
             var (
-              ctPath = databasePath + "." + customTypeName
+              ctPath = databasePath + "." + vendorTypeName
               vendorColDefsVal = funcs.MustAssertType[map[string]string](ctPath, vendorColDefsVal)
               vendorColDefs = map[Vendor]string{}
             )
@@ -289,10 +289,10 @@ func Load(src io.Reader) Configuration {
               }
             }
 
-            customTypes = append(
-              customTypes,
-              CustomType{
-                Name: customTypeName,
+            vendorTypes = append(
+              vendorTypes,
+              VendorType{
+                Name: vendorTypeName,
                 VendorColDefs: vendorColDefs,
               },
             )
@@ -330,7 +330,8 @@ func Load(src io.Reader) Configuration {
               // Grab terms and description
               var (
                 fdata = funcs.MustAssertType[map[string]any](udtPath, fv)
-                terms = funcs.MustAssertType[[]string](udtPath + ".terms", fdata["terms"])
+                termsPath = udtPath + ".terms"
+                terms = funcs.MustAssertSliceValuesType[string](termsPath, funcs.MustAssertType[[]any](termsPath, fdata["terms"]))
                 desc = funcs.MustAssertType[string](udtPath + ".description", fdata["description"])
               )
 
@@ -382,7 +383,7 @@ func Load(src io.Reader) Configuration {
                 )
 
                 // If the type name is empty or ends in an underscore, it is invalid
-                if ((fk == "") || (fk[len(fk)-1] != '_')) {
+                if ((fk == "") || (fk[len(fk)-1] == '_')) {
                   panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk))
                 } else {
                     // Assume it is a valid definition

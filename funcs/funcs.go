@@ -17,6 +17,7 @@ const (
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
   assertTypeMsg              = "expected %s to be %T, not %T"
+  assertSliceTypeMsg         = "expected %s[%d] to be %T, not %T"
 )
 
 // ==== Slices
@@ -641,7 +642,7 @@ func MustValue3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
 	return t, u, v
 }
 
-// ==== AssertType
+// ==== Assert
 
 // AssertType asserts that v is of type T
 // returns (v type asserted to T, nil) if v is of type T
@@ -659,6 +660,30 @@ func AssertType[T any](msg string, v any) (T, error) {
 // MustAssertType is a must version of AssertType
 func MustAssertType[T any](msg string, v any) T {
   return MustValue(AssertType[T](msg, v))
+}
+
+// AssertSliceValuesType asserts the values of a []any are all of type T
+func AssertSliceValuesType[T any](msg string, slc []any) (res []T, err error) {
+  res = make([]T, len(slc))
+  for i, v := range slc {
+    val, isa := v.(T)
+    if !isa {
+      var (
+        zvSlc []T
+        zvElem T
+      )
+      return zvSlc, fmt.Errorf(assertSliceTypeMsg, msg, i, zvElem, v)
+    }
+
+    res[i] = val
+  }
+
+  return
+}
+
+// MustAssertSliceValuesType is a must version of AssertSliceValuesType
+func MustAssertSliceValuesType[T any](msg string, slc[]any) (res []T) {
+  return MustValue(AssertSliceValuesType[T](msg, slc))
 }
 
 // ==== Supplier
