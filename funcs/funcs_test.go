@@ -199,10 +199,10 @@ func TestMapSort_(t *testing.T) {
 }
 
 func TestMapKeysToSlice_(t *testing.T) {
-  assert.Equal(t, []int{}, MapKeysToSlice((map[int]int)(nil)))
-  assert.Equal(t, []int{}, MapKeysToSlice(map[int]int{}))
-  assert.Equal(t, []int{1}, MapKeysToSlice(map[int]int{1: 0}))
-  assert.Equal(t, []int{1, 2, 3}, MapKeysToSlice(map[int]int{1: 0, 2: 0, 3: 0}))
+	assert.Equal(t, []int{}, MapKeysToSlice((map[int]int)(nil)))
+	assert.Equal(t, []int{}, MapKeysToSlice(map[int]int{}))
+	assert.Equal(t, []int{1}, MapKeysToSlice(map[int]int{1: 0}))
+	assert.Equal(t, []int{1, 2, 3}, MapKeysToSlice(map[int]int{1: 0, 2: 0, 3: 0}))
 }
 
 func lessThan5(i int) bool {
@@ -618,49 +618,65 @@ func TestMustValue3_(t *testing.T) {
 }
 
 func TestAssertType_(t *testing.T) {
-  assert.Equal(t, tuple.Of2[bool, error](true, nil), tuple.Of2(AssertType[bool]("", true)))
-  assert.Equal(t, tuple.Of2[bool, error](false, fmt.Errorf("expected foo to be bool, not string")), tuple.Of2(AssertType[bool]("foo", "")))
+	assert.Equal(t, tuple.Of2[bool, error](true, nil), tuple.Of2(AssertType[bool]("", true)))
+	assert.Equal(t, tuple.Of2[bool, error](false, fmt.Errorf("expected foo to be bool, not string")), tuple.Of2(AssertType[bool]("foo", "")))
 
-  assert.Equal(t, tuple.Of2[int8, error](1, nil), tuple.Of2(AssertType[int8]("", int8(1))))
-  assert.Equal(t, tuple.Of2[int8, error](0, fmt.Errorf("expected foo to be int8, not bool")), tuple.Of2(AssertType[int8]("foo", false)))
+	assert.Equal(t, tuple.Of2[int8, error](1, nil), tuple.Of2(AssertType[int8]("", int8(1))))
+	assert.Equal(t, tuple.Of2[int8, error](0, fmt.Errorf("expected foo to be int8, not bool")), tuple.Of2(AssertType[int8]("foo", false)))
 
-  assert.Equal(t, true, MustAssertType[bool]("", true))
-  TryTo(
-    func() {
-      MustAssertType[bool]("foo", "")
-      assert.Fail(t, "Must Die")
-    },
-    func(e any) {
-      assert.Equal(t, fmt.Errorf("expected foo to be bool, not string"), e)
-    },
-  )
+	assert.Equal(t, true, MustAssertType[bool]("", true))
+	TryTo(
+		func() {
+			MustAssertType[bool]("foo", "")
+			assert.Fail(t, "Must Die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf("expected foo to be bool, not string"), e)
+		},
+	)
 
-  assert.Equal(t, int8(1), MustAssertType[int8]("", int8(1)))
-  TryTo(
-    func() {
-      MustAssertType[int8]("foo", false)
-      assert.Fail(t, "Must Die")
-    },
-    func(e any) {
-      assert.Equal(t, fmt.Errorf("expected foo to be int8, not bool"), e)
-    },
-  )
+	assert.Equal(t, int8(1), MustAssertType[int8]("", int8(1)))
+	TryTo(
+		func() {
+			MustAssertType[int8]("foo", false)
+			assert.Fail(t, "Must Die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf("expected foo to be int8, not bool"), e)
+		},
+	)
 }
 
 func TestAssertSliceValuesType_(t *testing.T) {
-  assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(AssertSliceValuesType[bool]("", []any{true})))
-  assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(AssertSliceValuesType[bool]("foo", []any{""})))
+	assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(AssertSliceValuesType[bool]("", []any{true})))
+	assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(AssertSliceValuesType[bool]("foo", []any{""})))
 
-  assert.Equal(t, []int8{1}, MustAssertSliceValuesType[int8]("", []any{int8(1)}))
-  TryTo(
-    func() {
-      MustAssertSliceValuesType[int8]("foo", []any{false})
-      assert.Fail(t, "Must Die")
-    },
-    func(e any) {
-      assert.Equal(t, fmt.Errorf("expected foo[0] to be int8, not bool"), e)
-    },
-  )
+	assert.Equal(t, []int8{1}, MustAssertSliceValuesType[int8]("", []any{int8(1)}))
+	TryTo(
+		func() {
+			MustAssertSliceValuesType[int8]("foo", []any{false})
+			assert.Fail(t, "Must Die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf("expected foo[0] to be int8, not bool"), e)
+		},
+	)
+}
+
+func TestAssertMapValuesType_(t *testing.T) {
+	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil), tuple.Of2(AssertMapValuesType[string, bool]("", map[string]any{"bar": true})))
+	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool(nil), fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(AssertMapValuesType[string, bool]("foo", map[string]any{"bar": ""})))
+
+	assert.Equal(t, map[string]int8{"bar": 1}, MustAssertMapValuesType[string, int8]("", map[string]any{"bar": int8(1)}))
+	TryTo(
+		func() {
+			MustAssertMapValuesType[string, int8]("foo", map[string]any{"bar": false})
+			assert.Fail(t, "Must Die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf("expected foo[bar] to be int8, not bool"), e)
+		},
+	)
 }
 
 func TestSupplier_(t *testing.T) {

@@ -16,8 +16,9 @@ const (
 	notNilableMsg              = "Type %s is not a nillable type"
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
-  assertTypeMsg              = "expected %s to be %T, not %T"
-  assertSliceTypeMsg         = "expected %s[%d] to be %T, not %T"
+	assertTypeMsg              = "expected %s to be %T, not %T"
+	assertSliceValueTypeMsg    = "expected %s[%d] to be %T, not %T"
+	assertMapValueTypeMsg      = "expected %s[%v] to be %T, not %T"
 )
 
 // ==== Slices
@@ -280,12 +281,12 @@ func MapSortBy[K comparable, V any](mp map[K]V, less func(K, K) bool) []tuple.Tw
 // MapKeysToSlice collects the map keys into a slice, for scenarios that require a slice of unique values only.
 // If the map is empty, an empty slice is returned; the result is never nil.
 func MapKeysToSlice[K comparable, V any](mp map[K]V) []K {
-  var slc = []K{}
-  for k, _ := range mp {
-    slc = append(slc, k)
-  }
+	var slc = []K{}
+	for k := range mp {
+		slc = append(slc, k)
+	}
 
-  return slc
+	return slc
 }
 
 // ==== Filters - and, not, or
@@ -648,42 +649,66 @@ func MustValue3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
 // returns (v type asserted to T, nil) if v is of type T
 // returns (T zero value, error) if v is not of type T
 func AssertType[T any](msg string, v any) (T, error) {
-  val, isa := v.(T)
-  if !isa {
-    var zv T
-    return zv, fmt.Errorf(assertTypeMsg, msg, zv, v)
-  }
+	val, isa := v.(T)
+	if !isa {
+		var zv T
+		return zv, fmt.Errorf(assertTypeMsg, msg, zv, v)
+	}
 
-  return val, nil
+	return val, nil
 }
 
 // MustAssertType is a must version of AssertType
 func MustAssertType[T any](msg string, v any) T {
-  return MustValue(AssertType[T](msg, v))
+	return MustValue(AssertType[T](msg, v))
 }
 
 // AssertSliceValuesType asserts the values of a []any are all of type T
 func AssertSliceValuesType[T any](msg string, slc []any) (res []T, err error) {
-  res = make([]T, len(slc))
-  for i, v := range slc {
-    val, isa := v.(T)
-    if !isa {
-      var (
-        zvSlc []T
-        zvElem T
-      )
-      return zvSlc, fmt.Errorf(assertSliceTypeMsg, msg, i, zvElem, v)
-    }
+	res = make([]T, len(slc))
+	for i, v := range slc {
+		val, isa := v.(T)
+		if !isa {
+			var (
+				zvSlc  []T
+				zvElem T
+			)
+			return zvSlc, fmt.Errorf(assertSliceValueTypeMsg, msg, i, zvElem, v)
+		}
 
-    res[i] = val
-  }
+		res[i] = val
+	}
 
-  return
+	return
 }
 
 // MustAssertSliceValuesType is a must version of AssertSliceValuesType
-func MustAssertSliceValuesType[T any](msg string, slc[]any) (res []T) {
-  return MustValue(AssertSliceValuesType[T](msg, slc))
+func MustAssertSliceValuesType[T any](msg string, slc []any) (res []T) {
+	return MustValue(AssertSliceValuesType[T](msg, slc))
+}
+
+// AssertMapValuesType asserts the values of a map[K]any are all of type V
+func AssertMapValuesType[K comparable, V any](msg string, mp map[K]any) (res map[K]V, err error) {
+	res = map[K]V{}
+	for k, v := range mp {
+		val, isa := v.(V)
+		if !isa {
+			var (
+				zvMap map[K]V
+				zvVal V
+			)
+			return zvMap, fmt.Errorf(assertMapValueTypeMsg, msg, k, zvVal, v)
+		}
+
+		res[k] = val
+	}
+
+	return
+}
+
+// MustAssertMapValuesType is a must version of AssertMapValuesType
+func MustAssertMapValuesType[K comparable, V any](msg string, mp map[K]any) (res map[K]V) {
+	return MustValue(AssertMapValuesType[K, V](msg, mp))
 }
 
 // ==== Supplier
