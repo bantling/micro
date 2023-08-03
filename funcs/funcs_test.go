@@ -63,21 +63,10 @@ func TestSliceIndex_(t *testing.T) {
 }
 
 func TestSliceRemove_(t *testing.T) {
-	slc := []int{}
-	SliceRemove(&slc, 0)
-	assert.Equal(t, []int{}, slc)
-
-	slc = []int{1, 2, 3, 4}
-	SliceRemove(&slc, 3)
-	assert.Equal(t, []int{1, 2, 4}, slc)
-
-	slc = []int{1, 2, 3, 4, 3, 3}
-	SliceRemove(&slc, 3)
-	assert.Equal(t, []int{1, 2, 4, 3, 3}, slc)
-
-	slc = []int{1, 2, 3, 4, 3, 3}
-	SliceRemove(&slc, 3, true)
-	assert.Equal(t, []int{1, 2, 4}, slc)
+	assert.Equal(t, []int{}, SliceRemove([]int{}, 0))
+	assert.Equal(t, []int{1, 2, 4}, SliceRemove([]int{1, 2, 3, 4}, 3))
+	assert.Equal(t, []int{1, 2, 4, 3, 3}, SliceRemove([]int{1, 2, 3, 4, 3, 3}, 3))
+	assert.Equal(t, []int{1, 2, 4}, SliceRemove([]int{1, 2, 3, 4, 3, 3}, 3, true))
 }
 
 type Uncomparable[T any] interface {
@@ -94,35 +83,34 @@ func TestSliceRemoveUncomparable_(t *testing.T) {
 	var (
 		f1  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + 1 })
 		f2  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + i })
+		f3  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + i })
 		slc                   = []Uncomparable[int]{f1, f2, f1, f2}
 	)
 
-	SliceRemoveUncomparable(&slc, f1)
-	assert.Equal(t, 3, len(slc))
-
-	SliceRemoveUncomparable(&slc, f2, true)
-	assert.Equal(t, 1, len(slc))
+	assert.Equal(t, 3, len(SliceRemoveUncomparable(slc, f1))) // One removed
+	assert.Equal(t, 4, len(SliceRemoveUncomparable(slc, f3))) // None removed
+	assert.Equal(t, 2, len(SliceRemoveUncomparable(slc, f2, true))) // Two removed
 }
 
 func TestSliceReverse_(t *testing.T) {
 	slc := []int{}
-	SliceReverse(slc)
+	assert.Equal(t, []int{}, SliceReverse(slc))
 	assert.Equal(t, []int{}, slc)
 
 	slc = []int{1}
-	SliceReverse(slc)
+	assert.Equal(t, []int{1}, SliceReverse(slc))
 	assert.Equal(t, []int{1}, slc)
 
 	slc = []int{1, 2}
-	SliceReverse(slc)
+	assert.Equal(t, []int{2, 1}, SliceReverse(slc))
 	assert.Equal(t, []int{2, 1}, slc)
 
 	slc = []int{1, 2, 3}
-	SliceReverse(slc)
+	assert.Equal(t, []int{3, 2, 1}, SliceReverse(slc))
 	assert.Equal(t, []int{3, 2, 1}, slc)
 
 	slc = []int{1, 2, 3, 4}
-	SliceReverse(slc)
+	assert.Equal(t, []int{4, 3, 2, 1}, SliceReverse(slc))
 	assert.Equal(t, []int{4, 3, 2, 1}, slc)
 }
 
@@ -130,30 +118,36 @@ func TestSliceSort_(t *testing.T) {
 	// Ordered
 	{
 		slc := []int{2, 3, 1}
-		SliceSortOrdered(slc)
+		assert.Equal(t, []int{1, 2, 3}, SliceSortOrdered(slc))
 		assert.Equal(t, []int{1, 2, 3}, slc)
 	}
 
 	// Complex
 	{
 		slc := []complex64{2, 3, 1}
-		SliceSortComplex(slc)
+		assert.Equal(t, []complex64{1, 2, 3}, SliceSortComplex(slc))
 		assert.Equal(t, []complex64{1, 2, 3}, slc)
 	}
 
 	// Cmp
 	{
 		slc := []*big.Int{big.NewInt(2), big.NewInt(3), big.NewInt(1)}
-		SliceSortCmp(slc)
+		assert.Equal(t, []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}, SliceSortCmp(slc))
 		assert.Equal(t, []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}, slc)
 	}
 
 	// By
 	{
 		slc := []int{2, 3, 1}
-		SliceSortBy(slc, func(i, j int) bool { return j < i })
+		assert.Equal(t, []int{3, 2, 1}, SliceSortBy(slc, func(i, j int) bool { return j < i }))
 		assert.Equal(t, []int{3, 2, 1}, slc)
 	}
+}
+
+func TestSliceUniqueValues_(t *testing.T) {
+  slc := []int{1,2,3,2,1}
+  assert.Equal(t, []int{1,2,3}, SliceSortOrdered(SliceUniqueValues(slc)))
+  assert.Equal(t, []int{1,2,3,2,1}, slc)
 }
 
 func TestMapIndex_(t *testing.T) {
@@ -647,30 +641,50 @@ func TestAssertType_(t *testing.T) {
 	)
 }
 
-func TestAssertSliceValuesType_(t *testing.T) {
-	assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(AssertSliceValuesType[bool]("", []any{true})))
-	assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(AssertSliceValuesType[bool]("foo", []any{""})))
+func TestAssertSliceType_(t *testing.T) {
+  // One dimension
+	assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(AssertSliceType[bool]("", any([]any{true}))))
+	assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(AssertSliceType[bool]("foo", any(""))))
+	assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(AssertSliceType[bool]("foo", any([]any{""}))))
 
-	assert.Equal(t, []int8{1}, MustAssertSliceValuesType[int8]("", []any{int8(1)}))
+	assert.Equal(t, []int8{1}, MustAssertSliceType[int8]("", any([]any{int8(1)})))
 	TryTo(
 		func() {
-			MustAssertSliceValuesType[int8]("foo", []any{false})
+			MustAssertSliceType[int8]("foo", any([]any{false}))
 			assert.Fail(t, "Must Die")
 		},
 		func(e any) {
 			assert.Equal(t, fmt.Errorf("expected foo[0] to be int8, not bool"), e)
 		},
 	)
-}
 
-func TestAssertMapValuesType_(t *testing.T) {
-	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil), tuple.Of2(AssertMapValuesType[string, bool]("", map[string]any{"bar": true})))
-	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool(nil), fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(AssertMapValuesType[string, bool]("foo", map[string]any{"bar": ""})))
+  // Two dimensions
+	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool{{true}}, nil), tuple.Of2(AssertSlice2Type[bool]("", any([]any{[]any{true}}))))
+	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool(nil), fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(AssertSlice2Type[bool]("foo", any(""))))
+	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool(nil), fmt.Errorf("expected foo[0] to be []interface {}, not string")), tuple.Of2(AssertSlice2Type[bool]("foo", any([]any{""}))))
+	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool(nil), fmt.Errorf("expected foo[0][0] to be bool, not string")), tuple.Of2(AssertSlice2Type[bool]("foo", any([]any{[]any{""}}))))
 
-	assert.Equal(t, map[string]int8{"bar": 1}, MustAssertMapValuesType[string, int8]("", map[string]any{"bar": int8(1)}))
+	assert.Equal(t, [][]int8{[]int8{1}}, MustAssertSlice2Type[int8]("", any([]any{[]any{int8(1)}})))
 	TryTo(
 		func() {
-			MustAssertMapValuesType[string, int8]("foo", map[string]any{"bar": false})
+			MustAssertSlice2Type[int8]("foo", any([]any{[]any{false}}))
+			assert.Fail(t, "Must Die")
+		},
+		func(e any) {
+			assert.Equal(t, fmt.Errorf("expected foo[0][0] to be int8, not bool"), e)
+		},
+	)
+}
+
+func TestAssertMapType_(t *testing.T) {
+	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil), tuple.Of2(AssertMapType[string, bool]("", any(map[string]any{"bar": true}))))
+	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool(nil), fmt.Errorf("expected foo to be map[string]interface {}, not string")), tuple.Of2(AssertMapType[string, bool]("foo", any(""))))
+	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool(nil), fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(AssertMapType[string, bool]("foo", any(map[string]any{"bar": ""}))))
+
+	assert.Equal(t, map[string]int8{"bar": 1}, MustAssertMapType[string, int8]("", any(map[string]any{"bar": int8(1)})))
+	TryTo(
+		func() {
+			MustAssertMapType[string, int8]("foo", any(map[string]any{"bar": false}))
 			assert.Fail(t, "Must Die")
 		},
 		func(e any) {

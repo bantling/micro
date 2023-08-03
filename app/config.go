@@ -247,27 +247,31 @@ func Load(src io.Reader) Configuration {
 					case "case_sensitive":
 						config.Database.CaseSensitive = funcs.MustAssertType[bool](databasePath, fv)
 
-					case "schemas":
-						config.Database.Schemas = funcs.MustAssertType[[]string](databasePath, fv)
+					case "schemas": {
+            // Get sorted unique list of schemas
+						config.Database.Schemas = funcs.SliceSortOrdered(funcs.SliceUniqueValues(
+              funcs.MustAssertSliceValuesType[string](databasePath, funcs.MustAssertType[[]any](databasePath, fv)),
+            ))
+          }
 
-					case "vendors":
-						{
-							var (
-								vendors       = funcs.MustAssertSliceValuesType[string](databasePath, funcs.MustAssertType[[]any](databasePath, fv))
-								uniqueVendors = map[Vendor]int{}
-							)
+					case "vendors": {
+            // Get sorted unique list of vendors as a []string
+            for _, v := range funcs.SliceSortOrdered(funcs.SliceUniqueValues(
+              funcs.MustAssertSliceValuesType[string](databasePath, funcs.MustAssertType[[]any](databasePath, fv)),
+            )) {
+              var slc []Vendor
 
-							// Collect unique vendor names, don't care if same vendor specified multiple times
-							for _, vendorName := range vendors {
-								if vendor, hasIt := vendorStrings[vendorName]; hasIt {
-									uniqueVendors[vendor] = 0
-								} else {
-									panic(fmt.Errorf(errNoSuchVendorMsg, vendorName))
-								}
-							}
+              // Translate strings using vendorStrings, must be a recognized value
+              if vendor, hasIt := vendorStrings[v]; hasIt {
+                slc = append(slc, vendor)
+              } else {
+                panic(fmt.Errorf(errNoSuchVendorMsg, v))
+              }
 
-							config.Database.Vendors = funcs.MapKeysToSlice(uniqueVendors)
-						}
+              // Overwrite default
+              config.Database.Vendors = slc
+            }
+					}
 
 					case "vendor_types":
 						{
@@ -355,7 +359,10 @@ func Load(src io.Reader) Configuration {
 						{
 							// Grab set of unique keys
 							var (
-								uks = funcs.MustAssertType[[][]string](udtPath, fv)
+								uks = funcs.MustAssertSliceValuesType[[]string](
+                  udtPath,
+                  funcs.MustAssertType[[]any](udtPath, fv),
+                )
 								err = fmt.Errorf(errUniqueMustHaveAtLeastOneColumnMsg, udf.Name)
 							)
 
@@ -383,7 +390,6 @@ func Load(src io.Reader) Configuration {
 					default:
 						{
 							// Must be a column, the value must be a string of a recognized type
-
 							if str, isa := fv.(string); isa {
 								var (
 									typ, length, scale, nullable = stringToTypeDef(str)
@@ -419,6 +425,9 @@ func Load(src io.Reader) Configuration {
 						}
 					}
 				}
+
+        // Sort fields by name, for more readability and unit testing
+        funcs.SliceSortBy(udf.Fields, func(a, b Field) bool { return a.Name < b.Name })
 
 				config.UserDefinedTypes = append(config.UserDefinedTypes, udf)
 			}

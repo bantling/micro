@@ -17,8 +17,13 @@ const (
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
 	assertTypeMsg              = "expected %s to be %T, not %T"
-	assertSliceValueTypeMsg    = "expected %s[%d] to be %T, not %T"
-	assertMapValueTypeMsg      = "expected %s[%v] to be %T, not %T"
+	assertSliceTypeMsg         = "expected %s to be %T, not %T"
+  assertSliceTypeElemMsg     = "expected %s[%d] to be %T, not %T"
+  assertSlice2TypeD1Msg      = "expected %s to be %T, not %T"
+  assertSlice2TypeD2Msg      = "expected %s[%v] to be %T, not %T"
+  assertSlice2TypeElemMsg    = "expected %s[%v][%v] to be %T, not %T"
+	assertMapTypeMsg           = "expected %s to be %T, not %T"
+	assertMapTypeValueMsg      = "expected %s[%v] to be %T, not %T"
 )
 
 // ==== Slices
@@ -112,71 +117,73 @@ func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
 
 // SliceRemove removes a slice element from a slice.
 // By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
-// The slice is modified to point to a new slice with the element(s) removed.
+// The new slice is returned.
 //
-// Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
+// Note: If only the first occurrence is removed, then the append builtin is used twice, once with all elements before
 // the occurrence, and again fior all elelemts after it. Otherwise, a new slice is populated with all other elements.
-func SliceRemove[T comparable](slc *[]T, val T, all ...bool) {
+func SliceRemove[T comparable](slc []T, val T, all ...bool) []T {
 	// Handle case of first occurrence
 	if !SliceIndex(all, 0, false) {
-		for i, t := range *slc {
+		for i, t := range slc {
 			if t == val {
-				newSlc := make([]T, 0, len(*slc)-1)
-				newSlc = append(append(newSlc, (*slc)[0:i]...), (*slc)[i+1:]...)
-				*slc = newSlc
-				return
+				newSlc := make([]T, 0, len(slc)-1)
+				newSlc = append(append(newSlc, (slc)[0:i]...), (slc)[i+1:]...)
+				return newSlc
 			}
 		}
 
-		// No occurrences found, leave slc as is
+		// No occurrences found, return slc as is
+    return slc
 	}
 
 	// Handle case of all occurrences
 	newSlc := []T{}
-	for _, t := range *slc {
+	for _, t := range slc {
 		if t != val {
 			newSlc = append(newSlc, t)
 		}
 	}
-	*slc = newSlc
+
+	return newSlc
 }
 
 // SliceRemoveUncomparable removes a slice element from a slice of uncomparable values (they must be pointers).
 // By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
-// The slice is modified to point to a new slice with the element(s) removed.
+// The new slice is returned.
 //
 // Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
 // the occurrence, and again fior all elements after it. Otherwise, a new slice is populated with all other elements.
-func SliceRemoveUncomparable[T any](slc *[]T, val T, all ...bool) {
+func SliceRemoveUncomparable[T any](slc []T, val T, all ...bool) []T {
 	// Get pointer of val
 	valPtr := fmt.Sprintf("%p", any(val))
 
 	// Handle case of first occurrence
 	if !SliceIndex(all, 0, false) {
-		for i, t := range *slc {
+		for i, t := range slc {
 			if fmt.Sprintf("%p", any(t)) == valPtr {
-				newSlc := make([]T, 0, len(*slc)-1)
-				newSlc = append(append(newSlc, (*slc)[0:i]...), (*slc)[i+1:]...)
-				*slc = newSlc
-				return
+				newSlc := make([]T, 0, len(slc)-1)
+				newSlc = append(append(newSlc, (slc)[0:i]...), (slc)[i+1:]...)
+				return newSlc
 			}
 		}
 
-		// No occurrences found, leave slc as is
+		// No occurrences found, return slc as is
+    return slc
 	}
 
 	// Handle case of all occurrences
 	newSlc := []T{}
-	for _, t := range *slc {
+	for _, t := range slc {
 		if fmt.Sprintf("%p", any(t)) != valPtr {
 			newSlc = append(newSlc, t)
 		}
 	}
-	*slc = newSlc
+	return newSlc
 }
 
 // SliceReverse reverses the elements of a slice, so that [1,2,3] becomes [3,2,1].
-func SliceReverse[T any](slc []T) {
+// The slice is modified in place, and returned.
+func SliceReverse[T any](slc []T) []T {
 	l := len(slc)
 	for i := 0; i < l/2; i++ {
 		j := l - 1 - i
@@ -184,26 +191,47 @@ func SliceReverse[T any](slc []T) {
 		slc[i] = slc[j]
 		slc[j] = tmp
 	}
+
+  return slc
 }
 
-// SliceSortOrdered sorts a slice of Ordered
-func SliceSortOrdered[T constraint.Ordered](slc []T) {
+// SliceSortOrdered sorts a slice of Ordered.
+// The slice is modified in place, and returned.
+func SliceSortOrdered[T constraint.Ordered](slc []T) []T {
 	sort.Slice(slc, func(i, j int) bool { return slc[i] < slc[j] })
+  return slc
 }
 
-// SliceSortComplex sorts a slice of Complex
-func SliceSortComplex[T constraint.Complex](slc []T) {
+// SliceSortComplex sorts a slice of Complex.
+// The slice is modified in place, and returned.
+func SliceSortComplex[T constraint.Complex](slc []T) []T {
 	sort.Slice(slc, func(i, j int) bool { return cmplx.Abs(complex128(slc[i])) < cmplx.Abs(complex128(slc[j])) })
+  return slc
 }
 
-// SliceSortCmp sorts a slice of Cmp
-func SliceSortCmp[T constraint.Cmp[T]](slc []T) {
+// SliceSortCmp sorts a slice of Cmp.
+// The slice is modified in place, and returned.
+func SliceSortCmp[T constraint.Cmp[T]](slc []T) []T {
 	sort.Slice(slc, func(i, j int) bool { return slc[i].Cmp(slc[j]) < 0 })
+  return slc
 }
 
-// SliceSortBy sorts a slice of any type with the provided comparator
-func SliceSortBy[T any](slc []T, less func(T, T) bool) {
+// SliceSortBy sorts a slice of any type with the provided comparator.
+// The slice is modified in place, and returned.
+func SliceSortBy[T any](slc []T, less func(T, T) bool) []T {
 	sort.Slice(slc, func(i, j int) bool { return less(slc[i], slc[j]) })
+  return slc
+}
+
+// SliceUniqueValues returns the uniq values of a slice, in no particular order
+// See MapKeysToSlice
+func SliceUniqueValues[T comparable](slc []T) []T {
+  uniq := map[T]int{}
+  for _, v := range slc {
+    uniq[v] = 0
+  }
+
+  return MapKeysToSlice(uniq)
 }
 
 // ==== Maps
@@ -643,19 +671,18 @@ func MustValue3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
 	return t, u, v
 }
 
-// ==== Assert
+// ==== Type creation and assertion
 
-// AssertType asserts that v is of type T
+// AssertType asserts that v is of type T - intended for cases where T is a scalar type
 // returns (v type asserted to T, nil) if v is of type T
 // returns (T zero value, error) if v is not of type T
 func AssertType[T any](msg string, v any) (T, error) {
-	val, isa := v.(T)
-	if !isa {
-		var zv T
-		return zv, fmt.Errorf(assertTypeMsg, msg, zv, v)
-	}
+	if val, isa := v.(T); isa {
+    return val, nil
+  }
 
-	return val, nil
+  var zv T
+	return zv, fmt.Errorf(assertTypeMsg, msg, zv, v)
 }
 
 // MustAssertType is a must version of AssertType
@@ -663,52 +690,111 @@ func MustAssertType[T any](msg string, v any) T {
 	return MustValue(AssertType[T](msg, v))
 }
 
-// AssertSliceValuesType asserts the values of a []any are all of type T
-func AssertSliceValuesType[T any](msg string, slc []any) (res []T, err error) {
-	res = make([]T, len(slc))
+// AssertSliceType asserts that the any value given is a []any, and that all elements are type T, returning a []T
+func AssertSliceType[T any](msg string, v any) (res []T, err error) {
+  var (
+    zvElem T
+    slc, isSlcAny = v.([]any)
+  )
+
+  if !isSlcAny {
+    err = fmt.Errorf(assertSliceTypeMsg, msg, []any(nil), v)
+    return
+  }
+  tgt := make([]T, len(slc))
+
 	for i, v := range slc {
 		val, isa := v.(T)
 		if !isa {
-			var (
-				zvSlc  []T
-				zvElem T
-			)
-			return zvSlc, fmt.Errorf(assertSliceValueTypeMsg, msg, i, zvElem, v)
+			err = fmt.Errorf(assertSliceTypeElemMsg, msg, i, zvElem, v)
+      return
 		}
 
-		res[i] = val
+		tgt[i] = val
 	}
 
+  res = tgt
 	return
 }
 
-// MustAssertSliceValuesType is a must version of AssertSliceValuesType
-func MustAssertSliceValuesType[T any](msg string, slc []any) (res []T) {
-	return MustValue(AssertSliceValuesType[T](msg, slc))
+// MustAssertSliceType is a must version of AssertSliceType
+func MustAssertSliceType[T any](msg string, v any) []T {
+	return MustValue(AssertSliceType[T](msg, v))
 }
 
-// AssertMapValuesType asserts the values of a map[K]any are all of type V
-func AssertMapValuesType[K comparable, V any](msg string, mp map[K]any) (res map[K]V, err error) {
-	res = map[K]V{}
+// AssertSlice2Type asserts that the any value given is a []any, containing elements of []any, containing elements of T,
+// returning a [][]T
+func AssertSlice2Type[T any](msg string, v any) (res [][]T, err error) {
+  var (
+    zvElem T
+    slcD1, isSlcD1Any = v.([]any)
+  )
+
+  if !isSlcD1Any {
+    err = fmt.Errorf(assertSlice2TypeD1Msg, msg, []any(nil), v)
+    return
+  }
+  tgtD1 := make([][]T, len(slcD1))
+
+	for iD1, vD1 := range slcD1 {
+    slcD2, isSlcD2Any := vD1.([]any)
+    if !isSlcD2Any {
+			err = fmt.Errorf(assertSlice2TypeD2Msg, msg, iD1, []any(nil), vD1)
+      return
+    }
+    tgtD2 := make([]T, len(slcD2))
+    tgtD1[iD1] = tgtD2
+
+    for iD2, vD2 := range slcD2 {
+  		elem, isT := vD2.(T)
+  		if !isT {
+  			err = fmt.Errorf(assertSlice2TypeElemMsg, msg, iD1, iD2, zvElem, vD2)
+        return
+  		}
+
+  		tgtD2[iD2] = elem
+    }
+	}
+
+  res = tgtD1
+	return
+}
+
+// MustAssertSlice2Type is a must version of AssertSlice2Type
+func MustAssertSlice2Type[T any](msg string, v any) [][]T {
+	return MustValue(AssertSlice2Type[T](msg, v))
+}
+
+// AssertMapType asserts that the any value given is a map[K]any, and all values of the map are type V, returning a map[K]V
+func AssertMapType[K comparable, V any](msg string, v any) (res map[K]V, err error) {
+  var (
+    zvVal V
+    mp, isMapKAny = v.(map[K]any)
+  )
+
+  if !isMapKAny {
+    err = fmt.Errorf(assertMapTypeMsg, msg, map[K]any(nil), v)
+    return
+  }
+	tgt := map[K]V{}
+
 	for k, v := range mp {
 		val, isa := v.(V)
 		if !isa {
-			var (
-				zvMap map[K]V
-				zvVal V
-			)
-			return zvMap, fmt.Errorf(assertMapValueTypeMsg, msg, k, zvVal, v)
+      err = fmt.Errorf(assertMapTypeValueMsg, msg, k, zvVal, v)
+      return
 		}
 
-		res[k] = val
+		tgt[k] = val
 	}
 
+  res = tgt
 	return
 }
 
-// MustAssertMapValuesType is a must version of AssertMapValuesType
-func MustAssertMapValuesType[K comparable, V any](msg string, mp map[K]any) (res map[K]V) {
-	return MustValue(AssertMapValuesType[K, V](msg, mp))
+// MustAssertMapType is a must version of AssertMapType
+func MustAssertMapType[K comparable, V any](msg string, v any) map[K]V {
+  return MustValue(AssertMapType[K, V](msg, v))
 }
 
 // ==== Supplier

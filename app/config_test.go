@@ -75,6 +75,7 @@ description = "my great database"
 locale = "en_CA"
 accent_sensitive = false
 case_sensitive = false
+schemas = ["app1", "app2"]
 vendors = ["postgres"]
 vendor_types = {"whatever" = {"postgres" = "psqlType"}}
 
@@ -86,6 +87,7 @@ line = "string"
 city = "string"
 mail_code = "string?"
 descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
+unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
 `)
 
 		config = Load(data)
@@ -100,7 +102,7 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 				Locale:          "en_CA",
 				AccentSensitive: false,
 				CaseSensitive:   false,
-				Schemas:         []string{},
+				Schemas:         []string{"app1", "app2"},
 				Vendors:         []Vendor{Postgres},
 				VendorTypes: []VendorType{
 					{
@@ -115,25 +117,20 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 				{
 					Name: "address",
 					Fields: []Field{
+            {
+              Name: "city",
+              Type: String,
+            },
+            {
+              Name: "country",
+              Type: RefManyToOne,
+            },
 						{
 							Name: "id",
 							Type: UUID,
 						},
 						{
-							Name: "country",
-							Type: RefManyToOne,
-						},
-						{
-							Name:     "region",
-							Type:     RefManyToOne,
-							Nullable: true,
-						},
-						{
 							Name: "line",
-							Type: String,
-						},
-						{
-							Name: "city",
 							Type: String,
 						},
 						{
@@ -141,11 +138,17 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 							Type:     String,
 							Nullable: true,
 						},
+						{
+							Name:     "region",
+							Type:     RefManyToOne,
+							Nullable: true,
+						},
 					},
 					Descriptor: &Descriptor{
 						Terms:       []string{"line", "city", "region", "country", "mail_code"},
 						Description: "$line $city(, $region), $country(, $mail_code)",
 					},
+          UniqueKeys: [][]string{{"id"}, {"country", "region", "line", "city", "mail_code"}},
 				},
 			},
 		},
@@ -164,7 +167,7 @@ region = "ref:many?"
 line = "string"
 city = "string"
 mail_code = "string?"
-ext_descriptor = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
+descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
 `)
 
 		config = Load(data)
@@ -178,30 +181,30 @@ ext_descriptor = {terms = ["line", "city", "region", "country", "mail_code"], de
 				{
 					Name: "address",
 					Fields: []Field{
-						{
-							Name: "id",
-							Type: UUID,
-						},
+            {
+              Name: "city",
+              Type: String,
+            },
 						{
 							Name: "country",
 							Type: RefManyToOne,
 						},
 						{
-							Name:     "region",
-							Type:     RefManyToOne,
-							Nullable: true,
+							Name: "id",
+							Type: UUID,
 						},
 						{
 							Name: "line",
 							Type: String,
 						},
 						{
-							Name: "city",
-							Type: String,
-						},
-						{
 							Name:     "mail_code",
 							Type:     String,
+							Nullable: true,
+						},
+						{
+							Name:     "region",
+							Type:     RefManyToOne,
 							Nullable: true,
 						},
 					},
