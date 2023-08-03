@@ -17,11 +17,11 @@ const (
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
 	assertTypeMsg              = "expected %s to be %T, not %T"
-	assertSliceTypeMsg         = "expected %s to be %T, not %T"
-  assertSliceTypeElemMsg     = "expected %s[%d] to be %T, not %T"
-  assertSlice2TypeD1Msg      = "expected %s to be %T, not %T"
-  assertSlice2TypeD2Msg      = "expected %s[%v] to be %T, not %T"
-  assertSlice2TypeElemMsg    = "expected %s[%v][%v] to be %T, not %T"
+	convertToSliceMsg          = "expected %s to be %T, not %T"
+  convertToSliceElemMsg      = "expected %s[%d] to be %T, not %T"
+  convertToSlice2D1Msg       = "expected %s to be %T, not %T"
+  convertToSlice2D2Msg       = "expected %s[%v] to be %T, not %T"
+  convertToSlice2ElemMsg     = "expected %s[%v][%v] to be %T, not %T"
 	assertMapTypeMsg           = "expected %s to be %T, not %T"
 	assertMapTypeValueMsg      = "expected %s[%v] to be %T, not %T"
 )
@@ -690,15 +690,15 @@ func MustAssertType[T any](msg string, v any) T {
 	return MustValue(AssertType[T](msg, v))
 }
 
-// AssertSliceType asserts that the any value given is a []any, and that all elements are type T, returning a []T
-func AssertSliceType[T any](msg string, v any) (res []T, err error) {
+// ConvertToSlice asserts that the any value given is a []any, and that all elements are type T, converting to a []T
+func ConvertToSlice[T any](msg string, v any) (res []T, err error) {
   var (
     zvElem T
     slc, isSlcAny = v.([]any)
   )
 
   if !isSlcAny {
-    err = fmt.Errorf(assertSliceTypeMsg, msg, []any(nil), v)
+    err = fmt.Errorf(convertToSliceMsg, msg, []any(nil), v)
     return
   }
   tgt := make([]T, len(slc))
@@ -706,7 +706,7 @@ func AssertSliceType[T any](msg string, v any) (res []T, err error) {
 	for i, v := range slc {
 		val, isa := v.(T)
 		if !isa {
-			err = fmt.Errorf(assertSliceTypeElemMsg, msg, i, zvElem, v)
+			err = fmt.Errorf(convertToSliceElemMsg, msg, i, zvElem, v)
       return
 		}
 
@@ -717,21 +717,21 @@ func AssertSliceType[T any](msg string, v any) (res []T, err error) {
 	return
 }
 
-// MustAssertSliceType is a must version of AssertSliceType
-func MustAssertSliceType[T any](msg string, v any) []T {
-	return MustValue(AssertSliceType[T](msg, v))
+// MustConvertToSlice is a must version of ConvertToSlice
+func MustConvertToSlice[T any](msg string, v any) []T {
+	return MustValue(ConvertToSlice[T](msg, v))
 }
 
-// AssertSlice2Type asserts that the any value given is a []any, containing elements of []any, containing elements of T,
-// returning a [][]T
-func AssertSlice2Type[T any](msg string, v any) (res [][]T, err error) {
+// ConvertToSlice2 asserts that the any value given is a []any, containing elements of []any, containing elements of T,
+// converting to a [][]T
+func ConvertToSlice2[T any](msg string, v any) (res [][]T, err error) {
   var (
     zvElem T
     slcD1, isSlcD1Any = v.([]any)
   )
 
   if !isSlcD1Any {
-    err = fmt.Errorf(assertSlice2TypeD1Msg, msg, []any(nil), v)
+    err = fmt.Errorf(convertToSlice2D1Msg, msg, []any(nil), v)
     return
   }
   tgtD1 := make([][]T, len(slcD1))
@@ -739,7 +739,7 @@ func AssertSlice2Type[T any](msg string, v any) (res [][]T, err error) {
 	for iD1, vD1 := range slcD1 {
     slcD2, isSlcD2Any := vD1.([]any)
     if !isSlcD2Any {
-			err = fmt.Errorf(assertSlice2TypeD2Msg, msg, iD1, []any(nil), vD1)
+			err = fmt.Errorf(convertToSlice2D2Msg, msg, iD1, []any(nil), vD1)
       return
     }
     tgtD2 := make([]T, len(slcD2))
@@ -748,7 +748,7 @@ func AssertSlice2Type[T any](msg string, v any) (res [][]T, err error) {
     for iD2, vD2 := range slcD2 {
   		elem, isT := vD2.(T)
   		if !isT {
-  			err = fmt.Errorf(assertSlice2TypeElemMsg, msg, iD1, iD2, zvElem, vD2)
+  			err = fmt.Errorf(convertToSlice2ElemMsg, msg, iD1, iD2, zvElem, vD2)
         return
   		}
 
@@ -760,13 +760,13 @@ func AssertSlice2Type[T any](msg string, v any) (res [][]T, err error) {
 	return
 }
 
-// MustAssertSlice2Type is a must version of AssertSlice2Type
-func MustAssertSlice2Type[T any](msg string, v any) [][]T {
-	return MustValue(AssertSlice2Type[T](msg, v))
+// MustConvertToSlice2 is a must version of ConvertToSlice2
+func MustConvertToSlice2[T any](msg string, v any) [][]T {
+	return MustValue(ConvertToSlice2[T](msg, v))
 }
 
-// AssertMapType asserts that the any value given is a map[K]any, and all values of the map are type V, returning a map[K]V
-func AssertMapType[K comparable, V any](msg string, v any) (res map[K]V, err error) {
+// ConvertToMap asserts that the any value given is a map[K]any, and all values of the map are type V, converting to a map[K]V
+func ConvertToMap[K comparable, V any](msg string, v any) (res map[K]V, err error) {
   var (
     zvVal V
     mp, isMapKAny = v.(map[K]any)
@@ -792,9 +792,9 @@ func AssertMapType[K comparable, V any](msg string, v any) (res map[K]V, err err
 	return
 }
 
-// MustAssertMapType is a must version of AssertMapType
-func MustAssertMapType[K comparable, V any](msg string, v any) map[K]V {
-  return MustValue(AssertMapType[K, V](msg, v))
+// MustConvertToMap is a must version of ConvertToMap
+func MustConvertToMap[K comparable, V any](msg string, v any) map[K]V {
+  return MustValue(ConvertToMap[K, V](msg, v))
 }
 
 // ==== Supplier

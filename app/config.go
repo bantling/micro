@@ -248,17 +248,22 @@ func Load(src io.Reader) Configuration {
 						config.Database.CaseSensitive = funcs.MustAssertType[bool](databasePath, fv)
 
 					case "schemas": {
-            // Get sorted unique list of schemas
-						config.Database.Schemas = funcs.SliceSortOrdered(funcs.SliceUniqueValues(
-              funcs.MustAssertSliceValuesType[string](databasePath, funcs.MustAssertType[[]any](databasePath, fv)),
-            ))
+            // Get sorted unique list of schemas as a []string
+						config.Database.Schemas =
+              funcs.SliceSortOrdered(
+                funcs.SliceUniqueValues(
+                  funcs.MustConvertToSlice[string](databasePath, fv),
+                ),
+              )
           }
 
 					case "vendors": {
             // Get sorted unique list of vendors as a []string
-            for _, v := range funcs.SliceSortOrdered(funcs.SliceUniqueValues(
-              funcs.MustAssertSliceValuesType[string](databasePath, funcs.MustAssertType[[]any](databasePath, fv)),
-            )) {
+            for _, v := range funcs.SliceSortOrdered(
+              funcs.SliceUniqueValues(
+                funcs.MustConvertToSlice[string](databasePath, fv),
+              ),
+            ) {
               var slc []Vendor
 
               // Translate strings using vendorStrings, must be a recognized value
@@ -283,7 +288,7 @@ func Load(src io.Reader) Configuration {
 							for vendorTypeName, vendorColDefsVal := range vendorTypeDefs {
 								var (
 									ctPath           = databasePath + "." + vendorTypeName
-									vendorColDefsVal = funcs.MustAssertMapValuesType[string, string](ctPath, funcs.MustAssertType[map[string]any](ctPath, vendorColDefsVal))
+									vendorColDefsVal = funcs.MustConvertToMap[string, string](ctPath, vendorColDefsVal)
 									vendorColDefs    = map[Vendor]string{}
 								)
 
@@ -340,7 +345,7 @@ func Load(src io.Reader) Configuration {
 							var (
 								fdata     = funcs.MustAssertType[map[string]any](udtPath, fv)
 								termsPath = udtPath + ".terms"
-								terms     = funcs.MustAssertSliceValuesType[string](termsPath, funcs.MustAssertType[[]any](termsPath, fdata["terms"]))
+								terms     = funcs.MustConvertToSlice[string](termsPath, fdata["terms"])
 								desc      = funcs.MustAssertType[string](udtPath+".description", fdata["description"])
 							)
 
@@ -359,10 +364,7 @@ func Load(src io.Reader) Configuration {
 						{
 							// Grab set of unique keys
 							var (
-								uks = funcs.MustAssertSliceValuesType[[]string](
-                  udtPath,
-                  funcs.MustAssertType[[]any](udtPath, fv),
-                )
+								uks = funcs.MustConvertToSlice2[string](udtPath, fv)
 								err = fmt.Errorf(errUniqueMustHaveAtLeastOneColumnMsg, udf.Name)
 							)
 

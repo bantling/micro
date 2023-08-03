@@ -641,16 +641,24 @@ func TestAssertType_(t *testing.T) {
 	)
 }
 
-func TestAssertSliceType_(t *testing.T) {
+func TestConvertToSlice_(t *testing.T) {
   // One dimension
-	assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(AssertSliceType[bool]("", any([]any{true}))))
-	assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(AssertSliceType[bool]("foo", any(""))))
-	assert.Equal(t, tuple.Of2[[]bool, error]([]bool(nil), fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(AssertSliceType[bool]("foo", any([]any{""}))))
+	assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(ConvertToSlice[bool]("", any([]any{true}))))
+	assert.Equal(
+    t,
+    tuple.Of2[[]bool, error]([]bool(nil),
+    fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(ConvertToSlice[bool]("foo", any(""))),
+  )
+	assert.Equal(
+    t,
+    tuple.Of2[[]bool, error]([]bool(nil),
+    fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(ConvertToSlice[bool]("foo", any([]any{""}))),
+  )
 
-	assert.Equal(t, []int8{1}, MustAssertSliceType[int8]("", any([]any{int8(1)})))
+	assert.Equal(t, []int8{1}, MustConvertToSlice[int8]("", any([]any{int8(1)})))
 	TryTo(
 		func() {
-			MustAssertSliceType[int8]("foo", any([]any{false}))
+			MustConvertToSlice[int8]("foo", any([]any{false}))
 			assert.Fail(t, "Must Die")
 		},
 		func(e any) {
@@ -659,15 +667,27 @@ func TestAssertSliceType_(t *testing.T) {
 	)
 
   // Two dimensions
-	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool{{true}}, nil), tuple.Of2(AssertSlice2Type[bool]("", any([]any{[]any{true}}))))
-	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool(nil), fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(AssertSlice2Type[bool]("foo", any(""))))
-	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool(nil), fmt.Errorf("expected foo[0] to be []interface {}, not string")), tuple.Of2(AssertSlice2Type[bool]("foo", any([]any{""}))))
-	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool(nil), fmt.Errorf("expected foo[0][0] to be bool, not string")), tuple.Of2(AssertSlice2Type[bool]("foo", any([]any{[]any{""}}))))
+	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool{{true}}, nil), tuple.Of2(ConvertToSlice2[bool]("", any([]any{[]any{true}}))))
+	assert.Equal(
+    t,
+    tuple.Of2[[][]bool, error]([][]bool(nil),
+    fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any(""))),
+  )
+	assert.Equal(
+    t,
+    tuple.Of2[[][]bool, error]([][]bool(nil),
+    fmt.Errorf("expected foo[0] to be []interface {}, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any([]any{""}))),
+  )
+	assert.Equal(
+    t,
+    tuple.Of2[[][]bool, error]([][]bool(nil),
+    fmt.Errorf("expected foo[0][0] to be bool, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any([]any{[]any{""}}))),
+  )
 
-	assert.Equal(t, [][]int8{[]int8{1}}, MustAssertSlice2Type[int8]("", any([]any{[]any{int8(1)}})))
+	assert.Equal(t, [][]int8{[]int8{1}}, MustConvertToSlice2[int8]("", any([]any{[]any{int8(1)}})))
 	TryTo(
 		func() {
-			MustAssertSlice2Type[int8]("foo", any([]any{[]any{false}}))
+			MustConvertToSlice2[int8]("foo", any([]any{[]any{false}}))
 			assert.Fail(t, "Must Die")
 		},
 		func(e any) {
@@ -676,15 +696,30 @@ func TestAssertSliceType_(t *testing.T) {
 	)
 }
 
-func TestAssertMapType_(t *testing.T) {
-	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil), tuple.Of2(AssertMapType[string, bool]("", any(map[string]any{"bar": true}))))
-	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool(nil), fmt.Errorf("expected foo to be map[string]interface {}, not string")), tuple.Of2(AssertMapType[string, bool]("foo", any(""))))
-	assert.Equal(t, tuple.Of2[map[string]bool, error](map[string]bool(nil), fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(AssertMapType[string, bool]("foo", any(map[string]any{"bar": ""}))))
+func TestConvertToMap_(t *testing.T) {
+	assert.Equal(
+    t,
+    tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil),
+    tuple.Of2(ConvertToMap[string, bool]("", any(map[string]any{"bar": true}))),
+  )
+	assert.Equal(
+    t,
+    tuple.Of2[map[string]bool, error](map[string]bool(nil),
+    fmt.Errorf("expected foo to be map[string]interface {}, not string")), tuple.Of2(ConvertToMap[string, bool]("foo", any(""))),
+  )
+	assert.Equal(
+    t,
+    tuple.Of2[map[string]bool, error](map[string]bool(nil),
+    fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(ConvertToMap[string, bool]("foo", any(map[string]any{"bar": ""}))),
+  )
 
-	assert.Equal(t, map[string]int8{"bar": 1}, MustAssertMapType[string, int8]("", any(map[string]any{"bar": int8(1)})))
+	assert.Equal(
+    t, map[string]int8{"bar": 1},
+    MustConvertToMap[string, int8]("", any(map[string]any{"bar": int8(1)})),
+  )
 	TryTo(
 		func() {
-			MustAssertMapType[string, int8]("foo", any(map[string]any{"bar": false}))
+			MustConvertToMap[string, int8]("foo", any(map[string]any{"bar": false}))
 			assert.Fail(t, "Must Die")
 		},
 		func(e any) {
