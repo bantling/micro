@@ -86,6 +86,7 @@ region = "ref:many?"
 line = "string"
 city = "string"
 mail_code = "string?"
+extra = "whatever"
 descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
 unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
 `)
@@ -125,6 +126,11 @@ unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
               Name: "country",
               Type: RefManyToOne,
             },
+            {
+              Name: "extra",
+              Type: VendorTypeRef,
+              TypeName: "whatever",
+            },
 						{
 							Name: "id",
 							Type: UUID,
@@ -154,6 +160,8 @@ unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
 		},
 		config,
 	)
+
+  Validate(config)
 }
 
 func TestLoadDefaults_(t *testing.T) {

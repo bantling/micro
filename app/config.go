@@ -3,6 +3,7 @@ package app
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -19,6 +20,8 @@ var (
 	errColumnTypeNotRecognizedMsg               = "%s: the column %s is not a valid column name, or the type is not a recognized type"
 	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
 	errUDTCannotEndWithUnderscoreMsg            = "%s: user defined type names cannot end with an underscore"
+  errRefToUndefinedTypeMsg                    = "User Defined Type %s field %s is a reference field, but there is no User Defined Type by that name"
+  errFieldOfUndefinedVendorTypeMsg            = "User Defined Type %s field %s refers to undefined vendor type %s"
 )
 
 // Vendor is a database vendor
@@ -36,7 +39,7 @@ var (
 	}
 )
 
-// VendorType is a vendor type, a string name associated with a string column definition, one per vendior
+// VendorType is a vendor type, a string name associated with a string column definition, one per vendor
 type VendorType struct {
 	Name          string
 	VendorColDefs map[Vendor]string
@@ -77,10 +80,10 @@ const (
 	Time
 	Timestamp
 	UUID
-	Custom
+	VendorTypeRef
 )
 
-// String to FieldType mapping for all FieldType except Ref* and Custom
+// String to FieldType mapping for all FieldType except Ref* and Vendor
 var (
 	fieldStrings = map[string]FieldType{
 		"bool":           Bool,
@@ -105,6 +108,12 @@ var (
 	decimalPrecisionScaleRegex = regexp.MustCompile(`decimal[(]([0-9]+)(?:, *([0-9]+))?[)]`)
 	//refRegex = regexp.MustCompile(`ref:(one|manyToMany|many)`) // have to put prefix many after manyToMany
 	stringLengthRegex = regexp.MustCompile(`string[(]([0-9]+)[)]`)
+
+  // Create a predicate for any kind of reference type
+  FieldIsRefType = funcs.In(RefOne, RefManyToOne, RefManyToMany)
+
+  // Create a predicate for a vendor type
+  FieldIsVendorType = funcs.Equal(VendorTypeRef)
 )
 
 // stringToTypeDef converts a field string to a field type def, as follows:
@@ -149,8 +158,8 @@ func stringToTypeDef(str string) (typ FieldType, length, scale int, nullable boo
 		typ = String
 		conv.To(match[1], &length)
 	} else {
-		// Must be a custom or invalid type, treat it as custom
-		typ = Custom
+		// Must be a vendor or invalid type, treat it as vendor
+		typ = VendorTypeRef
 	}
 
 	return
@@ -160,7 +169,7 @@ func stringToTypeDef(str string) (typ FieldType, length, scale int, nullable boo
 type Field struct {
 	Name      string
 	Type      FieldType
-	TypeName  string // custom type name
+	TypeName  string // vendor type name
 	Precision int    // precision of decimal
 	Scale     int    // scale of decimal
 	Length    int    // length of string
@@ -258,12 +267,8 @@ func Load(src io.Reader) Configuration {
           }
 
 					case "vendors": {
-            // Get sorted unique list of vendors as a []string
-            for _, v := range funcs.SliceSortOrdered(
-              funcs.SliceUniqueValues(
-                funcs.MustConvertToSlice[string](databasePath, fv),
-              ),
-            ) {
+            // Get unique list of vendors as a []string
+            for _, v := range funcs.SliceUniqueValues(funcs.MustConvertToSlice[string](databasePath, fv)) {
               var slc []Vendor
 
               // Translate strings using vendorStrings, must be a recognized value
@@ -416,6 +421,8 @@ func Load(src io.Reader) Configuration {
 									case Decimal:
 										fld.Precision = length
 										fld.Scale = scale
+                  case VendorTypeRef:
+                    fld.TypeName = str
 									}
 
 									udf.Fields = append(udf.Fields, fld)
@@ -436,10 +443,50 @@ func Load(src io.Reader) Configuration {
 		}
 	}
 
-	// Validate that the udfs make sense
-
-	// 1. If a field is a Ref* type, the field name is a type name
-	// 2. If a field is a Custom type, then the field name is defined in Database.VendorTypes
-
 	return config
+}
+
+// Validate validates that the user defined types make sense
+// - If a field is a Ref* type, the field name is another existing user defined type name
+// - If a field is a Vendor type, then the field type name is defined in Database.VendorTypes
+// Panics if any of the above validations fail, joining all errors into one error
+// type Configuration struct {
+// 	Database         Database
+// 	UserDefinedTypes []UserDefinedType
+// }
+func Validate(cfg Configuration) {
+  // Collect all user defined type names
+  udtNames := map[string]bool{}
+  for _, udt := range cfg.UserDefinedTypes {
+    udtNames[udt.Name] = true
+  }
+
+  // Collect all vendor type names
+  vendorNames := map[string]bool{}
+  for _, vt := range cfg.Database.VendorTypes {
+    vendorNames[vt.Name] = true
+  }
+
+  // Collect all errors into a slice
+  var errs []error
+
+  // Scan all udt fields for ref* types
+  for _, udt := range cfg.UserDefinedTypes {
+    for _, fld := range udt.Fields {
+      // Is the field a ref to an unknown udt?
+      if FieldIsRefType(fld.Type) && (!udtNames[fld.Name]) {
+        errs = append(errs, fmt.Errorf(errRefToUndefinedTypeMsg, udt.Name, fld.Name))
+      }
+
+      // Is the field a vendor type with an unknown type name?
+      if FieldIsVendorType(fld.Type) && (!vendorNames[fld.TypeName]) {
+        errs = append(errs, fmt.Errorf(errFieldOfUndefinedVendorTypeMsg, udt.Name, fld.Name, fld.TypeName))
+      }
+    }
+  }
+
+  // If any errors occured, join them into one error
+  if len(errs) > 0 {
+    panic(errors.Join(errs...))
+  }
 }

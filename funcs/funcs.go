@@ -383,6 +383,19 @@ func Equal[T comparable](val T) func(T) bool {
 	}
 }
 
+// In returns a filter func (func(T) bool) that returns true if it accepts a value that equals any given value with ==
+func In[T comparable](val ...T) func(T) bool {
+  return func(t T) bool {
+    for _, v := range val {
+      if t == v {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
 // GreaterThan returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than the given value
 func GreaterThan[T constraint.Ordered](val T) func(T) bool {
 	return func(t T) bool {
