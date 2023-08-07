@@ -15,6 +15,17 @@ import (
 
 // ==== Slices
 
+func TestSliceCopy_(t *testing.T) {
+	assert.Equal(t, []int{}, SliceCopy([]int(nil)))
+
+  var (
+    slc = []int{1,2}
+    slc2 = SliceCopy(slc)
+  )
+  assert.NotEqual(t, fmt.Sprintf("%p", slc), fmt.Sprintf("%p", slc2))
+  assert.Equal(t, slc, slc2)
+}
+
 func TestSliceFlatten_(t *testing.T) {
 	assert.Equal(t, []int{}, SliceFlatten[int](nil))
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+  "strings"
 
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
@@ -22,6 +23,8 @@ var (
 	errUDTCannotEndWithUnderscoreMsg            = "%s: user defined type names cannot end with an underscore"
   errRefToUndefinedTypeMsg                    = "User Defined Type %s field %s is a reference field, but there is no User Defined Type by that name"
   errFieldOfUndefinedVendorTypeMsg            = "User Defined Type %s field %s refers to undefined vendor type %s"
+  errEmptyUniqueKeySetMsg                     = "User Defined Type %s has an empty Unique Key - there must be either no unique keys, or each unique key has at least one column"
+  errDuplicateUniqueKeySetMsg                 = "User Defined Type %s has a duplicate Unique Key %v (the order of columns is not significant)"
 )
 
 // Vendor is a database vendor
@@ -446,14 +449,13 @@ func Load(src io.Reader) Configuration {
 	return config
 }
 
-// Validate validates that the user defined types make sense
+// Validate ensures that the configuration user defined types make sense:
 // - If a field is a Ref* type, the field name is another existing user defined type name
 // - If a field is a Vendor type, then the field type name is defined in Database.VendorTypes
+// - Each unique key set is not empty (there can be zero unique keys)
+// - The set of unique keys does not contain duplicates (eg {"name", "code"} and {"code", "name"}
+//
 // Panics if any of the above validations fail, joining all errors into one error
-// type Configuration struct {
-// 	Database         Database
-// 	UserDefinedTypes []UserDefinedType
-// }
 func Validate(cfg Configuration) {
   // Collect all user defined type names
   udtNames := map[string]bool{}
@@ -470,7 +472,7 @@ func Validate(cfg Configuration) {
   // Collect all errors into a slice
   var errs []error
 
-  // Scan all udt fields for ref* types
+  // Scan all udt
   for _, udt := range cfg.UserDefinedTypes {
     for _, fld := range udt.Fields {
       // Is the field a ref to an unknown udt?
@@ -483,10 +485,47 @@ func Validate(cfg Configuration) {
         errs = append(errs, fmt.Errorf(errFieldOfUndefinedVendorTypeMsg, udt.Name, fld.Name, fld.TypeName))
       }
     }
+
+    type UniqInfo struct {
+      UniqueSet []string
+      Count int
+    }
+    var uniqSets = map[string]UniqInfo{}
+
+    for _, uniqSet := range udt.UniqueKeys {
+      if len(uniqSet) == 0 {
+        errs = append(errs, fmt.Errorf(errEmptyUniqueKeySetMsg, udt.Name))
+      } else {
+        // Convert each unique key column list into a single string of column names separated by |
+        str := strings.Join(funcs.SliceSortOrdered(funcs.SliceCopy(uniqSet)), "|")
+
+        if ui, hasIt := uniqSets[str]; !hasIt {
+          uniqSets[str] = UniqInfo{
+            UniqueSet: uniqSet,
+            Count: 1,
+          }
+        } else {
+          ui.Count++
+        }
+      }
+    }
+
+    for _, ui := range uniqSets {
+      if ui.Count > 1 {
+        // Add error
+        errs = append(errs, fmt.Errorf(errDuplicateUniqueKeySetMsg, udt.Name, ui.UniqueSet))
+      }
+    }
   }
 
   // If any errors occured, join them into one error
   if len(errs) > 0 {
     panic(errors.Join(errs...))
   }
+}
+
+// Anaylze optimizes the configuration:
+// - If two or more unique key sets
+func Analyze(cfg Configuration) {
+
 }

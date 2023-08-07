@@ -79,6 +79,22 @@ schemas = ["app1", "app2"]
 vendors = ["postgres"]
 vendor_types = {"whatever" = {"postgres" = "psqlType"}}
 
+[country]
+id = "uuid"
+name = "string"
+code = "string"
+has_regions = "bool"
+descriptor_ = {terms = ["name", "code"], description = "$name"}
+unique_ = [["name"], ["code"]]
+
+[region]
+id = "uuid"
+country = "ref:many"
+name = "string"
+code = "string"
+descriptor_ = {terms = ["name", "code"], description = "$code"}
+unique_ = [["country", "name"], ["country", "code"]]
+
 [address]
 id = "uuid"
 country = "ref:many"
@@ -88,11 +104,13 @@ city = "string"
 mail_code = "string?"
 extra = "whatever"
 descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
-unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
+unique_ = [["id"]]
 `)
 
 		config = Load(data)
 	)
+  // Validate before asserting equality, to ensure it does not alter the configuration
+  Validate(config)
 
 	assert.Equal(
 		t,
@@ -115,6 +133,58 @@ unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
 				},
 			},
 			UserDefinedTypes: []UserDefinedType{
+				{
+					Name: "country",
+					Fields: []Field{
+            {
+              Name: "code",
+              Type: String,
+            },
+						{
+							Name: "has_regions",
+							Type: Bool,
+						},
+            {
+              Name: "id",
+              Type: UUID,
+            },
+            {
+              Name: "name",
+              Type: String,
+            },
+					},
+					Descriptor: &Descriptor{
+						Terms:       []string{"name", "code"},
+						Description: "$name",
+					},
+          UniqueKeys: [][]string{{"name"}, {"code"}},
+				},
+				{
+					Name: "region",
+					Fields: []Field{
+            {
+              Name: "code",
+              Type: String,
+            },
+            {
+              Name: "country",
+              Type: RefManyToOne,
+            },
+            {
+              Name: "id",
+              Type: UUID,
+            },
+            {
+              Name: "name",
+              Type: String,
+            },
+					},
+					Descriptor: &Descriptor{
+						Terms:       []string{"name", "code"},
+						Description: "$code",
+					},
+          UniqueKeys: [][]string{{"country", "name"}, {"country", "code"}},
+				},
 				{
 					Name: "address",
 					Fields: []Field{
@@ -154,14 +224,12 @@ unique_ = [["id"], ["country", "region", "line", "city", "mail_code"]]
 						Terms:       []string{"line", "city", "region", "country", "mail_code"},
 						Description: "$line $city(, $region), $country(, $mail_code)",
 					},
-          UniqueKeys: [][]string{{"id"}, {"country", "region", "line", "city", "mail_code"}},
+          UniqueKeys: [][]string{{"id"}},
 				},
 			},
 		},
 		config,
 	)
-
-  Validate(config)
 }
 
 func TestLoadDefaults_(t *testing.T) {

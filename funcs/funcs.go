@@ -28,6 +28,14 @@ const (
 
 // ==== Slices
 
+// SliceCopy returns a copy of a slice, useful for situations such as sorting a copy of a slice without modifying the original.
+// If the original slice is null, the result is empty.
+func SliceCopy[T any](slc []T) (res []T) {
+  res = make([]T, len(slc))
+  copy(res, slc)
+  return
+}
+
 // SliceFlatten flattens a slice of any number of dimensions into a one dimensional slice.
 // The slice is received as type any, because there is no way to describe a slice of any number of dimensions
 // using generics.

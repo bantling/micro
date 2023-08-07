@@ -85,7 +85,7 @@ package app
 // code = "string"
 // has_regions = bool
 // descriptor_ = {terms = ["name", "code"], description = "$name"}
-// unique_ = [["name"],["code"]]
+// unique_ = [["name"], ["code"]]
 //
 // [region]
 // id = "uuid"
@@ -93,7 +93,7 @@ package app
 // name = "string"
 // code = "string"
 // descriptor_ = {terms = ["name", "code"], description = "$code"}
-// unique_ = [["country","name"],["country", "code"]]
+// unique_ = [["country", "name"], ["country", "code"]]
 //
 // The following types are supported for each column:
 // - bool
