@@ -109,8 +109,8 @@ unique_ = [["id"]]
 
 		config = Load(data)
 	)
-  // Validate before asserting equality, to ensure it does not alter the configuration
-  Validate(config)
+	// Validate before asserting equality, to ensure it does not alter the configuration
+	Validate(config)
 
 	assert.Equal(
 		t,
@@ -133,61 +133,9 @@ unique_ = [["id"]]
 				},
 			},
 			UserDefinedTypes: []UserDefinedType{
-				{
-					Name: "country",
-					Fields: []Field{
-            {
-              Name: "code",
-              Type: String,
-            },
-						{
-							Name: "has_regions",
-							Type: Bool,
-						},
-            {
-              Name: "id",
-              Type: UUID,
-            },
-            {
-              Name: "name",
-              Type: String,
-            },
-					},
-					Descriptor: &Descriptor{
-						Terms:       []string{"name", "code"},
-						Description: "$name",
-					},
-          UniqueKeys: [][]string{{"name"}, {"code"}},
-				},
-				{
-					Name: "region",
-					Fields: []Field{
-            {
-              Name: "code",
-              Type: String,
-            },
-            {
-              Name: "country",
-              Type: RefManyToOne,
-            },
-            {
-              Name: "id",
-              Type: UUID,
-            },
-            {
-              Name: "name",
-              Type: String,
-            },
-					},
-					Descriptor: &Descriptor{
-						Terms:       []string{"name", "code"},
-						Description: "$code",
-					},
-          UniqueKeys: [][]string{{"country", "name"}, {"country", "code"}},
-				},
-				{
-					Name: "address",
-					Fields: []Field{
+        {
+          Name: "address",
+          Fields: []Field{
             {
               Name: "city",
               Type: String,
@@ -197,34 +145,86 @@ unique_ = [["id"]]
               Type: RefManyToOne,
             },
             {
-              Name: "extra",
-              Type: VendorTypeRef,
+              Name:     "extra",
+              Type:     VendorTypeRef,
               TypeName: "whatever",
             },
+            {
+              Name: "id",
+              Type: UUID,
+            },
+            {
+              Name: "line",
+              Type: String,
+            },
+            {
+              Name:     "mail_code",
+              Type:     String,
+              Nullable: true,
+            },
+            {
+              Name:     "region",
+              Type:     RefManyToOne,
+              Nullable: true,
+            },
+          },
+          Descriptor: &Descriptor{
+            Terms:       []string{"line", "city", "region", "country", "mail_code"},
+            Description: "$line $city(, $region), $country(, $mail_code)",
+          },
+          UniqueKeys: [][]string{{"id"}},
+        },
+				{
+					Name: "country",
+					Fields: []Field{
+						{
+							Name: "code",
+							Type: String,
+						},
+						{
+							Name: "has_regions",
+							Type: Bool,
+						},
 						{
 							Name: "id",
 							Type: UUID,
 						},
 						{
-							Name: "line",
+							Name: "name",
 							Type: String,
-						},
-						{
-							Name:     "mail_code",
-							Type:     String,
-							Nullable: true,
-						},
-						{
-							Name:     "region",
-							Type:     RefManyToOne,
-							Nullable: true,
 						},
 					},
 					Descriptor: &Descriptor{
-						Terms:       []string{"line", "city", "region", "country", "mail_code"},
-						Description: "$line $city(, $region), $country(, $mail_code)",
+						Terms:       []string{"name", "code"},
+						Description: "$name",
 					},
-          UniqueKeys: [][]string{{"id"}},
+					UniqueKeys: [][]string{{"name"}, {"code"}},
+				},
+				{
+					Name: "region",
+					Fields: []Field{
+						{
+							Name: "code",
+							Type: String,
+						},
+						{
+							Name: "country",
+							Type: RefManyToOne,
+						},
+						{
+							Name: "id",
+							Type: UUID,
+						},
+						{
+							Name: "name",
+							Type: String,
+						},
+					},
+					Descriptor: &Descriptor{
+						Terms:       []string{"name", "code"},
+						Description: "$code",
+					},
+					UniqueKeys: [][]string{{"country", "name"}, {"country", "code"}},
 				},
 			},
 		},
@@ -257,10 +257,10 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 				{
 					Name: "address",
 					Fields: []Field{
-            {
-              Name: "city",
-              Type: String,
-            },
+						{
+							Name: "city",
+							Type: String,
+						},
 						{
 							Name: "country",
 							Type: RefManyToOne,
@@ -294,3 +294,17 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 		config,
 	)
 }
+
+// func TestLoadErrors_(t *testing.T) {
+// 	// Load that specifies only values with no default
+// 	var data = strings.NewReader(`
+// [address]
+// id = "uuid"
+// country = "ref:many"
+// region = "ref:many?"
+// line = "string"
+// city = "string"
+// mail_code = "string?"
+// descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
+// `)
+// }

@@ -18,10 +18,10 @@ const (
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
 	assertTypeMsg              = "expected %s to be %T, not %T"
 	convertToSliceMsg          = "expected %s to be %T, not %T"
-  convertToSliceElemMsg      = "expected %s[%d] to be %T, not %T"
-  convertToSlice2D1Msg       = "expected %s to be %T, not %T"
-  convertToSlice2D2Msg       = "expected %s[%v] to be %T, not %T"
-  convertToSlice2ElemMsg     = "expected %s[%v][%v] to be %T, not %T"
+	convertToSliceElemMsg      = "expected %s[%d] to be %T, not %T"
+	convertToSlice2D1Msg       = "expected %s to be %T, not %T"
+	convertToSlice2D2Msg       = "expected %s[%v] to be %T, not %T"
+	convertToSlice2ElemMsg     = "expected %s[%v][%v] to be %T, not %T"
 	assertMapTypeMsg           = "expected %s to be %T, not %T"
 	assertMapTypeValueMsg      = "expected %s[%v] to be %T, not %T"
 )
@@ -31,9 +31,9 @@ const (
 // SliceCopy returns a copy of a slice, useful for situations such as sorting a copy of a slice without modifying the original.
 // If the original slice is null, the result is empty.
 func SliceCopy[T any](slc []T) (res []T) {
-  res = make([]T, len(slc))
-  copy(res, slc)
-  return
+	res = make([]T, len(slc))
+	copy(res, slc)
+	return
 }
 
 // SliceFlatten flattens a slice of any number of dimensions into a one dimensional slice.
@@ -141,7 +141,7 @@ func SliceRemove[T comparable](slc []T, val T, all ...bool) []T {
 		}
 
 		// No occurrences found, return slc as is
-    return slc
+		return slc
 	}
 
 	// Handle case of all occurrences
@@ -176,7 +176,7 @@ func SliceRemoveUncomparable[T any](slc []T, val T, all ...bool) []T {
 		}
 
 		// No occurrences found, return slc as is
-    return slc
+		return slc
 	}
 
 	// Handle case of all occurrences
@@ -200,46 +200,46 @@ func SliceReverse[T any](slc []T) []T {
 		slc[j] = tmp
 	}
 
-  return slc
+	return slc
 }
 
 // SliceSortOrdered sorts a slice of Ordered.
 // The slice is modified in place, and returned.
 func SliceSortOrdered[T constraint.Ordered](slc []T) []T {
 	sort.Slice(slc, func(i, j int) bool { return slc[i] < slc[j] })
-  return slc
+	return slc
 }
 
 // SliceSortComplex sorts a slice of Complex.
 // The slice is modified in place, and returned.
 func SliceSortComplex[T constraint.Complex](slc []T) []T {
 	sort.Slice(slc, func(i, j int) bool { return cmplx.Abs(complex128(slc[i])) < cmplx.Abs(complex128(slc[j])) })
-  return slc
+	return slc
 }
 
 // SliceSortCmp sorts a slice of Cmp.
 // The slice is modified in place, and returned.
 func SliceSortCmp[T constraint.Cmp[T]](slc []T) []T {
 	sort.Slice(slc, func(i, j int) bool { return slc[i].Cmp(slc[j]) < 0 })
-  return slc
+	return slc
 }
 
 // SliceSortBy sorts a slice of any type with the provided comparator.
 // The slice is modified in place, and returned.
 func SliceSortBy[T any](slc []T, less func(T, T) bool) []T {
 	sort.Slice(slc, func(i, j int) bool { return less(slc[i], slc[j]) })
-  return slc
+	return slc
 }
 
 // SliceUniqueValues returns the uniq values of a slice, in no particular order
 // See MapKeysToSlice
 func SliceUniqueValues[T comparable](slc []T) []T {
-  uniq := map[T]int{}
-  for _, v := range slc {
-    uniq[v] = 0
-  }
+	uniq := map[T]int{}
+	for _, v := range slc {
+		uniq[v] = 0
+	}
 
-  return MapKeysToSlice(uniq)
+	return MapKeysToSlice(uniq)
 }
 
 // ==== Maps
@@ -393,15 +393,15 @@ func Equal[T comparable](val T) func(T) bool {
 
 // In returns a filter func (func(T) bool) that returns true if it accepts a value that equals any given value with ==
 func In[T comparable](val ...T) func(T) bool {
-  return func(t T) bool {
-    for _, v := range val {
-      if t == v {
-        return true
-      }
-    }
+	return func(t T) bool {
+		for _, v := range val {
+			if t == v {
+				return true
+			}
+		}
 
-    return false
-  }
+		return false
+	}
 }
 
 // GreaterThan returns a filter func (func(T) bool) that returns true if it accepts a value that is greater than the given value
@@ -699,10 +699,10 @@ func MustValue3[T, U, V any](t T, u U, v V, err error) (T, U, V) {
 // returns (T zero value, error) if v is not of type T
 func AssertType[T any](msg string, v any) (T, error) {
 	if val, isa := v.(T); isa {
-    return val, nil
-  }
+		return val, nil
+	}
 
-  var zv T
+	var zv T
 	return zv, fmt.Errorf(assertTypeMsg, msg, zv, v)
 }
 
@@ -713,28 +713,28 @@ func MustAssertType[T any](msg string, v any) T {
 
 // ConvertToSlice asserts that the any value given is a []any, and that all elements are type T, converting to a []T
 func ConvertToSlice[T any](msg string, v any) (res []T, err error) {
-  var (
-    zvElem T
-    slc, isSlcAny = v.([]any)
-  )
+	var (
+		zvElem        T
+		slc, isSlcAny = v.([]any)
+	)
 
-  if !isSlcAny {
-    err = fmt.Errorf(convertToSliceMsg, msg, []any(nil), v)
-    return
-  }
-  tgt := make([]T, len(slc))
+	if !isSlcAny {
+		err = fmt.Errorf(convertToSliceMsg, msg, []any(nil), v)
+		return
+	}
+	tgt := make([]T, len(slc))
 
 	for i, v := range slc {
 		val, isa := v.(T)
 		if !isa {
 			err = fmt.Errorf(convertToSliceElemMsg, msg, i, zvElem, v)
-      return
+			return
 		}
 
 		tgt[i] = val
 	}
 
-  res = tgt
+	res = tgt
 	return
 }
 
@@ -746,38 +746,38 @@ func MustConvertToSlice[T any](msg string, v any) []T {
 // ConvertToSlice2 asserts that the any value given is a []any, containing elements of []any, containing elements of T,
 // converting to a [][]T
 func ConvertToSlice2[T any](msg string, v any) (res [][]T, err error) {
-  var (
-    zvElem T
-    slcD1, isSlcD1Any = v.([]any)
-  )
+	var (
+		zvElem            T
+		slcD1, isSlcD1Any = v.([]any)
+	)
 
-  if !isSlcD1Any {
-    err = fmt.Errorf(convertToSlice2D1Msg, msg, []any(nil), v)
-    return
-  }
-  tgtD1 := make([][]T, len(slcD1))
+	if !isSlcD1Any {
+		err = fmt.Errorf(convertToSlice2D1Msg, msg, []any(nil), v)
+		return
+	}
+	tgtD1 := make([][]T, len(slcD1))
 
 	for iD1, vD1 := range slcD1 {
-    slcD2, isSlcD2Any := vD1.([]any)
-    if !isSlcD2Any {
+		slcD2, isSlcD2Any := vD1.([]any)
+		if !isSlcD2Any {
 			err = fmt.Errorf(convertToSlice2D2Msg, msg, iD1, []any(nil), vD1)
-      return
-    }
-    tgtD2 := make([]T, len(slcD2))
-    tgtD1[iD1] = tgtD2
+			return
+		}
+		tgtD2 := make([]T, len(slcD2))
+		tgtD1[iD1] = tgtD2
 
-    for iD2, vD2 := range slcD2 {
-  		elem, isT := vD2.(T)
-  		if !isT {
-  			err = fmt.Errorf(convertToSlice2ElemMsg, msg, iD1, iD2, zvElem, vD2)
-        return
-  		}
+		for iD2, vD2 := range slcD2 {
+			elem, isT := vD2.(T)
+			if !isT {
+				err = fmt.Errorf(convertToSlice2ElemMsg, msg, iD1, iD2, zvElem, vD2)
+				return
+			}
 
-  		tgtD2[iD2] = elem
-    }
+			tgtD2[iD2] = elem
+		}
 	}
 
-  res = tgtD1
+	res = tgtD1
 	return
 }
 
@@ -788,34 +788,34 @@ func MustConvertToSlice2[T any](msg string, v any) [][]T {
 
 // ConvertToMap asserts that the any value given is a map[K]any, and all values of the map are type V, converting to a map[K]V
 func ConvertToMap[K comparable, V any](msg string, v any) (res map[K]V, err error) {
-  var (
-    zvVal V
-    mp, isMapKAny = v.(map[K]any)
-  )
+	var (
+		zvVal         V
+		mp, isMapKAny = v.(map[K]any)
+	)
 
-  if !isMapKAny {
-    err = fmt.Errorf(assertMapTypeMsg, msg, map[K]any(nil), v)
-    return
-  }
+	if !isMapKAny {
+		err = fmt.Errorf(assertMapTypeMsg, msg, map[K]any(nil), v)
+		return
+	}
 	tgt := map[K]V{}
 
 	for k, v := range mp {
 		val, isa := v.(V)
 		if !isa {
-      err = fmt.Errorf(assertMapTypeValueMsg, msg, k, zvVal, v)
-      return
+			err = fmt.Errorf(assertMapTypeValueMsg, msg, k, zvVal, v)
+			return
 		}
 
 		tgt[k] = val
 	}
 
-  res = tgt
+	res = tgt
 	return
 }
 
 // MustConvertToMap is a must version of ConvertToMap
 func MustConvertToMap[K comparable, V any](msg string, v any) map[K]V {
-  return MustValue(ConvertToMap[K, V](msg, v))
+	return MustValue(ConvertToMap[K, V](msg, v))
 }
 
 // ==== Supplier

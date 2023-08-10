@@ -18,12 +18,12 @@ import (
 func TestSliceCopy_(t *testing.T) {
 	assert.Equal(t, []int{}, SliceCopy([]int(nil)))
 
-  var (
-    slc = []int{1,2}
-    slc2 = SliceCopy(slc)
-  )
-  assert.NotEqual(t, fmt.Sprintf("%p", slc), fmt.Sprintf("%p", slc2))
-  assert.Equal(t, slc, slc2)
+	var (
+		slc  = []int{1, 2}
+		slc2 = SliceCopy(slc)
+	)
+	assert.NotEqual(t, fmt.Sprintf("%p", slc), fmt.Sprintf("%p", slc2))
+	assert.Equal(t, slc, slc2)
 }
 
 func TestSliceFlatten_(t *testing.T) {
@@ -98,8 +98,8 @@ func TestSliceRemoveUncomparable_(t *testing.T) {
 		slc                   = []Uncomparable[int]{f1, f2, f1, f2}
 	)
 
-	assert.Equal(t, 3, len(SliceRemoveUncomparable(slc, f1))) // One removed
-	assert.Equal(t, 4, len(SliceRemoveUncomparable(slc, f3))) // None removed
+	assert.Equal(t, 3, len(SliceRemoveUncomparable(slc, f1)))       // One removed
+	assert.Equal(t, 4, len(SliceRemoveUncomparable(slc, f3)))       // None removed
 	assert.Equal(t, 2, len(SliceRemoveUncomparable(slc, f2, true))) // Two removed
 }
 
@@ -156,9 +156,9 @@ func TestSliceSort_(t *testing.T) {
 }
 
 func TestSliceUniqueValues_(t *testing.T) {
-  slc := []int{1,2,3,2,1}
-  assert.Equal(t, []int{1,2,3}, SliceSortOrdered(SliceUniqueValues(slc)))
-  assert.Equal(t, []int{1,2,3,2,1}, slc)
+	slc := []int{1, 2, 3, 2, 1}
+	assert.Equal(t, []int{1, 2, 3}, SliceSortOrdered(SliceUniqueValues(slc)))
+	assert.Equal(t, []int{1, 2, 3, 2, 1}, slc)
 }
 
 func TestMapIndex_(t *testing.T) {
@@ -653,18 +653,18 @@ func TestAssertType_(t *testing.T) {
 }
 
 func TestConvertToSlice_(t *testing.T) {
-  // One dimension
+	// One dimension
 	assert.Equal(t, tuple.Of2[[]bool, error]([]bool{true}, nil), tuple.Of2(ConvertToSlice[bool]("", any([]any{true}))))
 	assert.Equal(
-    t,
-    tuple.Of2[[]bool, error]([]bool(nil),
-    fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(ConvertToSlice[bool]("foo", any(""))),
-  )
+		t,
+		tuple.Of2[[]bool, error]([]bool(nil),
+			fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(ConvertToSlice[bool]("foo", any(""))),
+	)
 	assert.Equal(
-    t,
-    tuple.Of2[[]bool, error]([]bool(nil),
-    fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(ConvertToSlice[bool]("foo", any([]any{""}))),
-  )
+		t,
+		tuple.Of2[[]bool, error]([]bool(nil),
+			fmt.Errorf("expected foo[0] to be bool, not string")), tuple.Of2(ConvertToSlice[bool]("foo", any([]any{""}))),
+	)
 
 	assert.Equal(t, []int8{1}, MustConvertToSlice[int8]("", any([]any{int8(1)})))
 	TryTo(
@@ -677,25 +677,25 @@ func TestConvertToSlice_(t *testing.T) {
 		},
 	)
 
-  // Two dimensions
+	// Two dimensions
 	assert.Equal(t, tuple.Of2[[][]bool, error]([][]bool{{true}}, nil), tuple.Of2(ConvertToSlice2[bool]("", any([]any{[]any{true}}))))
 	assert.Equal(
-    t,
-    tuple.Of2[[][]bool, error]([][]bool(nil),
-    fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any(""))),
-  )
+		t,
+		tuple.Of2[[][]bool, error]([][]bool(nil),
+			fmt.Errorf("expected foo to be []interface {}, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any(""))),
+	)
 	assert.Equal(
-    t,
-    tuple.Of2[[][]bool, error]([][]bool(nil),
-    fmt.Errorf("expected foo[0] to be []interface {}, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any([]any{""}))),
-  )
+		t,
+		tuple.Of2[[][]bool, error]([][]bool(nil),
+			fmt.Errorf("expected foo[0] to be []interface {}, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any([]any{""}))),
+	)
 	assert.Equal(
-    t,
-    tuple.Of2[[][]bool, error]([][]bool(nil),
-    fmt.Errorf("expected foo[0][0] to be bool, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any([]any{[]any{""}}))),
-  )
+		t,
+		tuple.Of2[[][]bool, error]([][]bool(nil),
+			fmt.Errorf("expected foo[0][0] to be bool, not string")), tuple.Of2(ConvertToSlice2[bool]("foo", any([]any{[]any{""}}))),
+	)
 
-	assert.Equal(t, [][]int8{[]int8{1}}, MustConvertToSlice2[int8]("", any([]any{[]any{int8(1)}})))
+	assert.Equal(t, [][]int8{{1}}, MustConvertToSlice2[int8]("", any([]any{[]any{int8(1)}})))
 	TryTo(
 		func() {
 			MustConvertToSlice2[int8]("foo", any([]any{[]any{false}}))
@@ -709,25 +709,25 @@ func TestConvertToSlice_(t *testing.T) {
 
 func TestConvertToMap_(t *testing.T) {
 	assert.Equal(
-    t,
-    tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil),
-    tuple.Of2(ConvertToMap[string, bool]("", any(map[string]any{"bar": true}))),
-  )
+		t,
+		tuple.Of2[map[string]bool, error](map[string]bool{"bar": true}, nil),
+		tuple.Of2(ConvertToMap[string, bool]("", any(map[string]any{"bar": true}))),
+	)
 	assert.Equal(
-    t,
-    tuple.Of2[map[string]bool, error](map[string]bool(nil),
-    fmt.Errorf("expected foo to be map[string]interface {}, not string")), tuple.Of2(ConvertToMap[string, bool]("foo", any(""))),
-  )
+		t,
+		tuple.Of2[map[string]bool, error](map[string]bool(nil),
+			fmt.Errorf("expected foo to be map[string]interface {}, not string")), tuple.Of2(ConvertToMap[string, bool]("foo", any(""))),
+	)
 	assert.Equal(
-    t,
-    tuple.Of2[map[string]bool, error](map[string]bool(nil),
-    fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(ConvertToMap[string, bool]("foo", any(map[string]any{"bar": ""}))),
-  )
+		t,
+		tuple.Of2[map[string]bool, error](map[string]bool(nil),
+			fmt.Errorf("expected foo[bar] to be bool, not string")), tuple.Of2(ConvertToMap[string, bool]("foo", any(map[string]any{"bar": ""}))),
+	)
 
 	assert.Equal(
-    t, map[string]int8{"bar": 1},
-    MustConvertToMap[string, int8]("", any(map[string]any{"bar": int8(1)})),
-  )
+		t, map[string]int8{"bar": 1},
+		MustConvertToMap[string, int8]("", any(map[string]any{"bar": int8(1)})),
+	)
 	TryTo(
 		func() {
 			MustConvertToMap[string, int8]("foo", any(map[string]any{"bar": false}))

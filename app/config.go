@@ -15,16 +15,17 @@ import (
 )
 
 var (
-	errNoSuchVendorMsg                          = "%q is not a recognized database vendor name"
-	errDescriptorMustHaveTermsAndDescriptionMsg = "%s: descriptor_ must contain terms array of at least one string and non-empty description string"
-	errUniqueMustHaveAtLeastOneColumnMsg        = "%s: unique_ must contain at least one key, and each key must have at least one column"
-	errColumnTypeNotRecognizedMsg               = "%s: the column %s is not a valid column name, or the type is not a recognized type"
-	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
-	errUDTCannotEndWithUnderscoreMsg            = "%s: user defined type names cannot end with an underscore"
-  errRefToUndefinedTypeMsg                    = "User Defined Type %s field %s is a reference field, but there is no User Defined Type by that name"
-  errFieldOfUndefinedVendorTypeMsg            = "User Defined Type %s field %s refers to undefined vendor type %s"
-  errEmptyUniqueKeySetMsg                     = "User Defined Type %s has an empty Unique Key - there must be either no unique keys, or each unique key has at least one column"
+  errColumnNameInvalidMsg                     = "%s: a column name cannot be an empty string or end in an underscore"
+  errColumnTypeNotRecognizedMsg               = "%s: a column name must be a string, not %T"
+  errDescriptorMustHaveTermsAndDescriptionMsg = "%s: descriptor_ must contain terms array of at least one string and non-empty description string"
   errDuplicateUniqueKeySetMsg                 = "User Defined Type %s has a duplicate Unique Key %v (the order of columns is not significant)"
+  errEmptyUniqueKeySetMsg                     = "User Defined Type %s has an empty Unique Key - there must be either no unique keys, or each unique key has at least one column"
+  errFieldOfUndefinedVendorTypeMsg            = "User Defined Type %s field %s refers to undefined vendor type %s"
+	errNoSuchVendorMsg                          = "%q is not a recognized database vendor name"
+  errRefToUndefinedTypeMsg                    = "User Defined Type %s field %s is a reference field, but there is no User Defined Type by that name"
+  errUDTCannotEndWithUnderscoreMsg            = "%s: user defined type names cannot end with an underscore"
+	errUniqueMustHaveAtLeastOneColumnMsg        = "%s: unique_ must contain at least one key, and each key must have at least one column"
+	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
 )
 
 // Vendor is a database vendor
@@ -271,7 +272,7 @@ func Load(src io.Reader) Configuration {
 
 					case "vendors": {
             // Get unique list of vendors as a []string
-            for _, v := range funcs.SliceUniqueValues(funcs.MustConvertToSlice[string](databasePath, fv)) {
+            for _, v := range funcs.SliceSortOrdered(funcs.SliceUniqueValues(funcs.MustConvertToSlice[string](databasePath, fv))) {
               var slc []Vendor
 
               // Translate strings using vendorStrings, must be a recognized value
@@ -282,7 +283,7 @@ func Load(src io.Reader) Configuration {
               }
 
               // Overwrite default
-              config.Database.Vendors = slc
+              config.Database.Vendors = funcs.SliceSortOrdered(slc)
             }
 					}
 
@@ -317,7 +318,7 @@ func Load(src io.Reader) Configuration {
 								)
 							}
 
-							config.Database.VendorTypes = vendorTypes
+							config.Database.VendorTypes = funcs.SliceSortBy(vendorTypes, func(a, b VendorType) bool { return a.Name < b.Name })
 						}
 
 					default:
@@ -407,7 +408,7 @@ func Load(src io.Reader) Configuration {
 
 								// If the type name is empty or ends in an underscore, it is invalid
 								if (fk == "") || (fk[len(fk)-1] == '_') {
-									panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk))
+									panic(fmt.Errorf(errColumnNameInvalidMsg, udf.Name, fk))
 								} else {
 									// Assume it is a valid definition
 									fld := Field{
@@ -432,7 +433,7 @@ func Load(src io.Reader) Configuration {
 								}
 							} else {
 								// Not a string, reject it
-								panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk))
+								panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk, fv))
 							}
 						}
 					}
@@ -445,6 +446,8 @@ func Load(src io.Reader) Configuration {
 			}
 		}
 	}
+
+  funcs.SliceSortBy(config.UserDefinedTypes, func(a, b UserDefinedType) bool { return a.Name < b. Name })
 
 	return config
 }
@@ -522,10 +525,4 @@ func Validate(cfg Configuration) {
   if len(errs) > 0 {
     panic(errors.Join(errs...))
   }
-}
-
-// Anaylze optimizes the configuration:
-// - If two or more unique key sets
-func Analyze(cfg Configuration) {
-
 }
