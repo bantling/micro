@@ -16,14 +16,13 @@ import (
 
 var (
   errColumnNameInvalidMsg                     = "%s: a column name cannot be an empty string or end in an underscore"
-  errColumnTypeNotRecognizedMsg               = "%s: a column name must be a string, not %T"
-  errDescriptorMustHaveTermsAndDescriptionMsg = "%s: descriptor_ must contain terms array of at least one string and non-empty description string"
+  errDescriptorMustHaveTermsAndDescriptionMsg = "%s: terms array must have at least one string, and description must be a non-empty string"
   errDuplicateUniqueKeySetMsg                 = "User Defined Type %s has a duplicate Unique Key %v (the order of columns is not significant)"
   errEmptyUniqueKeySetMsg                     = "User Defined Type %s has an empty Unique Key - there must be either no unique keys, or each unique key has at least one column"
   errFieldOfUndefinedVendorTypeMsg            = "User Defined Type %s field %s refers to undefined vendor type %s"
 	errNoSuchVendorMsg                          = "%q is not a recognized database vendor name"
   errRefToUndefinedTypeMsg                    = "User Defined Type %s field %s is a reference field, but there is no User Defined Type by that name"
-  errUDTCannotEndWithUnderscoreMsg            = "%s: user defined type names cannot end with an underscore"
+  errUDTNameInvalidMsg                        = "%s: user defined type names cannot be empty or end with an underscore"
 	errUniqueMustHaveAtLeastOneColumnMsg        = "%s: unique_ must contain at least one key, and each key must have at least one column"
 	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
 )
@@ -330,8 +329,8 @@ func Load(src io.Reader) Configuration {
 		default:
 			// Decode into config.UserDefinedTypes manually
 			{
-				if k[len(k)-1] == '_' {
-					panic(fmt.Errorf(errUDTCannotEndWithUnderscoreMsg, k))
+				if (k == "") || (k[len(k)-1] == '_') {
+					panic(fmt.Errorf(errUDTNameInvalidMsg, k))
 				}
 
 				var (
@@ -400,40 +399,36 @@ func Load(src io.Reader) Configuration {
 
 					default:
 						{
-							// Must be a column, the value must be a string of a recognized type
-							if str, isa := fv.(string); isa {
-								var (
-									typ, length, scale, nullable = stringToTypeDef(str)
-								)
+							// Must be a column. According to spec, the key must be a string , even if it is only digits
+							var (
+				        str = fv.(string)
+								typ, length, scale, nullable = stringToTypeDef(str)
+							)
 
-								// If the type name is empty or ends in an underscore, it is invalid
-								if (fk == "") || (fk[len(fk)-1] == '_') {
-									panic(fmt.Errorf(errColumnNameInvalidMsg, udf.Name, fk))
-								} else {
-									// Assume it is a valid definition
-									fld := Field{
-										Name:     fk,
-										Type:     typ,
-										TypeName: "",
-										Nullable: nullable,
-									}
-
-									// Copy length and scale values, if relevant
-									switch typ {
-									case String:
-										fld.Length = length
-									case Decimal:
-										fld.Precision = length
-										fld.Scale = scale
-                  case VendorTypeRef:
-                    fld.TypeName = str
-									}
-
-									udf.Fields = append(udf.Fields, fld)
-								}
+							// If the type name is empty or ends in an underscore, it is invalid
+							if (fk == "") || (fk[len(fk)-1] == '_') {
+								panic(fmt.Errorf(errColumnNameInvalidMsg, udf.Name))
 							} else {
-								// Not a string, reject it
-								panic(fmt.Errorf(errColumnTypeNotRecognizedMsg, udf.Name, fk, fv))
+								// Assume it is a valid definition
+								fld := Field{
+									Name:     fk,
+									Type:     typ,
+									TypeName: "",
+									Nullable: nullable,
+								}
+
+								// Copy length and scale values, if relevant
+								switch typ {
+								case String:
+									fld.Length = length
+								case Decimal:
+									fld.Precision = length
+									fld.Scale = scale
+                case VendorTypeRef:
+                  fld.TypeName = str
+								}
+
+								udf.Fields = append(udf.Fields, fld)
 							}
 						}
 					}
@@ -495,12 +490,14 @@ func Validate(cfg Configuration) {
     }
     var uniqSets = map[string]UniqInfo{}
 
+    fmt.Printf("UniqueKeys = %v\n", udt.UniqueKeys)
     for _, uniqSet := range udt.UniqueKeys {
       if len(uniqSet) == 0 {
         errs = append(errs, fmt.Errorf(errEmptyUniqueKeySetMsg, udt.Name))
       } else {
         // Convert each unique key column list into a single string of column names separated by |
         str := strings.Join(funcs.SliceSortOrdered(funcs.SliceCopy(uniqSet)), "|")
+        fmt.Printf("Unique key str = %s\n", str)
 
         if ui, hasIt := uniqSets[str]; !hasIt {
           uniqSets[str] = UniqInfo{
@@ -512,6 +509,7 @@ func Validate(cfg Configuration) {
         }
       }
     }
+    fmt.Printf("Unique sets = %v\n", uniqSets)
 
     for _, ui := range uniqSets {
       if ui.Count > 1 {

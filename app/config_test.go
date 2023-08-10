@@ -3,9 +3,11 @@ package app
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	"strings"
 	"testing"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
@@ -295,16 +297,73 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 	)
 }
 
-// func TestLoadErrors_(t *testing.T) {
-// 	// Load that specifies only values with no default
-// 	var data = strings.NewReader(`
-// [address]
-// id = "uuid"
-// country = "ref:many"
-// region = "ref:many?"
-// line = "string"
-// city = "string"
-// mail_code = "string?"
-// descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
-// `)
-// }
+func TestLoadErrors_(t *testing.T) {
+  var (
+    failed bool
+    data *strings.Reader
+  )
+
+  // ==== errColumnNameInvalidMsg
+
+	// Empty column name
+	data = strings.NewReader(`
+[address]
+"" = "uuid"
+`)
+
+  funcs.TryTo(
+    func() { Load(data); assert.Fail(t, "Must die"); },
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
+  )
+  assert.True(t, failed)
+
+	// Column name is underscore
+  data = strings.NewReader(`
+[address]
+_ = "uuid"
+`)
+
+  funcs.TryTo(
+    func() { Load(data); assert.Fail(t, "Must die"); },
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
+  )
+  assert.True(t, failed)
+
+	// Column ends in underscore
+  data = strings.NewReader(`
+[address]
+foo_ = "uuid"
+`)
+
+  funcs.TryTo(
+    func() { Load(data); assert.Fail(t, "Must die"); },
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
+  )
+  assert.True(t, failed)
+
+  // ==== errDescriptorMustHaveTermsAndDescriptionMsg
+
+  data = strings.NewReader(`
+  [address]
+  descriptor_ = {terms = [], description = ""}
+  `)
+
+  funcs.TryTo(
+    func() { Load(data); assert.Fail(t, "Must die"); },
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address.descriptor_: terms array must have at least one string, and description must be a non-empty string"), e) },
+  )
+  assert.True(t, failed)
+
+  // ==== errDuplicateUniqueKeySetMsg
+
+  data = strings.NewReader(`
+  [address]
+  unique_ = [["a", "b"], ["c"], ["b", "a"]]
+  `)
+
+  funcs.TryTo(
+    func() { Load(data); assert.Fail(t, "Must die"); },
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("User Defined Type address has a duplicate Unique Key a, b (the order of columns is not significant)"), e) },
+  )
+  assert.True(t, failed)
+}
