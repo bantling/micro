@@ -16,14 +16,15 @@ import (
 
 var (
   errColumnNameInvalidMsg                     = "%s: a column name cannot be an empty string or end in an underscore"
-  errDescriptorMustHaveTermsAndDescriptionMsg = "%s: terms array must have at least one string, and description must be a non-empty string"
-  errDuplicateUniqueKeySetMsg                 = "User Defined Type %s has a duplicate Unique Key %v (the order of columns is not significant)"
-  errEmptyUniqueKeySetMsg                     = "User Defined Type %s has an empty Unique Key - there must be either no unique keys, or each unique key has at least one column"
-  errFieldOfUndefinedVendorTypeMsg            = "User Defined Type %s field %s refers to undefined vendor type %s"
+  errDescriptorMustHaveTermsAndDescriptionMsg = "%s.descriptor_: terms array must have at least one string, and description must be a non-empty string"
+  errDuplicateUniqueKeyMsg                    = "%s.unique_ has a duplicate key %v at indexes %v (the order of columns is not significant)"
+  errEmptyUniqueMsg                           = "%s.unique_ must have at least one key"
+  errEmptyUniqueKeyMsg                        = "%s.unique_[%d] has an empty key"
+  errFieldOfUndefinedVendorTypeMsg            = "%s.%s refers to undefined vendor type %s"
 	errNoSuchVendorMsg                          = "%q is not a recognized database vendor name"
-  errRefToUndefinedTypeMsg                    = "User Defined Type %s field %s is a reference field, but there is no User Defined Type by that name"
+  errRefToUndefinedTypeMsg                    = "%s.%s is a reference field, but there is no User Defined Type by that name"
   errUDTNameInvalidMsg                        = "%s: user defined type names cannot be empty or end with an underscore"
-	errUniqueMustHaveAtLeastOneColumnMsg        = "%s: unique_ must contain at least one key, and each key must have at least one column"
+	errUniqueMustHaveAtLeastOneColumnMsg        = "%s.unique_ must contain at least one key"
 	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
 )
 
@@ -334,12 +335,12 @@ func Load(src io.Reader) Configuration {
 				}
 
 				var (
-					udf  UserDefinedType
+					udt  UserDefinedType
 					data = funcs.MustAssertType[map[string]any](k, v)
 				)
 
 				// Top level table name is type name
-				udf.Name = k
+				udt.Name = k
 
 				// Iterate keys of table
 				for fk, fv := range data {
@@ -362,7 +363,7 @@ func Load(src io.Reader) Configuration {
 								panic(fmt.Errorf(errDescriptorMustHaveTermsAndDescriptionMsg, udtPath))
 							}
 
-							udf.Descriptor = &Descriptor{
+							udt.Descriptor = &Descriptor{
 								Terms:       terms,
 								Description: desc,
 							}
@@ -370,31 +371,60 @@ func Load(src io.Reader) Configuration {
 
 					case "unique_":
 						{
-							// Grab set of unique keys
-							var (
+              // Grab set of unique keys
+              type UniqInfo struct {
+                UniqueSet []string
+                Indexes []int
+                Count int
+              }
+
+              // Cannot have empty or duplicate keys
+              var (
+                uniqSets = map[string]UniqInfo{}
 								uks = funcs.MustConvertToSlice2[string](udtPath, fv)
-								err = fmt.Errorf(errUniqueMustHaveAtLeastOneColumnMsg, udf.Name)
-							)
+                errs []error
+              )
+
+              for i, uniqSet := range udt.UniqueKeys {
+                if len(uniqSet) == 0 {
+                  // Each unique key must have at least one column
+                  errs = append(errs, fmt.Errorf(errEmptyUniqueKeyMsg, udt.Name, i))
+                } else {
+                  // Convert each unique key column list into a single string of column names separated by |
+                  str := strings.Join(funcs.SliceSortOrdered(funcs.SliceCopy(uniqSet)), "|")
+
+                  if ui, hasIt := uniqSets[str]; !hasIt {
+                    uniqSets[str] = UniqInfo{
+                      UniqueSet: uniqSet,
+                      Indexes: []int{i},
+                      Count: 1,
+                    }
+                  } else {
+                    ui.Indexes = append(ui.Indexes, i)
+                    ui.Count++
+                    uniqSets[str] = ui
+                  }
+                }
+              }
 
 							// Must have at least one unique key
 							if len(uks) == 0 {
-								panic(err)
+								errs = append(errs, fmt.Errorf(errEmptyUniqueMsg, udt.Name))
 							}
 
-							// Each unique key must contain at least one column name, all column names must be non-empty
-							for _, uk := range uks {
-								if len(uk) == 0 {
-									panic(err)
-								}
+              // Can't have duplicate unique keys
+              for _, ui := range uniqSets {
+                if ui.Count > 1 {
+                  errs = append(errs, fmt.Errorf(errDuplicateUniqueKeyMsg, udt.Name, ui.UniqueSet, ui.Indexes))
+                }
+              }
 
-								for _, column := range uk {
-									if len(column) == 0 {
-										panic(err)
-									}
-								}
-							}
+              // Die with all errors
+              if len(errs) > 0 {
+                panic(errors.Join(errs...))
+              }
 
-							udf.UniqueKeys = uks
+							udt.UniqueKeys = uks
 						}
 
 					default:
@@ -407,7 +437,7 @@ func Load(src io.Reader) Configuration {
 
 							// If the type name is empty or ends in an underscore, it is invalid
 							if (fk == "") || (fk[len(fk)-1] == '_') {
-								panic(fmt.Errorf(errColumnNameInvalidMsg, udf.Name))
+								panic(fmt.Errorf(errColumnNameInvalidMsg, udt.Name))
 							} else {
 								// Assume it is a valid definition
 								fld := Field{
@@ -428,16 +458,16 @@ func Load(src io.Reader) Configuration {
                   fld.TypeName = str
 								}
 
-								udf.Fields = append(udf.Fields, fld)
+								udt.Fields = append(udt.Fields, fld)
 							}
 						}
 					}
 				}
 
         // Sort fields by name, for more readability and unit testing
-        funcs.SliceSortBy(udf.Fields, func(a, b Field) bool { return a.Name < b.Name })
+        funcs.SliceSortBy(udt.Fields, func(a, b Field) bool { return a.Name < b.Name })
 
-				config.UserDefinedTypes = append(config.UserDefinedTypes, udf)
+				config.UserDefinedTypes = append(config.UserDefinedTypes, udt)
 			}
 		}
 	}
@@ -481,40 +511,6 @@ func Validate(cfg Configuration) {
       // Is the field a vendor type with an unknown type name?
       if FieldIsVendorType(fld.Type) && (!vendorNames[fld.TypeName]) {
         errs = append(errs, fmt.Errorf(errFieldOfUndefinedVendorTypeMsg, udt.Name, fld.Name, fld.TypeName))
-      }
-    }
-
-    type UniqInfo struct {
-      UniqueSet []string
-      Count int
-    }
-    var uniqSets = map[string]UniqInfo{}
-
-    fmt.Printf("UniqueKeys = %v\n", udt.UniqueKeys)
-    for _, uniqSet := range udt.UniqueKeys {
-      if len(uniqSet) == 0 {
-        errs = append(errs, fmt.Errorf(errEmptyUniqueKeySetMsg, udt.Name))
-      } else {
-        // Convert each unique key column list into a single string of column names separated by |
-        str := strings.Join(funcs.SliceSortOrdered(funcs.SliceCopy(uniqSet)), "|")
-        fmt.Printf("Unique key str = %s\n", str)
-
-        if ui, hasIt := uniqSets[str]; !hasIt {
-          uniqSets[str] = UniqInfo{
-            UniqueSet: uniqSet,
-            Count: 1,
-          }
-        } else {
-          ui.Count++
-        }
-      }
-    }
-    fmt.Printf("Unique sets = %v\n", uniqSets)
-
-    for _, ui := range uniqSets {
-      if ui.Count > 1 {
-        // Add error
-        errs = append(errs, fmt.Errorf(errDuplicateUniqueKeySetMsg, udt.Name, ui.UniqueSet))
       }
     }
   }
