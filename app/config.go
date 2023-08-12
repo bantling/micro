@@ -16,7 +16,7 @@ import (
 
 var (
   errColumnNameInvalidMsg                     = "%s: a column name cannot be an empty string or end in an underscore"
-  errDescriptorMustHaveTermsAndDescriptionMsg = "%s.descriptor_: terms array must have at least one string, and description must be a non-empty string"
+  errDescriptorMustHaveTermsAndDescriptionMsg = "%s: terms array must have at least one string, and description must be a non-empty string"
   errDuplicateUniqueKeyMsg                    = "%s.unique_ has a duplicate key %v at indexes %v (the order of columns is not significant)"
   errEmptyUniqueMsg                           = "%s.unique_ must have at least one key"
   errEmptyUniqueKeyMsg                        = "%s.unique_[%d] has an empty key"
@@ -353,8 +353,7 @@ func Load(src io.Reader) Configuration {
 							// Grab terms and description
 							var (
 								fdata     = funcs.MustAssertType[map[string]any](udtPath, fv)
-								termsPath = udtPath + ".terms"
-								terms     = funcs.MustConvertToSlice[string](termsPath, fdata["terms"])
+								terms     = funcs.MustConvertToSlice[string](udtPath +".terms", fdata["terms"])
 								desc      = funcs.MustAssertType[string](udtPath+".description", fdata["description"])
 							)
 
@@ -385,7 +384,7 @@ func Load(src io.Reader) Configuration {
                 errs []error
               )
 
-              for i, uniqSet := range udt.UniqueKeys {
+              for i, uniqSet := range uks {
                 if len(uniqSet) == 0 {
                   // Each unique key must have at least one column
                   errs = append(errs, fmt.Errorf(errEmptyUniqueKeyMsg, udt.Name, i))

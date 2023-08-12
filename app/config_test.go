@@ -305,59 +305,59 @@ func TestLoadErrors_(t *testing.T) {
     loadData = func() { Validate(Load(data)); assert.Fail(t, "Must die"); }
   )
 
-//   // ==== errColumnNameInvalidMsg
-//
-// 	// Empty column name
-// 	data = strings.NewReader(`
-// [address]
-// "" = "uuid"
-// `)
-//
-//   funcs.TryTo(
-//     loadData,
-//     func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
-//   )
-//   assert.True(t, failed)
-//
-// 	// Column name is underscore
-//   data = strings.NewReader(`
-// [address]
-// _ = "uuid"
-// `)
-//
-//   funcs.TryTo(
-//     loadData,
-//     func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
-//   )
-//   assert.True(t, failed)
-//
-// 	// Column ends in underscore
-//   data = strings.NewReader(`
-// [address]
-// foo_ = "uuid"
-// `)
-//
-//   funcs.TryTo(
-//     loadData,
-//     func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
-//   )
-//   assert.True(t, failed)
-//
-//   // ==== errDescriptorMustHaveTermsAndDescriptionMsg
-//
-//   data = strings.NewReader(`
-//   [address]
-//   descriptor_ = {terms = [], description = ""}
-//   `)
-//
-//   funcs.TryTo(
-//     loadData,
-//     func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address.descriptor_: terms array must have at least one string, and description must be a non-empty string"), e) },
-//   )
-//   assert.True(t, failed)
-//
-//   // ==== errDuplicateUniqueKeySetMsg
-//
+  // ==== errColumnNameInvalidMsg
+
+	// Empty column name
+	data = strings.NewReader(`
+[address]
+"" = "uuid"
+`)
+
+  funcs.TryTo(
+    loadData,
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
+  )
+  assert.True(t, failed)
+
+	// Column name is underscore
+  data = strings.NewReader(`
+[address]
+_ = "uuid"
+`)
+
+  funcs.TryTo(
+    loadData,
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
+  )
+  assert.True(t, failed)
+
+	// Column ends in underscore
+  data = strings.NewReader(`
+[address]
+foo_ = "uuid"
+`)
+
+  funcs.TryTo(
+    loadData,
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
+  )
+  assert.True(t, failed)
+
+  // ==== errDescriptorMustHaveTermsAndDescriptionMsg
+
+  data = strings.NewReader(`
+  [address]
+  descriptor_ = {terms = [], description = ""}
+  `)
+
+  funcs.TryTo(
+    loadData,
+    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address.descriptor_: terms array must have at least one string, and description must be a non-empty string"), e) },
+  )
+  assert.True(t, failed)
+
+  // ==== errDuplicateUniqueKeyMsg
+
   data = strings.NewReader(`
   [address]
   unique_ = [["a", "b"], ["c"], ["b", "a"]]
@@ -365,20 +365,20 @@ func TestLoadErrors_(t *testing.T) {
 
   funcs.TryTo(
     loadData,
-    func(e any) { failed = true; assert.Equal(t, errors.Join(fmt.Errorf("User Defined Type address has a duplicate Unique Key [a b] (the order of columns is not significant)")), e) },
+    func(e any) { failed = true; assert.Equal(t, errors.Join(fmt.Errorf("address.unique_ has a duplicate key [a b] at indexes [0 2] (the order of columns is not significant)")), e) },
   )
   assert.True(t, failed)
 
-  // // ==== errEmptyUniqueKeySetMsg
-  //
-  // data = strings.NewReader(`
-  // [address]
-  // unique_ = [["a", "b"], [], ["c", "a"]]
-  // `)
-  //
-  // funcs.TryTo(
-  //   loadData,
-  //   func(e any) { failed = true; assert.Equal(t, errors.Join(fmt.Errorf("User Defined Type address has an empty Unique Key - there must be either no unique keys, or each unique key has at least one column")), e) },
-  // )
-  // assert.True(t, failed)
+  // ==== errEmptyUniqueKeyMsg
+
+  data = strings.NewReader(`
+  [address]
+  unique_ = [["a", "b"], [], ["c", "a"]]
+  `)
+
+  funcs.TryTo(
+    loadData,
+    func(e any) { failed = true; assert.Equal(t, errors.Join(fmt.Errorf("address.unique_[1] has an empty key")), e) },
+  )
+  assert.True(t, failed)
 }
