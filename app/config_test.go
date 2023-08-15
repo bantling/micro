@@ -3,8 +3,8 @@ package app
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "errors"
-  "fmt"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -80,7 +80,7 @@ accent_sensitive = false
 case_sensitive = false
 schemas = ["app1", "app2"]
 vendors = ["postgres"]
-vendor_types = {"whatever" = {"postgres" = "psqlType"}}
+vendor_types = {"whatever" = {"postgres" = "psqlType"}, sowhat = {postgres = "psqlType"}}
 
 [country]
 id = "uuid"
@@ -108,6 +108,10 @@ mail_code = "string?"
 extra = "whatever"
 descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], description = "$line $city(, $region), $country(, $mail_code)"}
 unique_ = [["id"]]
+
+[product]
+id = "uuid"
+price = "decimal(6,2)"
 `)
 
 		config = Load(data)
@@ -128,6 +132,12 @@ unique_ = [["id"]]
 				Vendors:         []Vendor{Postgres},
 				VendorTypes: []VendorType{
 					{
+						Name: "sowhat",
+						VendorColDefs: map[Vendor]string{
+							Postgres: "psqlType",
+						},
+					},
+					{
 						Name: "whatever",
 						VendorColDefs: map[Vendor]string{
 							Postgres: "psqlType",
@@ -136,47 +146,47 @@ unique_ = [["id"]]
 				},
 			},
 			UserDefinedTypes: []UserDefinedType{
-        {
-          Name: "address",
-          Fields: []Field{
-            {
-              Name: "city",
-              Type: String,
-            },
-            {
-              Name: "country",
-              Type: RefManyToOne,
-            },
-            {
-              Name:     "extra",
-              Type:     VendorTypeRef,
-              TypeName: "whatever",
-            },
-            {
-              Name: "id",
-              Type: UUID,
-            },
-            {
-              Name: "line",
-              Type: String,
-            },
-            {
-              Name:     "mail_code",
-              Type:     String,
-              Nullable: true,
-            },
-            {
-              Name:     "region",
-              Type:     RefManyToOne,
-              Nullable: true,
-            },
-          },
-          Descriptor: &Descriptor{
-            Terms:       []string{"line", "city", "region", "country", "mail_code"},
-            Description: "$line $city(, $region), $country(, $mail_code)",
-          },
-          UniqueKeys: [][]string{{"id"}},
-        },
+				{
+					Name: "address",
+					Fields: []Field{
+						{
+							Name: "city",
+							Type: String,
+						},
+						{
+							Name: "country",
+							Type: RefManyToOne,
+						},
+						{
+							Name:     "extra",
+							Type:     VendorTypeRef,
+							TypeName: "whatever",
+						},
+						{
+							Name: "id",
+							Type: UUID,
+						},
+						{
+							Name: "line",
+							Type: String,
+						},
+						{
+							Name:     "mail_code",
+							Type:     String,
+							Nullable: true,
+						},
+						{
+							Name:     "region",
+							Type:     RefManyToOne,
+							Nullable: true,
+						},
+					},
+					Descriptor: &Descriptor{
+						Terms:       []string{"line", "city", "region", "country", "mail_code"},
+						Description: "$line $city(, $region), $country(, $mail_code)",
+					},
+					UniqueKeys: [][]string{{"id"}},
+				},
 				{
 					Name: "country",
 					Fields: []Field{
@@ -202,6 +212,21 @@ unique_ = [["id"]]
 						Description: "$name",
 					},
 					UniqueKeys: [][]string{{"name"}, {"code"}},
+				},
+				{
+					Name: "product",
+					Fields: []Field{
+						{
+							Name: "id",
+							Type: UUID,
+						},
+						{
+							Name:      "price",
+							Type:      Decimal,
+							Precision: 6,
+							Scale:     2,
+						},
+					},
 				},
 				{
 					Name: "region",
@@ -299,13 +324,13 @@ descriptor_ = {terms = ["line", "city", "region", "country", "mail_code"], descr
 }
 
 func TestLoadErrors_(t *testing.T) {
-  var (
-    failed bool
-    data *strings.Reader
-    loadData = func() { Validate(Load(data)); assert.Fail(t, "Must die"); }
-  )
+	var (
+		failed   bool
+		data     *strings.Reader
+		loadData = func() { Validate(Load(data)); assert.Fail(t, "Must die") }
+	)
 
-  // ==== errColumnNameInvalidMsg
+	// ==== errColumnNameInvalidMsg
 
 	// Empty column name
 	data = strings.NewReader(`
@@ -313,72 +338,212 @@ func TestLoadErrors_(t *testing.T) {
 "" = "uuid"
 `)
 
-  funcs.TryTo(
-    loadData,
-    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
-  )
-  assert.True(t, failed)
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e)
+		},
+	)
+	assert.True(t, failed)
 
 	// Column name is underscore
-  data = strings.NewReader(`
+	data = strings.NewReader(`
 [address]
 _ = "uuid"
 `)
 
-  funcs.TryTo(
-    loadData,
-    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
-  )
-  assert.True(t, failed)
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e)
+		},
+	)
+	assert.True(t, failed)
 
 	// Column ends in underscore
-  data = strings.NewReader(`
+	data = strings.NewReader(`
 [address]
 foo_ = "uuid"
 `)
 
-  funcs.TryTo(
-    loadData,
-    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e) },
-  )
-  assert.True(t, failed)
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf("address: a column name cannot be an empty string or end in an underscore"), e)
+		},
+	)
+	assert.True(t, failed)
 
-  // ==== errDescriptorMustHaveTermsAndDescriptionMsg
+	// ==== errDescriptorMustHaveTermsAndDescriptionMsg
 
-  data = strings.NewReader(`
+	data = strings.NewReader(`
   [address]
   descriptor_ = {terms = [], description = ""}
   `)
 
-  funcs.TryTo(
-    loadData,
-    func(e any) { failed = true; assert.Equal(t, fmt.Errorf("address.descriptor_: terms array must have at least one string, and description must be a non-empty string"), e) },
-  )
-  assert.True(t, failed)
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf("address.descriptor_: terms array must have at least one string, and description must be a non-empty string"), e)
+		},
+	)
+	assert.True(t, failed)
 
-  // ==== errDuplicateUniqueKeyMsg
+	// ==== errDuplicateUniqueKeyMsg
 
-  data = strings.NewReader(`
+	data = strings.NewReader(`
   [address]
   unique_ = [["a", "b"], ["c"], ["b", "a"]]
   `)
 
-  funcs.TryTo(
-    loadData,
-    func(e any) { failed = true; assert.Equal(t, errors.Join(fmt.Errorf("address.unique_ has a duplicate key [a b] at indexes [0 2] (the order of columns is not significant)")), e) },
-  )
-  assert.True(t, failed)
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, errors.Join(fmt.Errorf("address.unique_ has a duplicate key [a b] at indexes [0 2] (the order of columns is not significant)")), e)
+		},
+	)
+	assert.True(t, failed)
 
-  // ==== errEmptyUniqueKeyMsg
+	// ==== errEmptyUniqueMsg
 
-  data = strings.NewReader(`
+	data = strings.NewReader(`
+  [address]
+  unique_ = []
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, errors.Join(fmt.Errorf("address.unique_ must have at least one key")), e)
+		},
+	)
+	assert.True(t, failed)
+
+	// ==== errEmptyUniqueKeyMsg
+
+	data = strings.NewReader(`
   [address]
   unique_ = [["a", "b"], [], ["c", "a"]]
   `)
 
-  funcs.TryTo(
-    loadData,
-    func(e any) { failed = true; assert.Equal(t, errors.Join(fmt.Errorf("address.unique_[1] has an empty key")), e) },
-  )
-  assert.True(t, failed)
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, errors.Join(fmt.Errorf("address.unique_[1] has an empty key")), e)
+		},
+	)
+	assert.True(t, failed)
+
+	// ==== errFieldOfUndefinedVendorTypeMsg
+
+	data = strings.NewReader(`
+  [address]
+  foo = "bar"
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, errors.Join(fmt.Errorf("address.foo refers to undefined vendor type bar")), e)
+		},
+	)
+	assert.True(t, failed)
+
+	// ==== errNoSuchVendorMsg
+
+	data = strings.NewReader(`
+  [database_]
+  vendors = ["noSuchVendor"]
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf(`"noSuchVendor" is not a recognized database vendor name`), e)
+		},
+	)
+	assert.True(t, failed)
+
+	data = strings.NewReader(`
+  [database_]
+  vendor_types = {whatever = {noSuchVendor = "noSuchType"}}
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf(`"noSuchVendor" is not a recognized database vendor name`), e)
+		},
+	)
+	assert.True(t, failed)
+
+	// ==== errRefToUndefinedTypeMsg
+
+	data = strings.NewReader(`
+  [address]
+  region = "ref:one"
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, errors.Join(fmt.Errorf("address.region is a reference field, but there is no User Defined Type by that name")), e)
+		},
+	)
+	assert.True(t, failed)
+
+	// ==== errUDTNameInvalidMsg
+
+	data = strings.NewReader(`
+  [""]
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf(`"": user defined type names cannot be empty or end with an underscore`), e)
+		},
+	)
+	assert.True(t, failed)
+
+	data = strings.NewReader(`
+  [foo_]
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf(`"foo_": user defined type names cannot be empty or end with an underscore`), e)
+		},
+	)
+	assert.True(t, failed)
+
+	// ==== errUnrecognizedDatabaseKeyMsg
+
+	data = strings.NewReader(`
+  [database_]
+  foo = "bar"
+  `)
+
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, fmt.Errorf("foo is not a valid database_ configuration key"), e)
+		},
+	)
+	assert.True(t, failed)
 }

@@ -207,7 +207,7 @@ func TestMapKeysToSlice_(t *testing.T) {
 	assert.Equal(t, []int{}, MapKeysToSlice((map[int]int)(nil)))
 	assert.Equal(t, []int{}, MapKeysToSlice(map[int]int{}))
 	assert.Equal(t, []int{1}, MapKeysToSlice(map[int]int{1: 0}))
-	assert.Equal(t, []int{1, 2, 3}, MapKeysToSlice(map[int]int{1: 0, 2: 0, 3: 0}))
+	assert.Equal(t, []int{1, 2, 3}, SliceSortOrdered(MapKeysToSlice(map[int]int{1: 0, 2: 0, 3: 0})))
 }
 
 func lessThan5(i int) bool {
@@ -278,6 +278,13 @@ func TestEqual_(t *testing.T) {
 	assert.False(t, eq5(7))
 	assert.False(t, eq5(10))
 	assert.False(t, eq5(12))
+}
+
+func TestIn_(t *testing.T) {
+	in := In("foo", "bar")
+	assert.False(t, in("baz"))
+	assert.True(t, in("foo"))
+	assert.True(t, in("bar"))
 }
 
 func TestGreaterThan_(t *testing.T) {

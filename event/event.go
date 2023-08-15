@@ -76,7 +76,7 @@ func (r *Registry[D]) Register(rcvr Receiver[D]) {
 // Remove a receiver for a specific type of event.
 // Removes only the first occurrence, unless the optional all flag is true.
 func (r *Registry[D]) Remove(rcvr Receiver[D], all ...bool) {
-	funcs.SliceRemoveUncomparable(&(r.receivers), rcvr, all...)
+	r.receivers = funcs.SliceRemoveUncomparable(r.receivers, rcvr, all...)
 }
 
 // Send an event to any receivers of the specified operation.

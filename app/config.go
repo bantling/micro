@@ -3,11 +3,11 @@ package app
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "errors"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
-  "strings"
+	"strings"
 
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
@@ -15,16 +15,15 @@ import (
 )
 
 var (
-  errColumnNameInvalidMsg                     = "%s: a column name cannot be an empty string or end in an underscore"
-  errDescriptorMustHaveTermsAndDescriptionMsg = "%s: terms array must have at least one string, and description must be a non-empty string"
-  errDuplicateUniqueKeyMsg                    = "%s.unique_ has a duplicate key %v at indexes %v (the order of columns is not significant)"
-  errEmptyUniqueMsg                           = "%s.unique_ must have at least one key"
-  errEmptyUniqueKeyMsg                        = "%s.unique_[%d] has an empty key"
-  errFieldOfUndefinedVendorTypeMsg            = "%s.%s refers to undefined vendor type %s"
+	errColumnNameInvalidMsg                     = "%s: a column name cannot be an empty string or end in an underscore"
+	errDescriptorMustHaveTermsAndDescriptionMsg = "%s: terms array must have at least one string, and description must be a non-empty string"
+	errDuplicateUniqueKeyMsg                    = "%s.unique_ has a duplicate key %v at indexes %v (the order of columns is not significant)"
+	errEmptyUniqueMsg                           = "%s.unique_ must have at least one key"
+	errEmptyUniqueKeyMsg                        = "%s.unique_[%d] has an empty key"
+	errFieldOfUndefinedVendorTypeMsg            = "%s.%s refers to undefined vendor type %s"
 	errNoSuchVendorMsg                          = "%q is not a recognized database vendor name"
-  errRefToUndefinedTypeMsg                    = "%s.%s is a reference field, but there is no User Defined Type by that name"
-  errUDTNameInvalidMsg                        = "%s: user defined type names cannot be empty or end with an underscore"
-	errUniqueMustHaveAtLeastOneColumnMsg        = "%s.unique_ must contain at least one key"
+	errRefToUndefinedTypeMsg                    = "%s.%s is a reference field, but there is no User Defined Type by that name"
+	errUDTNameInvalidMsg                        = "%q: user defined type names cannot be empty or end with an underscore"
 	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
 )
 
@@ -113,11 +112,11 @@ var (
 	//refRegex = regexp.MustCompile(`ref:(one|manyToMany|many)`) // have to put prefix many after manyToMany
 	stringLengthRegex = regexp.MustCompile(`string[(]([0-9]+)[)]`)
 
-  // Create a predicate for any kind of reference type
-  FieldIsRefType = funcs.In(RefOne, RefManyToOne, RefManyToMany)
+	// Create a predicate for any kind of reference type
+	FieldIsRefType = funcs.In(RefOne, RefManyToOne, RefManyToMany)
 
-  // Create a predicate for a vendor type
-  FieldIsVendorType = funcs.Equal(VendorTypeRef)
+	// Create a predicate for a vendor type
+	FieldIsVendorType = funcs.Equal(VendorTypeRef)
 )
 
 // stringToTypeDef converts a field string to a field type def, as follows:
@@ -260,32 +259,34 @@ func Load(src io.Reader) Configuration {
 					case "case_sensitive":
 						config.Database.CaseSensitive = funcs.MustAssertType[bool](databasePath, fv)
 
-					case "schemas": {
-            // Get sorted unique list of schemas as a []string
-						config.Database.Schemas =
-              funcs.SliceSortOrdered(
-                funcs.SliceUniqueValues(
-                  funcs.MustConvertToSlice[string](databasePath, fv),
-                ),
-              )
-          }
+					case "schemas":
+						{
+							// Get sorted unique list of schemas as a []string
+							config.Database.Schemas =
+								funcs.SliceSortOrdered(
+									funcs.SliceUniqueValues(
+										funcs.MustConvertToSlice[string](databasePath, fv),
+									),
+								)
+						}
 
-					case "vendors": {
-            // Get unique list of vendors as a []string
-            for _, v := range funcs.SliceSortOrdered(funcs.SliceUniqueValues(funcs.MustConvertToSlice[string](databasePath, fv))) {
-              var slc []Vendor
+					case "vendors":
+						{
+							// Get unique list of vendors as a []string
+							for _, v := range funcs.SliceSortOrdered(funcs.SliceUniqueValues(funcs.MustConvertToSlice[string](databasePath, fv))) {
+								var slc []Vendor
 
-              // Translate strings using vendorStrings, must be a recognized value
-              if vendor, hasIt := vendorStrings[v]; hasIt {
-                slc = append(slc, vendor)
-              } else {
-                panic(fmt.Errorf(errNoSuchVendorMsg, v))
-              }
+								// Translate strings using vendorStrings, must be a recognized value
+								if vendor, hasIt := vendorStrings[v]; hasIt {
+									slc = append(slc, vendor)
+								} else {
+									panic(fmt.Errorf(errNoSuchVendorMsg, v))
+								}
 
-              // Overwrite default
-              config.Database.Vendors = funcs.SliceSortOrdered(slc)
-            }
-					}
+								// Overwrite default
+								config.Database.Vendors = funcs.SliceSortOrdered(slc)
+							}
+						}
 
 					case "vendor_types":
 						{
@@ -352,9 +353,9 @@ func Load(src io.Reader) Configuration {
 						{
 							// Grab terms and description
 							var (
-								fdata     = funcs.MustAssertType[map[string]any](udtPath, fv)
-								terms     = funcs.MustConvertToSlice[string](udtPath +".terms", fdata["terms"])
-								desc      = funcs.MustAssertType[string](udtPath+".description", fdata["description"])
+								fdata = funcs.MustAssertType[map[string]any](udtPath, fv)
+								terms = funcs.MustConvertToSlice[string](udtPath+".terms", fdata["terms"])
+								desc  = funcs.MustAssertType[string](udtPath+".description", fdata["description"])
 							)
 
 							// Must have terms and description
@@ -370,58 +371,58 @@ func Load(src io.Reader) Configuration {
 
 					case "unique_":
 						{
-              // Grab set of unique keys
-              type UniqInfo struct {
-                UniqueSet []string
-                Indexes []int
-                Count int
-              }
+							// Grab set of unique keys
+							type UniqInfo struct {
+								UniqueSet []string
+								Indexes   []int
+								Count     int
+							}
 
-              // Cannot have empty or duplicate keys
-              var (
-                uniqSets = map[string]UniqInfo{}
-								uks = funcs.MustConvertToSlice2[string](udtPath, fv)
-                errs []error
-              )
+							// Cannot have empty or duplicate keys
+							var (
+								uniqSets = map[string]UniqInfo{}
+								uks      = funcs.MustConvertToSlice2[string](udtPath, fv)
+								errs     []error
+							)
 
-              for i, uniqSet := range uks {
-                if len(uniqSet) == 0 {
-                  // Each unique key must have at least one column
-                  errs = append(errs, fmt.Errorf(errEmptyUniqueKeyMsg, udt.Name, i))
-                } else {
-                  // Convert each unique key column list into a single string of column names separated by |
-                  str := strings.Join(funcs.SliceSortOrdered(funcs.SliceCopy(uniqSet)), "|")
+							for i, uniqSet := range uks {
+								if len(uniqSet) == 0 {
+									// Each unique key must have at least one column
+									errs = append(errs, fmt.Errorf(errEmptyUniqueKeyMsg, udt.Name, i))
+								} else {
+									// Convert each unique key column list into a single string of column names separated by |
+									str := strings.Join(funcs.SliceSortOrdered(funcs.SliceCopy(uniqSet)), "|")
 
-                  if ui, hasIt := uniqSets[str]; !hasIt {
-                    uniqSets[str] = UniqInfo{
-                      UniqueSet: uniqSet,
-                      Indexes: []int{i},
-                      Count: 1,
-                    }
-                  } else {
-                    ui.Indexes = append(ui.Indexes, i)
-                    ui.Count++
-                    uniqSets[str] = ui
-                  }
-                }
-              }
+									if ui, hasIt := uniqSets[str]; !hasIt {
+										uniqSets[str] = UniqInfo{
+											UniqueSet: uniqSet,
+											Indexes:   []int{i},
+											Count:     1,
+										}
+									} else {
+										ui.Indexes = append(ui.Indexes, i)
+										ui.Count++
+										uniqSets[str] = ui
+									}
+								}
+							}
 
 							// Must have at least one unique key
 							if len(uks) == 0 {
 								errs = append(errs, fmt.Errorf(errEmptyUniqueMsg, udt.Name))
 							}
 
-              // Can't have duplicate unique keys
-              for _, ui := range uniqSets {
-                if ui.Count > 1 {
-                  errs = append(errs, fmt.Errorf(errDuplicateUniqueKeyMsg, udt.Name, ui.UniqueSet, ui.Indexes))
-                }
-              }
+							// Can't have duplicate unique keys
+							for _, ui := range uniqSets {
+								if ui.Count > 1 {
+									errs = append(errs, fmt.Errorf(errDuplicateUniqueKeyMsg, udt.Name, ui.UniqueSet, ui.Indexes))
+								}
+							}
 
-              // Die with all errors
-              if len(errs) > 0 {
-                panic(errors.Join(errs...))
-              }
+							// Die with all errors
+							if len(errs) > 0 {
+								panic(errors.Join(errs...))
+							}
 
 							udt.UniqueKeys = uks
 						}
@@ -430,7 +431,7 @@ func Load(src io.Reader) Configuration {
 						{
 							// Must be a column. According to spec, the key must be a string , even if it is only digits
 							var (
-				        str = fv.(string)
+								str                          = fv.(string)
 								typ, length, scale, nullable = stringToTypeDef(str)
 							)
 
@@ -453,8 +454,8 @@ func Load(src io.Reader) Configuration {
 								case Decimal:
 									fld.Precision = length
 									fld.Scale = scale
-                case VendorTypeRef:
-                  fld.TypeName = str
+								case VendorTypeRef:
+									fld.TypeName = str
 								}
 
 								udt.Fields = append(udt.Fields, fld)
@@ -463,15 +464,15 @@ func Load(src io.Reader) Configuration {
 					}
 				}
 
-        // Sort fields by name, for more readability and unit testing
-        funcs.SliceSortBy(udt.Fields, func(a, b Field) bool { return a.Name < b.Name })
+				// Sort fields by name, for more readability and unit testing
+				funcs.SliceSortBy(udt.Fields, func(a, b Field) bool { return a.Name < b.Name })
 
 				config.UserDefinedTypes = append(config.UserDefinedTypes, udt)
 			}
 		}
 	}
 
-  funcs.SliceSortBy(config.UserDefinedTypes, func(a, b UserDefinedType) bool { return a.Name < b. Name })
+	funcs.SliceSortBy(config.UserDefinedTypes, func(a, b UserDefinedType) bool { return a.Name < b.Name })
 
 	return config
 }
@@ -484,38 +485,38 @@ func Load(src io.Reader) Configuration {
 //
 // Panics if any of the above validations fail, joining all errors into one error
 func Validate(cfg Configuration) {
-  // Collect all user defined type names
-  udtNames := map[string]bool{}
-  for _, udt := range cfg.UserDefinedTypes {
-    udtNames[udt.Name] = true
-  }
+	// Collect all user defined type names
+	udtNames := map[string]bool{}
+	for _, udt := range cfg.UserDefinedTypes {
+		udtNames[udt.Name] = true
+	}
 
-  // Collect all vendor type names
-  vendorNames := map[string]bool{}
-  for _, vt := range cfg.Database.VendorTypes {
-    vendorNames[vt.Name] = true
-  }
+	// Collect all vendor type names
+	vendorNames := map[string]bool{}
+	for _, vt := range cfg.Database.VendorTypes {
+		vendorNames[vt.Name] = true
+	}
 
-  // Collect all errors into a slice
-  var errs []error
+	// Collect all errors into a slice
+	var errs []error
 
-  // Scan all udt
-  for _, udt := range cfg.UserDefinedTypes {
-    for _, fld := range udt.Fields {
-      // Is the field a ref to an unknown udt?
-      if FieldIsRefType(fld.Type) && (!udtNames[fld.Name]) {
-        errs = append(errs, fmt.Errorf(errRefToUndefinedTypeMsg, udt.Name, fld.Name))
-      }
+	// Scan all udt
+	for _, udt := range cfg.UserDefinedTypes {
+		for _, fld := range udt.Fields {
+			// Is the field a ref to an unknown udt?
+			if FieldIsRefType(fld.Type) && (!udtNames[fld.Name]) {
+				errs = append(errs, fmt.Errorf(errRefToUndefinedTypeMsg, udt.Name, fld.Name))
+			}
 
-      // Is the field a vendor type with an unknown type name?
-      if FieldIsVendorType(fld.Type) && (!vendorNames[fld.TypeName]) {
-        errs = append(errs, fmt.Errorf(errFieldOfUndefinedVendorTypeMsg, udt.Name, fld.Name, fld.TypeName))
-      }
-    }
-  }
+			// Is the field a vendor type with an unknown type name?
+			if FieldIsVendorType(fld.Type) && (!vendorNames[fld.TypeName]) {
+				errs = append(errs, fmt.Errorf(errFieldOfUndefinedVendorTypeMsg, udt.Name, fld.Name, fld.TypeName))
+			}
+		}
+	}
 
-  // If any errors occured, join them into one error
-  if len(errs) > 0 {
-    panic(errors.Join(errs...))
-  }
+	// If any errors occured, join them into one error
+	if len(errs) > 0 {
+		panic(errors.Join(errs...))
+	}
 }

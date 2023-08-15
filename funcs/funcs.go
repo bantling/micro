@@ -160,7 +160,7 @@ func SliceRemove[T comparable](slc []T, val T, all ...bool) []T {
 // The new slice is returned.
 //
 // Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
-// the occurrence, and again fior all elements after it. Otherwise, a new slice is populated with all other elements.
+// the occurrence, and again for all elements after it. Otherwise, a new slice is populated with all other elements.
 func SliceRemoveUncomparable[T any](slc []T, val T, all ...bool) []T {
 	// Get pointer of val
 	valPtr := fmt.Sprintf("%p", any(val))
