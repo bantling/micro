@@ -24,6 +24,7 @@ var (
 	errNoSuchVendorMsg                          = "%q is not a recognized database vendor name"
 	errRefToUndefinedTypeMsg                    = "%s.%s is a reference field, but there is no User Defined Type by that name"
 	errUDTNameInvalidMsg                        = "%q: user defined type names cannot be empty or end with an underscore"
+  errUnknownFieldUniqKeyMsg                   = "%s.unique_[%d] refers to column %s that does not exist"
 	errUnrecognizedDatabaseKeyMsg               = "%s is not a valid database_ configuration key"
 )
 
@@ -513,6 +514,17 @@ func Validate(cfg Configuration) {
 				errs = append(errs, fmt.Errorf(errFieldOfUndefinedVendorTypeMsg, udt.Name, fld.Name, fld.TypeName))
 			}
 		}
+
+    // Do unique keys refer to columns that don't exist?
+    fldNames := funcs.SliceToMapBy(udt.Fields, func(fld Field) string { return fld.Name })
+
+    for idx, uk := range udt.UniqueKeys {
+      for _, colName := range uk {
+        if !fldNames[colName] {
+          errs = append(errs, fmt.Errorf(errUnknownFieldUniqKeyMsg, udt.Name, idx, colName))
+        }
+      }
+    }
 	}
 
 	// If any errors occured, join them into one error

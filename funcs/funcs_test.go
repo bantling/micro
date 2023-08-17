@@ -155,6 +155,21 @@ func TestSliceSort_(t *testing.T) {
 	}
 }
 
+func TestSliceToMap_(t *testing.T) {
+  // ToMap
+  assert.Equal(t, map[int]bool{}, SliceToMap([]int(nil)))
+  assert.Equal(t, map[int]bool{}, SliceToMap([]int{}))
+  assert.Equal(t, map[int]bool{1:true}, SliceToMap([]int{1}))
+  assert.Equal(t, map[int]bool{1:true, 2:true, 3:true}, SliceToMap([]int{3,1,2}))
+
+  // ToMapBy
+  fn := func(i int) string { return fmt.Sprintf("%d", i); }
+  assert.Equal(t, map[string]bool{}, SliceToMapBy([]int(nil), fn))
+  assert.Equal(t, map[string]bool{}, SliceToMapBy([]int{}, fn))
+  assert.Equal(t, map[string]bool{"1":true}, SliceToMapBy([]int{1}, fn))
+  assert.Equal(t, map[string]bool{"1":true, "2":true, "3":true}, SliceToMapBy([]int{3,1,2}, fn))
+}
+
 func TestSliceUniqueValues_(t *testing.T) {
 	slc := []int{1, 2, 3, 2, 1}
 	assert.Equal(t, []int{1, 2, 3}, SliceSortOrdered(SliceUniqueValues(slc)))

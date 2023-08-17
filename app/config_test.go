@@ -338,6 +338,7 @@ func TestLoadErrors_(t *testing.T) {
 "" = "uuid"
 `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -353,6 +354,7 @@ func TestLoadErrors_(t *testing.T) {
 _ = "uuid"
 `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -368,6 +370,7 @@ _ = "uuid"
 foo_ = "uuid"
 `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -384,6 +387,7 @@ foo_ = "uuid"
   descriptor_ = {terms = [], description = ""}
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -400,6 +404,7 @@ foo_ = "uuid"
   unique_ = [["a", "b"], ["c"], ["b", "a"]]
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -416,6 +421,7 @@ foo_ = "uuid"
   unique_ = []
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -432,6 +438,7 @@ foo_ = "uuid"
   unique_ = [["a", "b"], [], ["c", "a"]]
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -448,6 +455,7 @@ foo_ = "uuid"
   foo = "bar"
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -464,6 +472,7 @@ foo_ = "uuid"
   vendors = ["noSuchVendor"]
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -478,6 +487,7 @@ foo_ = "uuid"
   vendor_types = {whatever = {noSuchVendor = "noSuchType"}}
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -494,6 +504,7 @@ foo_ = "uuid"
   region = "ref:one"
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -509,6 +520,7 @@ foo_ = "uuid"
   [""]
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
@@ -522,11 +534,30 @@ foo_ = "uuid"
   [foo_]
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {
 			failed = true
 			assert.Equal(t, fmt.Errorf(`"foo_": user defined type names cannot be empty or end with an underscore`), e)
+		},
+	)
+	assert.True(t, failed)
+
+  // ==== errUnknownFieldUniqKeyMsg
+
+	data = strings.NewReader(`
+  [address]
+  foo = "string"
+  unique_ = [["foo"],["bar"]]
+  `)
+
+  failed = false
+	funcs.TryTo(
+		loadData,
+		func(e any) {
+			failed = true
+			assert.Equal(t, errors.Join(fmt.Errorf("address.unique_[1] refers to column bar that does not exist")), e)
 		},
 	)
 	assert.True(t, failed)
@@ -538,6 +569,7 @@ foo_ = "uuid"
   foo = "bar"
   `)
 
+  failed = false
 	funcs.TryTo(
 		loadData,
 		func(e any) {

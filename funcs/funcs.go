@@ -231,6 +231,32 @@ func SliceSortBy[T any](slc []T, less func(T, T) bool) []T {
 	return slc
 }
 
+// SliceToMap copies slice elements to map keys, where the value of each key is true, to avoid the need for two arg map
+// lookups to see if a key exists.
+// If the slice is nil or empty, an empty map is returned.
+func SliceToMap[T comparable](slc []T) (res map[T]bool) {
+  res = map[T]bool{}
+
+  for _, val := range slc {
+    res[val] = true
+  }
+
+  return
+}
+
+// SliceToMapBy transforms slice elements to map keys using provided func, where the value of each key is true, to avoid
+// the need for two arg map lookups to see if a key exists.
+// If the slice is nil or empty, an empty map is returned.
+func SliceToMapBy[T any, K comparable](slc []T, fn func(T) K) (res map[K]bool) {
+  res = map[K]bool{}
+
+  for _, val := range slc {
+    res[fn(val)] = true
+  }
+
+  return
+}
+
 // SliceUniqueValues returns the uniq values of a slice, in no particular order
 // See MapKeysToSlice
 func SliceUniqueValues[T comparable](slc []T) []T {
