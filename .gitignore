@@ -1,3 +1,6 @@
 !.gitignore
 .*
+app-reference/sqlpage/myapp.db
+app-reference/sqlpage/sqlpage.bin
+app-reference/sqlpage/sqlpage/migrations
 

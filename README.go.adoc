@@ -12,6 +12,9 @@ which means import statements in go can import any package as `import github.com
 
 === Packages
 
+* app
+** Help write a data-driven application using a TOML file
+** Consider using SQLPage to generate the html: see https://sql.ophir.dev
 * constraint
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
 * conv
