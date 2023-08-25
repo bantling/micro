@@ -372,41 +372,6 @@ var (
 	}
 )
 
-// Alignment describes whether a bit mask should be left or right aligned
-type Alignment bool
-
-const (
-	Right Alignment = false
-	Left  Alignment = true
-)
-
-// AlignedMask generates a 64 bit mask of (n 1 consecutive bits) aligned to the left or right.
-// When aligned right, the mask will be of the form (64 - n 0 bits)(n 1 bits).
-// Since the value of (n 1 bits) = 2^n - 1, an aligned right mask is just 2^n - 1, which is (1 << n) - 1.
-//
-// When aligned left, the mask will be of the form (n 1 bits)(64 - n 0 bits) = (n 1 bits) shifted left (64 - n) times.
-// The mask can be calculated as (2^n - 1) << (64 - n) = ((1 << n) - 1) << (64 - n).
-//
-// Notes:
-// - If n = 0, result is 0.
-// - If n > 64, it is capped at 64.
-// - The mask is right aligned by default, unless the optional alignLeft is true.
-func AlignedMask(nOpt uint, alignOpt ...Alignment) uint64 {
-	var (
-		n     = MinOrdered(nOpt, 64)
-		align = funcs.SliceIndex(alignOpt, 0, Right)
-		// (1 << 0) - 1 = 0
-		// 1 << 64 = 0 (requires a 65th bit), and 0 - 1 in unsigned math wraps around to max value of 64 1 bits
-		mask uint64 = (1 << n) - 1
-	)
-
-	if align == Left {
-		mask <<= 64 - n
-	}
-
-	return mask
-}
-
 // Abs calculates the absolute value of any numeric type.
 // Integer types have a range of -N ... +(N-1), which means that if you try to calculate abs(-N), the result is -N.
 // The reason for this is that there is no corresponding +N, that would require more bits.
@@ -579,3 +544,106 @@ func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
 
 	return val1
 }
+
+// Sign is the sign of a Decimal
+type Sign int
+
+// Negative, Zero, and Positive sign constants
+const (
+	Negative Sign = iota - 1
+	Zero
+	Positive
+)
+
+const (
+	// decimalMaxPrecision is the maximum decimal precision
+	decimalMaxPrecision uint = 19
+	// decimalCheck19SignificantDigits is the smallest value of 19 significant digits
+	//                                   1 234 567 890 123 456 789
+	decimalCheck19SignificantDigits = 1_0_000_000_000_000_000_000
+
+	errScaleTooLargeMsg       = "The Decimal scale %d is too large: the value must be <= 19"
+	errCannotIncreaseScaleMsg = "The scale of Decimal value %s cannot be increased from %d to %d, as most significant digit(s) would be lost"
+)
+
+// Decimal is like SQL Decimal(precision, scale):
+// - precision is always 19, the maximum number of decimal digits an unsigned 64 bit value can store
+// - scale is number of digits after decimal place, must be <= 19 (default 0)
+//
+// The zero value is ready to use
+type Decimal struct {
+	sgn    Sign
+	digits uint64
+	scale  uint
+}
+
+// adjustSign adjusts the sign to Zero if the digits are zero, else leave it as is
+func (d *Decimal) adjustSign() {
+	if d.digits == 0 {
+		d.sgn = Zero
+	}
+}
+
+// OfDecimal creates a Decimal with the given optional scale (default 0)
+func OfDecimal(scale ...uint) Decimal {
+	return funcs.MustValue(OfDecimalValue(Zero, 0, scale...))
+}
+
+// OfDecimalValue creates a Decimal with the given sign, digits, and optional scale (default 0)
+func OfDecimalValue(sgn Sign, digits uint64, scale ...uint) (d Decimal, err error) {
+	scaleVal := funcs.SliceIndex(scale, 0)
+	if scaleVal > 19 {
+		err = fmt.Errorf(errScaleTooLargeMsg, scaleVal)
+		return
+	}
+
+	d = Decimal{sgn, digits, scaleVal}
+	d.adjustSign()
+	return
+}
+
+// String is the Stringer interface
+func (d Decimal) String() (str string) {
+	// Convert the uint to a string to start
+	conv.To(d.digits, &str)
+	numSig := uint(len(str))
+
+	switch {
+	// No digits after the decimal point, just an integer
+	case d.scale == 0:
+		break
+
+		// The number of significant digits is <= the number of decimals. Add leading "0." + (scale - digits) zeros.
+	case numSig < d.scale:
+		str = "0." + strings.Repeat("0", int(d.scale-numSig)) + str
+
+	// At least one digit before and after decimal point, insert decimal at appropriate position
+	default:
+		numDigitsBeforeDecimal := numSig - d.scale
+		str = str[:numDigitsBeforeDecimal] + "." + str[numDigitsBeforeDecimal:]
+	}
+
+	return
+}
+
+// AdjustScale adjusts the scale of d1 and d2:
+// - If both numbers have the same scale, no adjustment is made
+// - Otherwise, the number with the smaller scale is adjusted to the same scale as the other number
+// - Increasing the scale can cause some most significant digit would be lost, which is an error
+//
+// Examples:
+//
+// 1.5 and 1.25 -> 1.50 and 1.25
+// 1.(18 decimals) and 1.(17 decimals) -> 1.(18 decimals) and 1.(18 decimals where last decimal is 0)
+// 1.5 and (19 diigts where leading digit is not zero) -> error since second number would require 20 digits of storage
+// func AdjustSize(d1, d2 *Decimal) error {
+//   switch {
+//   case d1.scale < d2.scale:
+//
+//   }
+// }
+
+// Add adds
+// func (d Decimal) Add(x, y Decimal) Decimal {
+//
+// }

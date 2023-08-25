@@ -19,6 +19,13 @@ which means import statements in go can import any package as `import github.com
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
 * conv
 ** converts between numeric types, returning an error if any loss of precision would occur
+* encoding/json
+** Value type that describes any kind of JSON value
+** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
+** default numeric type is NumberString, but custom conversion functions can be used for some other numeric type
+** streaming parser that can provide individual elements of top level array as they are read in, so that a large number
+of elements can be processed without having to read entire input.
+** write a json.Value to a writer
 * event
 ** A simple system for sending events and getting results back
 ** Same generic type is used for input and output
@@ -48,6 +55,10 @@ which means import statements in go can import any package as `import github.com
 ** TryTo is a replacement for awkward idiomatic go code that acts like a Java try/catch/finally block:
    Accepts a func for a try block, a func for a catch block (only invoked if try block panics), and any number of
    closer funcs that close resources regardless of whether the try func panics.
+* io
+** ErrorReader and ErrorWriter returns a specified error after reading or writing a specified set of bytes, mostly useful
+   for unit tests.
+** writer package is reverse of Iter, writes values to a destination rather than reading. Mostly concerned with writing to IO.
 * iter
 ** defines Iter type that can iterate anything
 ** based on iterating funcs, a func of no args that returns (value, bool), where the value is only relevant if the bool
@@ -58,13 +69,6 @@ which means import statements in go can import any package as `import github.com
 ** Maybe func accepts an Iter and returns a Result, which provides either a value or an error
 ** SetError func accepts an Iter and an error, and returns a new Iter that returns the given error after exhausting the Iter.
    Mostly useful for unit tests.
-* json
-** Value type that describes any kind of JSON value
-** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
-** default numeric type is NumberString, but custom conversion functions can be used for some other numeric type
-** streaming parser that can provide individual elements of top level array as they are read in, so that a large number
-   of elements can be processed without having to read entire input.
-** write a json.Value to a writer
 * math
 ** absolute value calculation that returns an error for lowest negative value of integers
    (eg for int8, abs(-128) = -128 because highest positive value is 127)
@@ -101,13 +105,8 @@ which means import statements in go can import any package as `import github.com
 ** Unions of 2, 3 or 4 elements of separate generic types
 ** Result is union of one generic type and an error
 * util
-** ErrorReader and ErrorWriter returns a specified error after reading or writing a specified set of bytes, mostly useful
-   for unit tests.
 ** Range can hold a range of values between a minimum and maximum, where minimum and maximum values themselves may or
    may not be allowed. Attempting to set the value outside the range returns an error and does not change the value.
-* writer
-** Reverse of Iter, writes values to a destination rather than reading.
-** Mostly concerned with writing to IO.
 
 === Dependency Graph
 
