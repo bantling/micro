@@ -1,7 +1,0 @@
-{{if .Comment}}{{printf "// %s\n" .Comment}}{{end}}type {{.Name}} struct {
-  {{- if not .Union}}
-  {{- range .Fields}}
-  {{.Name}} {{if .Array}}[]{{end}}{{if .Ref}}*{{end}}{{FieldTypeString .Type}}{{if .Comment}} // {{.Comment}}{{end}}
-  {{- end}}
-  {{- end}}
-}
