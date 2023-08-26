@@ -612,6 +612,8 @@ func OfDecimal(pos bool, digits uint64, scale ...uint) (d Decimal, err error) {
 func (d Decimal) String() (str string) {
 	// Convert the uint to a string to start
 	conv.To(d.digits, &str)
+
+  // Get number of significant digits (length of string)
 	numSig := uint(len(str))
 
 	switch {
@@ -620,7 +622,7 @@ func (d Decimal) String() (str string) {
 		break
 
 		// The number of significant digits is <= the number of decimals. Add leading "0." + (scale - digits) zeros.
-	case numSig < d.scale:
+	case numSig <= d.scale:
 		str = "0." + strings.Repeat("0", int(d.scale-numSig)) + str
 
 	// At least one digit before and after decimal point, insert decimal at appropriate position
@@ -628,6 +630,11 @@ func (d Decimal) String() (str string) {
 		numDigitsBeforeDecimal := numSig - d.scale
 		str = str[:numDigitsBeforeDecimal] + "." + str[numDigitsBeforeDecimal:]
 	}
+
+  // Add a leading minus if negative
+  if !d.sgn {
+    str = "-" + str
+  }
 
 	return
 }

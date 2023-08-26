@@ -1246,7 +1246,12 @@ func TestOfDecimal_(t *testing.T) {
 }
 
 func TestDecimalString_(t *testing.T) {
-  assert.Equal(t, "100", funcs.MustValue(OfDecimal(true, 100, 0)).String())
-  assert.Equal(t, "10.0", funcs.MustValue(OfDecimal(true, 100, 1)).String())
-  assert.Equal(t, "1.00", funcs.MustValue(OfDecimal(true, 100, 2)).String())
+  assert.Equal(t, "123", funcs.MustValue(OfDecimal(true, 123, 0)).String())
+  assert.Equal(t, "-123", funcs.MustValue(OfDecimal(false, 123, 0)).String())
+  assert.Equal(t, "12.3", funcs.MustValue(OfDecimal(true, 123, 1)).String())
+  assert.Equal(t, "1.23", funcs.MustValue(OfDecimal(true, 123, 2)).String())
+  assert.Equal(t, "0.123", funcs.MustValue(OfDecimal(true, 123, 3)).String())
+  assert.Equal(t, "0.0123", funcs.MustValue(OfDecimal(true, 123, 4)).String())
+  assert.Equal(t, "0.00123", funcs.MustValue(OfDecimal(true, 123, 5)).String())
+  assert.Equal(t, "-0.00123", funcs.MustValue(OfDecimal(false, 123, 5)).String())
 }
