@@ -572,33 +572,39 @@ const (
 //
 // The zero value is ready to use
 type Decimal struct {
-	sgn    Sign
-	digits uint64
+	sgn    bool
 	scale  uint
+	digits uint64
 }
 
 // adjustSign adjusts the sign to Zero if the digits are zero, else leave it as is
-func (d *Decimal) adjustSign() {
-	if d.digits == 0 {
-		d.sgn = Zero
-	}
+func (d Decimal) Sign() (sgn Sign) {
+	switch {
+  case d.digits == 0:
+    sgn = Zero
+  case d.sgn:
+    sgn = Positive
+  default:
+    sgn = Negative
+  }
+
+  return
 }
 
-// OfDecimal creates a Decimal with the given optional scale (default 0)
-func OfDecimal(scale ...uint) Decimal {
-	return funcs.MustValue(OfDecimalValue(Zero, 0, scale...))
+// OfDecimalScale creates a Decimal with the given optional scale (default 0)
+func OfDecimalScale(scale ...uint) Decimal {
+	return funcs.MustValue(OfDecimal(true, 0, scale...))
 }
 
-// OfDecimalValue creates a Decimal with the given sign, digits, and optional scale (default 0)
-func OfDecimalValue(sgn Sign, digits uint64, scale ...uint) (d Decimal, err error) {
+// OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 0)
+func OfDecimal(pos bool, digits uint64, scale ...uint) (d Decimal, err error) {
 	scaleVal := funcs.SliceIndex(scale, 0)
 	if scaleVal > 19 {
 		err = fmt.Errorf(errScaleTooLargeMsg, scaleVal)
 		return
 	}
 
-	d = Decimal{sgn, digits, scaleVal}
-	d.adjustSign()
+	d = Decimal{sgn: pos, scale: scaleVal, digits: digits}
 	return
 }
 
