@@ -1277,6 +1277,16 @@ func TestAdjustDecimalScale_(t *testing.T) {
   assert.Equal(t, MustDecimal(2, 0), d1)
   assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
+  d1, d2 = MustDecimal(145, 2), MustDecimal(100_000_000_000_000_000, 0)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(2, 0), d1)
+  assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
+
+  d1, d2 = MustDecimal(144, 2), MustDecimal(100_000_000_000_000_000, 0)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(1, 0), d1)
+  assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
+
   d1, d2 = MustDecimal(-154, 2), MustDecimal(100_000_000_000_000_000, 0)
   funcs.Must(AdjustDecimalScale(&d1, &d2))
   assert.Equal(t, MustDecimal(-2, 0), d1)

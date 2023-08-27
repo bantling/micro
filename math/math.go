@@ -736,9 +736,9 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
     // - if a digit is < 4 , adding 1 makes it < 5, so round = false and stop
     // - stop if scaleDiff digits have been rounded and round is still true
     // - if resulting round is true, then continue to integer rounding, else stop
-    var round bool = dig1[len1-1] >= 5
-    for i := len1 - 2; round && (i >= len1 - scaleDiff); i-- {
-      round = dig1[i] >= 4
+    var round bool = dig1[len1-1] >= '5'
+    for i := len1 - 2; i >= len1 - scaleDiff; i-- {
+      round = dig1[i] >= byte(funcs.Ternary(round, '4', '5'))
     }
     // throw away decimal digits
     dig1 = dig1[:len1 - scaleDiff]
@@ -751,8 +751,8 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
     var dig byte
     for i := len1 - 1; round && (i >= 0); i-- {
       dig = dig1[i]
-      round = dig == 9
-      dig1[i] = funcs.Ternary(round, 0, dig + 1)
+      round = dig == '9'
+      dig1[i] = funcs.Ternary(round, '0', dig + 1)
     }
 
     // If final round is true, all integer digits are 9, add a leading 1
