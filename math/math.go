@@ -546,7 +546,7 @@ func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
 }
 
 const (
-	// decimalMaxScale is the maximum decimal scale
+	// decimalMaxScale is the maximum decimal scale, which is also the maximum precision
 	decimalMaxScale = 18
 
 	// decimalDefaultScale is the default decimal scale, which is2, since most uses will probably be for money
@@ -564,14 +564,28 @@ const (
 	//                                       123 456 789 012 345 678
 	decimalCheck18SignificantDigits int64 = 100_000_000_000_000_000
 
+  // decimalRoundMaxValue is the maximum decimal value that can be rounded up without requiring a 19th digit
+	//                        123 456 789 012 345 678
+  decimalRoundMaxValue int64 = +999_999_999_999_999_994
+
+  // decimalRoundMinValue is the minimum decimal value that can be rounded down without requiring a 19th digit
+	//                             123 456 789 012 345 678
+  decimalRoundMinValue int64 = -999_999_999_999_999_994
+
   // errScaleTooLargeMsg is the error message for a decimal scale value that is too large
-	errScaleTooLargeMsg       = "The Decimal scale %d is too large: the value must be <= 18"
+	errScaleTooLargeMsg = "The Decimal scale %d is too large: the value must be <= 18"
 
   // errValueTooLargeMsg is the error message for a decimal value that is too large
-	errValueTooLargeMsg       = "The Decimal value %d is too large: the value must be <= 999_999_999_999_999_999"
+	errValueTooLargeMsg = "The Decimal value %d is too large: the value must be <= 999_999_999_999_999_999"
 
   // errValueTooSmallMsg is the error message for a decimal value that is too small
-	errValueTooSmallMsg       = "The Decimal value %d is too small: the value must be >= -999_999_999_999_999_999"
+	errValueTooSmallMsg = "The Decimal value %d is too small: the value must be >= -999_999_999_999_999_999"
+
+  // errValueTooLargeToRoundMsg is the error message for aligning decimals by rounding up a number too large to round
+  errValueTooLargeToRoundMsg = "The decimal value %d is too large to round up"
+
+  // errValueTooSmallToRoundMsg is the error message for aligning decimals by rounding down a number too small to round
+  errValueTooSmallToRoundMsg = "The decimal value %d is too small to round down"
 )
 
 // Decimal is like SQL Decimal(precision, scale):
@@ -667,48 +681,97 @@ func (d Decimal) String() (str string) {
 // Examples:
 //
 // 1.5 and 1.25 -> 1.50 and 1.25
-// 1.5 and 19 digits with no decimals -> 19 digits cannot increase scale, so round 1.5 to 2
-// func AdjustScale(d1, d2 *Decimal) {
-//   if d1.scale == d2.scale {
-//     return
-//   }
-//
-//   // Swap if necessary so that d1 has larger scale
-//   if d1.scale < d2.scale {
-//     t := d1
-//     d1 = d2
-//     d2 = t
-//   }
-//
-//   // Convert d1 and d2 to strings of digits only, to see how many significant digits they possess
-//   var str1, str2 string
-//   conv.To(t1, &str1)
-//   conv.To(t2, &str2)
-//
-//   var (
-//     sd1 = len(str1)
-//     sd2 = len(str2)
-//     d2Capacity = decimalMaxPrecision - sd2
-//     scaleDiff = d1.scale - d2.scale
-//   )
-//
-//   // Does d2 have enough remaining capacity for the required trailing zeroes to increase the scale?
-//   if d2Capacity >= scaleDiff {
-//     // Easy solution - multiply d2 by 10 ^ scaleDiff, and set scale to match d1
-//     for i = 0; i < scaleDiff; i++ {
-//       d2.digits *= 10
-//     }
-//
-//     d2.scale = d1.scale
-//   } else {
-//     // Harder solution - round d1 down to the same scale as d2, and set scale to match d2
-//     // Round by manipulating digits directly in string as a []byte
-//     dig2, dig1 := []byte(str1), []byte(str2)
-//
-//   }
-//
-//   return
-// }
+// 1.5 and 18 digits with no decimals -> 18 digits cannot increase scale, so round 1.5 to 2
+// 1.5 and 17 9 digits followed by a digit >= 5 with no decimals -> the 18 digits round to a 19 digit value, an error occurs
+func AdjustScale(d1, d2 *Decimal) error {
+  if d1.scale == d2.scale {
+    return nil
+  }
+
+  // Swap if necessary so that d1 has larger scale
+  if d1.scale < d2.scale {
+    t := d1
+    d1 = d2
+    d2 = t
+  }
+
+  // Convert d1 and d2 to strings of digits only, to see how many significant digits they possess
+  var str1, str2 string
+  conv.To(funcs.Ternary(d1.value >= 0, d1.value, -d1.value), &str1)
+  conv.To(funcs.Ternary(d2.value >= 0, d2.value, -d2.value), &str2)
+
+  var (
+    len1 = len(str1)
+    len2 = len(str2)
+    d2Capacity = decimalMaxScale - len2
+    scaleDiff = int(d1.scale - d2.scale)
+  )
+
+  // Does d2 have enough remaining capacity for the required trailing zeroes to increase the scale?
+  if d2Capacity >= scaleDiff {
+    // Easy solution - multiply d2 by 10 ^ scaleDiff, and set scale to match d1
+    for i := 0; i < scaleDiff; i++ {
+      d2.value *= 10
+    }
+
+    d2.scale = d1.scale
+  } else {
+    // Harder solution - round d1 away from 0 to the same scale as d2, and set scale to match d2
+
+    // First check if d1 value can actually be rounded
+    if d1.value > decimalRoundMaxValue {
+      return fmt.Errorf(errValueTooLargeToRoundMsg, d1.value)
+    }
+
+    if d1.value < decimalRoundMinValue {
+      return fmt.Errorf(errValueTooSmallToRoundMsg, d1.value)
+    }
+
+    // Round by manipulating digits directly in string as a []byte
+    dig1 := []byte(str1)
+
+    // If last digit >= 5, then enter decimal rounding loop:
+    // - applies only to digits we throw away
+    // - as long as prior digits are >= 4, adding 1 makes it >= 5, so round = true
+    // - if a digit is < 4 , adding 1 makes it < 5, so round = false and stop
+    // - stop if scaleDiff digits have been rounded and round is still true
+    // - if resulting round is true, then continue to integer rounding, else stop
+    var round bool = dig1[len1-1] >= 5
+    for i := len1 - 2; round && (i >= len1 - scaleDiff); i-- {
+      round = dig1[i] >= 4
+    }
+    // throw away decimal digits
+    dig1 = dig1[:len1 - scaleDiff]
+    len1 = len(dig1)
+
+    // Integer rounding only occurs if final decimal round is true, and affects digits of d1 we're keeping
+    // - as long as integer digit = 9, set to 0
+    // - if a digit < 9 is encountered, increment and stop
+    // - if all digits are 9, add additional 1 digit on left
+    var dig byte
+    for i := len1 - 1; round && (i >= 0); i-- {
+      dig = dig1[i]
+      round = dig == 9
+      dig1[i] = funcs.Ternary(round, 0, dig + 1)
+    }
+
+    // If final round is true, all integer digits are 9, add a leading 1
+    // Add scaleDiff trailing 0s, since that is the point
+    str1 = funcs.Ternary(round, "1" + string(dig1), string(dig1)) + strings.Repeat("0", int(scaleDiff))
+
+    // Set d1 scale
+    d1.scale = d2.scale
+
+    // Set d1 value (preserving sign)
+    neg := d1.value < 0
+    conv.To(str1, &d1.value)
+    if neg {
+      d1.value = -d1.value
+    }
+  }
+
+  return nil
+}
 
 // Add adds
 // func (d Decimal) Add(x, y Decimal) Decimal {
