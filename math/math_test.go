@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"testing"
 
+  "github.com/bantling/micro/funcs"
   "github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
@@ -1230,7 +1231,7 @@ func TestOfDecimal_(t *testing.T) {
   )
 }
 
-func TestSign_(t *testing.T) {
+func TestDecimalSign_(t *testing.T) {
   d := MustDecimal(0)
   assert.Equal(t, 0, d.Sign())
 
@@ -1253,4 +1254,41 @@ func TestDecimalString_(t *testing.T) {
   assert.Equal(t, "0.0123", MustDecimal(123, 4).String())
   assert.Equal(t, "0.00123", MustDecimal(123, 5).String())
   assert.Equal(t, "-0.00123", MustDecimal(-123, 5).String())
+}
+
+func TestAdjustDecimalScale_(t *testing.T) {
+  d1, d2 := MustDecimal(15, 1), MustDecimal(125, 1)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(15, 1), d1)
+  assert.Equal(t, MustDecimal(125, 1), d2)
+
+  d1, d2 = MustDecimal(15, 1), MustDecimal(125, 2)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(150, 2), d1)
+  assert.Equal(t, MustDecimal(125, 2), d2)
+
+  d1, d2 = MustDecimal(15, 1), MustDecimal(100_000_000_000_000_000, 0)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(2, 0), d1)
+  assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
+
+  d1, d2 = MustDecimal(154, 2), MustDecimal(100_000_000_000_000_000, 0)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(2, 0), d1)
+  assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
+
+  d1, d2 = MustDecimal(-154, 2), MustDecimal(100_000_000_000_000_000, 0)
+  funcs.Must(AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(-2, 0), d1)
+  assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
+
+  d1, d2 = MustDecimal(15, 1), MustDecimal(999_999_999_999_999_995, 0)
+  assert.Equal(t, fmt.Errorf("The decimal value 999999999999999995 is too large to round up"), AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(15, 1), d1)
+  assert.Equal(t, MustDecimal(999_999_999_999_999_995, 0), d2)
+
+  d1, d2 = MustDecimal(15, 1), MustDecimal(-999_999_999_999_999_995, 0)
+  assert.Equal(t, fmt.Errorf("The decimal value -999999999999999995 is too small to round down"), AdjustDecimalScale(&d1, &d2))
+  assert.Equal(t, MustDecimal(15, 1), d1)
+  assert.Equal(t, MustDecimal(-999_999_999_999_999_995, 0), d2)
 }

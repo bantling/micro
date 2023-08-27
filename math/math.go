@@ -582,10 +582,10 @@ const (
 	errValueTooSmallMsg = "The Decimal value %d is too small: the value must be >= -999_999_999_999_999_999"
 
   // errValueTooLargeToRoundMsg is the error message for aligning decimals by rounding up a number too large to round
-  errValueTooLargeToRoundMsg = "The decimal value %d is too large to round up"
+  errValueTooLargeToRoundMsg = "The decimal value %s is too large to round up"
 
   // errValueTooSmallToRoundMsg is the error message for aligning decimals by rounding down a number too small to round
-  errValueTooSmallToRoundMsg = "The decimal value %d is too small to round down"
+  errValueTooSmallToRoundMsg = "The decimal value %s is too small to round down"
 )
 
 // Decimal is like SQL Decimal(precision, scale):
@@ -594,8 +594,8 @@ const (
 //
 // The zero value is ready to use
 type Decimal struct {
+  value int64
 	scale  uint
-	value int64
 }
 
 // OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 0)
@@ -616,8 +616,8 @@ func OfDecimal(value int64, scale ...uint) (d Decimal, err error) {
     return
   }
 
-	d.scale = scaleVal
   d.value = value
+	d.scale = scaleVal
 	return
 }
 
@@ -672,7 +672,7 @@ func (d Decimal) String() (str string) {
 	return
 }
 
-// AdjustScale adjusts the scale of d1 and d2:
+// AdjustDecimalScale adjusts the scale of d1 and d2:
 // - If both numbers have the same scale, no adjustment is made
 // - Otherwise, the number with the smaller scale is usually adjusted to the same scale as the other number
 // - Increasing the scale can cause some most significant digits to be lost, in which case the other number is rounded
@@ -682,8 +682,8 @@ func (d Decimal) String() (str string) {
 //
 // 1.5 and 1.25 -> 1.50 and 1.25
 // 1.5 and 18 digits with no decimals -> 18 digits cannot increase scale, so round 1.5 to 2
-// 1.5 and 17 9 digits followed by a digit >= 5 with no decimals -> the 18 digits round to a 19 digit value, an error occurs
-func AdjustScale(d1, d2 *Decimal) error {
+// 99_999_999_999_999_999.5 and 1 -> the 18 digits round to a 19 digit value, an error occurs
+func AdjustDecimalScale(d1, d2 *Decimal) error {
   if d1.scale == d2.scale {
     return nil
   }
@@ -718,13 +718,13 @@ func AdjustScale(d1, d2 *Decimal) error {
   } else {
     // Harder solution - round d1 away from 0 to the same scale as d2, and set scale to match d2
 
-    // First check if d1 value can actually be rounded
-    if d1.value > decimalRoundMaxValue {
-      return fmt.Errorf(errValueTooLargeToRoundMsg, d1.value)
+    // First check if d2 value can actually be rounded
+    if d2.value > decimalRoundMaxValue {
+      return fmt.Errorf(errValueTooLargeToRoundMsg, d2.String())
     }
 
-    if d1.value < decimalRoundMinValue {
-      return fmt.Errorf(errValueTooSmallToRoundMsg, d1.value)
+    if d2.value < decimalRoundMinValue {
+      return fmt.Errorf(errValueTooSmallToRoundMsg, d2.String())
     }
 
     // Round by manipulating digits directly in string as a []byte
@@ -756,8 +756,8 @@ func AdjustScale(d1, d2 *Decimal) error {
     }
 
     // If final round is true, all integer digits are 9, add a leading 1
-    // Add scaleDiff trailing 0s, since that is the point
-    str1 = funcs.Ternary(round, "1" + string(dig1), string(dig1)) + strings.Repeat("0", int(scaleDiff))
+    //  + strings.Repeat("0", int(scaleDiff))
+    str1 = funcs.Ternary(round, "1" + string(dig1), string(dig1))
 
     // Set d1 scale
     d1.scale = d2.scale
