@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"testing"
 
-  "github.com/bantling/micro/funcs"
   "github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
@@ -1207,51 +1206,51 @@ func TestMinMax_(t *testing.T) {
 	}()
 }
 
-func TestSign_(t *testing.T) {
-  d := Decimal{sgn: true, scale: 0, digits: 0}
-  assert.Equal(t, Zero, d.Sign())
-
-  d = Decimal{sgn: false, scale: 0, digits: 0}
-  assert.Equal(t, Zero, d.Sign())
-
-  d = Decimal{sgn: true, scale: 0, digits: 1}
-  assert.Equal(t, Positive, d.Sign())
-
-  d = Decimal{sgn: false, scale: 0, digits: 1}
-  assert.Equal(t, Negative, d.Sign())
-}
-
 func TestOfDecimal_(t *testing.T) {
-  d := OfDecimalScale()
-  assert.Equal(t, Decimal{sgn: true, scale: 0, digits: 0}, d)
-  assert.Equal(t, Zero, d.Sign())
+  assert.Equal(t, tuple.Of2(Decimal{scale: 2, value: 100}, error(nil)), tuple.Of2(OfDecimal(100)))
+  assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1001}, error(nil)), tuple.Of2(OfDecimal(-1001, 3)))
 
-  d = OfDecimalScale(5)
-  assert.Equal(t, Decimal{sgn: true, scale: 5, digits: 0}, d)
-  assert.Equal(t, Zero, d.Sign())
-
-  d = funcs.MustValue(OfDecimal(true, 100, 2))
-  assert.Equal(t, Decimal{sgn: true, scale: 2, digits: 100}, d)
-  assert.Equal(t, Positive, d.Sign())
-
-  d = funcs.MustValue(OfDecimal(false, 1001, 2))
-  assert.Equal(t, Decimal{sgn: false, scale: 2, digits: 1001}, d)
-  assert.Equal(t, Negative, d.Sign())
+  assert.Equal(t, Decimal{scale: 2, value: 100}, MustDecimal(100))
+  assert.Equal(t, Decimal{scale: 3, value: -1001}, MustDecimal(-1001, 3))
 
   assert.Equal(
     t,
-    tuple.Of2(Decimal{}, fmt.Errorf("The Decimal scale 20 is too large: the value must be <= 19")),
-    tuple.Of2(OfDecimal(true, 0, 20)),
+    tuple.Of2(Decimal{}, fmt.Errorf("The Decimal scale 19 is too large: the value must be <= 18")),
+    tuple.Of2(OfDecimal(0, 19)),
+  )
+  assert.Equal(
+    t,
+    tuple.Of2(Decimal{}, fmt.Errorf("The Decimal value 1234567890123456789 is too large: the value must be <= 999_999_999_999_999_999")),
+    tuple.Of2(OfDecimal(1234567890123456789)),
+  )
+  assert.Equal(
+    t,
+    tuple.Of2(Decimal{}, fmt.Errorf("The Decimal value -1234567890123456789 is too small: the value must be >= -999_999_999_999_999_999")),
+    tuple.Of2(OfDecimal(-1234567890123456789)),
   )
 }
 
+func TestSign_(t *testing.T) {
+  d := MustDecimal(0)
+  assert.Equal(t, 0, d.Sign())
+
+  d = MustDecimal(0, 5)
+  assert.Equal(t, 0, d.Sign())
+
+  d = MustDecimal(1)
+  assert.Equal(t, 1, d.Sign())
+
+  d = MustDecimal(-1)
+  assert.Equal(t, -1, d.Sign())
+}
+
 func TestDecimalString_(t *testing.T) {
-  assert.Equal(t, "123", funcs.MustValue(OfDecimal(true, 123, 0)).String())
-  assert.Equal(t, "-123", funcs.MustValue(OfDecimal(false, 123, 0)).String())
-  assert.Equal(t, "12.3", funcs.MustValue(OfDecimal(true, 123, 1)).String())
-  assert.Equal(t, "1.23", funcs.MustValue(OfDecimal(true, 123, 2)).String())
-  assert.Equal(t, "0.123", funcs.MustValue(OfDecimal(true, 123, 3)).String())
-  assert.Equal(t, "0.0123", funcs.MustValue(OfDecimal(true, 123, 4)).String())
-  assert.Equal(t, "0.00123", funcs.MustValue(OfDecimal(true, 123, 5)).String())
-  assert.Equal(t, "-0.00123", funcs.MustValue(OfDecimal(false, 123, 5)).String())
+  assert.Equal(t, "123", MustDecimal(123, 0).String())
+  assert.Equal(t, "-123", MustDecimal(-123, 0).String())
+  assert.Equal(t, "12.3", MustDecimal(123, 1).String())
+  assert.Equal(t, "1.23", MustDecimal(123, 2).String())
+  assert.Equal(t, "0.123", MustDecimal(123, 3).String())
+  assert.Equal(t, "0.0123", MustDecimal(123, 4).String())
+  assert.Equal(t, "0.00123", MustDecimal(123, 5).String())
+  assert.Equal(t, "-0.00123", MustDecimal(-123, 5).String())
 }

@@ -545,73 +545,92 @@ func MaxCmp[T constraint.Cmp[T]](val1, val2 T) T {
 	return val1
 }
 
-// Sign is the sign of a Decimal
-type Sign int
-
-// Negative, Zero, and Positive sign constants
 const (
-	Negative Sign = iota - 1
-	Zero
-	Positive
-)
+	// decimalMaxScale is the maximum decimal scale
+	decimalMaxScale = 18
 
-const (
-	// decimalMaxPrecision is the maximum decimal precision
-	decimalMaxPrecision uint = 19
-	// decimalCheck19SignificantDigits is the smallest value of 19 significant digits
-	//                                   1 234 567 890 123 456 789
-	decimalCheck19SignificantDigits = 1_0_000_000_000_000_000_000
+	// decimalDefaultScale is the default decimal scale, which is2, since most uses will probably be for money
+	decimalDefaultScale = 2
 
-	errScaleTooLargeMsg       = "The Decimal scale %d is too large: the value must be <= 19"
-	errCannotIncreaseScaleMsg = "The scale of Decimal value %s cannot be increased from %d to %d, as most significant digit(s) would be lost"
+  // decimalMaxValue is the maximum decimal value
+	//                 123 456 789 012 345 678
+  decimalMaxValue int64 = +999_999_999_999_999_999
+
+  // decimalMinValue is the minimum decimal value
+	//                 123 456 789 012 345 678
+  decimalMinValue int64 = -999_999_999_999_999_999
+
+	// decimalCheck18SignificantDigits is the smallest value of 18 significant digits
+	//                                       123 456 789 012 345 678
+	decimalCheck18SignificantDigits int64 = 100_000_000_000_000_000
+
+  // errScaleTooLargeMsg is the error message for a decimal scale value that is too large
+	errScaleTooLargeMsg       = "The Decimal scale %d is too large: the value must be <= 18"
+
+  // errValueTooLargeMsg is the error message for a decimal value that is too large
+	errValueTooLargeMsg       = "The Decimal value %d is too large: the value must be <= 999_999_999_999_999_999"
+
+  // errValueTooSmallMsg is the error message for a decimal value that is too small
+	errValueTooSmallMsg       = "The Decimal value %d is too small: the value must be >= -999_999_999_999_999_999"
 )
 
 // Decimal is like SQL Decimal(precision, scale):
-// - precision is always 19, the maximum number of decimal digits an unsigned 64 bit value can store
-// - scale is number of digits after decimal place, must be <= 19 (default 0)
+// - precision is always 18, the maximum number of decimal digits a signed 64 bit value can store
+// - scale is number of digits after decimal place, must be <= 18 (default 2 as most popular use is money)
 //
 // The zero value is ready to use
 type Decimal struct {
-	sgn    bool
 	scale  uint
-	digits uint64
+	value int64
 }
 
-// adjustSign adjusts the sign to Zero if the digits are zero, else leave it as is
-func (d Decimal) Sign() (sgn Sign) {
+// OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 0)
+func OfDecimal(value int64, scale ...uint) (d Decimal, err error) {
+	scaleVal := funcs.SliceIndex(scale, 0, decimalDefaultScale)
+	if scaleVal > decimalMaxScale {
+		err = fmt.Errorf(errScaleTooLargeMsg, scaleVal)
+		return
+	}
+
+  if value > decimalMaxValue {
+    err = fmt.Errorf(errValueTooLargeMsg, value)
+    return
+  }
+
+  if value < decimalMinValue {
+    err = fmt.Errorf(errValueTooSmallMsg, value)
+    return
+  }
+
+	d.scale = scaleVal
+  d.value = value
+	return
+}
+
+// MustDecimal is a must version of OfDecimal
+func MustDecimal(value int64, scale ...uint) Decimal {
+  return funcs.MustValue(OfDecimal(value, scale...))
+}
+
+// Sign returns the sign of the number:
+// -1 if value < 0
+//  0 if value = 0
+// +1 if value > 0
+func (d Decimal) Sign() (sgn int) {
 	switch {
-  case d.digits == 0:
-    sgn = Zero
-  case d.sgn:
-    sgn = Positive
-  default:
-    sgn = Negative
+  case d.value > 0:
+    sgn = 1
+  case d.value < 0:
+    sgn = -1
   }
 
   return
 }
 
-// OfDecimalScale creates a Decimal with the given optional scale (default 0)
-func OfDecimalScale(scale ...uint) Decimal {
-	return funcs.MustValue(OfDecimal(true, 0, scale...))
-}
-
-// OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 0)
-func OfDecimal(pos bool, digits uint64, scale ...uint) (d Decimal, err error) {
-	scaleVal := funcs.SliceIndex(scale, 0)
-	if scaleVal > 19 {
-		err = fmt.Errorf(errScaleTooLargeMsg, scaleVal)
-		return
-	}
-
-	d = Decimal{sgn: pos, scale: scaleVal, digits: digits}
-	return
-}
-
 // String is the Stringer interface
 func (d Decimal) String() (str string) {
-	// Convert the uint to a string to start
-	conv.To(d.digits, &str)
+	// Convert the abs value of the int to a string to start
+	conv.To(funcs.Ternary(d.value < 0, -d.value, d.value), &str)
 
   // Get number of significant digits (length of string)
 	numSig := uint(len(str))
@@ -623,7 +642,7 @@ func (d Decimal) String() (str string) {
 
 		// The number of significant digits is <= the number of decimals. Add leading "0." + (scale - digits) zeros.
 	case numSig <= d.scale:
-		str = "0." + strings.Repeat("0", int(d.scale-numSig)) + str
+		str = "0." + strings.Repeat("0", int(d.scale - numSig)) + str
 
 	// At least one digit before and after decimal point, insert decimal at appropriate position
 	default:
@@ -632,7 +651,7 @@ func (d Decimal) String() (str string) {
 	}
 
   // Add a leading minus if negative
-  if !d.sgn {
+  if d.value < 0 {
     str = "-" + str
   }
 
@@ -641,19 +660,54 @@ func (d Decimal) String() (str string) {
 
 // AdjustScale adjusts the scale of d1 and d2:
 // - If both numbers have the same scale, no adjustment is made
-// - Otherwise, the number with the smaller scale is adjusted to the same scale as the other number
-// - Increasing the scale can cause some most significant digit would be lost, which is an error
+// - Otherwise, the number with the smaller scale is usually adjusted to the same scale as the other number
+// - Increasing the scale can cause some most significant digits to be lost, in which case the other number is rounded
+//   down to match the scale
 //
 // Examples:
 //
 // 1.5 and 1.25 -> 1.50 and 1.25
-// 1.(18 decimals) and 1.(17 decimals) -> 1.(18 decimals) and 1.(18 decimals where last decimal is 0)
-// 1.5 and (19 diigts where leading digit is not zero) -> error since second number would require 20 digits of storage
-// func AdjustSize(d1, d2 *Decimal) error {
-//   switch {
-//   case d1.scale < d2.scale:
+// 1.5 and 19 digits with no decimals -> 19 digits cannot increase scale, so round 1.5 to 2
+// func AdjustScale(d1, d2 *Decimal) {
+//   if d1.scale == d2.scale {
+//     return
+//   }
+//
+//   // Swap if necessary so that d1 has larger scale
+//   if d1.scale < d2.scale {
+//     t := d1
+//     d1 = d2
+//     d2 = t
+//   }
+//
+//   // Convert d1 and d2 to strings of digits only, to see how many significant digits they possess
+//   var str1, str2 string
+//   conv.To(t1, &str1)
+//   conv.To(t2, &str2)
+//
+//   var (
+//     sd1 = len(str1)
+//     sd2 = len(str2)
+//     d2Capacity = decimalMaxPrecision - sd2
+//     scaleDiff = d1.scale - d2.scale
+//   )
+//
+//   // Does d2 have enough remaining capacity for the required trailing zeroes to increase the scale?
+//   if d2Capacity >= scaleDiff {
+//     // Easy solution - multiply d2 by 10 ^ scaleDiff, and set scale to match d1
+//     for i = 0; i < scaleDiff; i++ {
+//       d2.digits *= 10
+//     }
+//
+//     d2.scale = d1.scale
+//   } else {
+//     // Harder solution - round d1 down to the same scale as d2, and set scale to match d2
+//     // Round by manipulating digits directly in string as a []byte
+//     dig2, dig1 := []byte(str1), []byte(str2)
 //
 //   }
+//
+//   return
 // }
 
 // Add adds
