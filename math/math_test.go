@@ -1277,9 +1277,9 @@ func TestAdjustDecimalScale_(t *testing.T) {
   assert.Equal(t, MustDecimal(2, 0), d1)
   assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
-  d1, d2 = MustDecimal(145, 2), MustDecimal(100_000_000_000_000_000, 0)
+  d1, d2 = MustDecimal(149, 2), MustDecimal(100_000_000_000_000_000, 0)
   funcs.Must(AdjustDecimalScale(&d1, &d2))
-  assert.Equal(t, MustDecimal(2, 0), d1)
+  assert.Equal(t, MustDecimal(1, 0), d1)
   assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
   d1, d2 = MustDecimal(144, 2), MustDecimal(100_000_000_000_000_000, 0)
@@ -1301,4 +1301,96 @@ func TestAdjustDecimalScale_(t *testing.T) {
   assert.Equal(t, fmt.Errorf("The decimal value -999999999999999995 is too small to round down"), AdjustDecimalScale(&d1, &d2))
   assert.Equal(t, MustDecimal(15, 1), d1)
   assert.Equal(t, MustDecimal(-999_999_999_999_999_995, 0), d2)
+}
+
+func TestDecimalAdd_(t *testing.T) {
+  //   0.010
+  // + 0.001
+  // = 0.011
+  d1, d2 := MustDecimal(1, 2), MustDecimal(1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(11, 3), error(nil)), tuple.Of2(d1.Add(d2)))
+
+  //   -0.010
+  // + -0.001
+  // = -0.011
+  d1, d2 = MustDecimal(-1, 2), MustDecimal(-1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(-11, 3), error(nil)), tuple.Of2(d1.Add(d2)))
+
+  //    0.010
+  // + -0.001
+  // =  0.009
+  d1, d2 = MustDecimal(1, 2), MustDecimal(-1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(9, 3), error(nil)), tuple.Of2(d1.Add(d2)))
+
+  //   -0.010
+  // +  0.001
+  // = -0.009
+  d1, d2 = MustDecimal(-1, 2), MustDecimal(1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(-9, 3), error(nil)), tuple.Of2(d1.Add(d2)))
+
+  // Scale error
+  d1, d2 = MustDecimal(15, 1), MustDecimal(999_999_999_999_999_995, 0)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal value 999999999999999995 is too large to round up")), tuple.Of2(d1.Add(d2)))
+
+  // Overflow
+  d1, d2 = MustDecimal(999_999_999_999_999_995, 2), MustDecimal(5, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 9999999999999999.95 + 0.05 overflowed")), tuple.Of2(d1.Add(d2)))
+
+  // Overflow
+  d1, d2 = MustDecimal(999_999_999_999_999_999, 2), MustDecimal(999_999_999_999_999_999, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 9999999999999999.99 + 9999999999999999.99 overflowed")), tuple.Of2(d1.Add(d2)))
+
+  // Underflow
+  d1, d2 = MustDecimal(-999_999_999_999_999_995, 2), MustDecimal(-5, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.95 + -0.05 underflowed")), tuple.Of2(d1.Add(d2)))
+
+  // Underflow
+  d1, d2 = MustDecimal(-999_999_999_999_999_999, 2), MustDecimal(-999_999_999_999_999_999, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 + -9999999999999999.99 underflowed")), tuple.Of2(d1.Add(d2)))
+}
+
+func TestDecimalSub_(t *testing.T) {
+  //   0.010
+  // - 0.001
+  // = 0.011
+  d1, d2 := MustDecimal(1, 2), MustDecimal(1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(9, 3), error(nil)), tuple.Of2(d1.Sub(d2)))
+
+  //   -0.010
+  // - -0.001
+  // = -0.009
+  d1, d2 = MustDecimal(-1, 2), MustDecimal(-1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(-9, 3), error(nil)), tuple.Of2(d1.Sub(d2)))
+
+  //    0.010
+  // - -0.001
+  // =  0.011
+  d1, d2 = MustDecimal(1, 2), MustDecimal(-1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(11, 3), error(nil)), tuple.Of2(d1.Sub(d2)))
+
+  //   -0.010
+  // -  0.001
+  // = -0.011
+  d1, d2 = MustDecimal(-1, 2), MustDecimal(1, 3)
+  assert.Equal(t, tuple.Of2(MustDecimal(-11, 3), error(nil)), tuple.Of2(d1.Sub(d2)))
+
+  // Scale error
+  d1, d2 = MustDecimal(15, 1), MustDecimal(999_999_999_999_999_995, 0)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal value -999999999999999995 is too small to round down")), tuple.Of2(d1.Sub(d2)))
+
+  // Overflow
+  d1, d2 = MustDecimal(999_999_999_999_999_995, 2), MustDecimal(-5, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 9999999999999999.95 - -0.05 overflowed")), tuple.Of2(d1.Sub(d2)))
+
+  // Overflow
+  d1, d2 = MustDecimal(999_999_999_999_999_999, 2), MustDecimal(-999_999_999_999_999_999, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 9999999999999999.99 - -9999999999999999.99 overflowed")), tuple.Of2(d1.Sub(d2)))
+
+  // Underflow
+  d1, d2 = MustDecimal(-999_999_999_999_999_995, 2), MustDecimal(5, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.95 - 0.05 underflowed")), tuple.Of2(d1.Sub(d2)))
+
+  // Underflow
+  d1, d2 = MustDecimal(-999_999_999_999_999_999, 2), MustDecimal(999_999_999_999_999_999, 2)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 - 9999999999999999.99 underflowed")), tuple.Of2(d1.Sub(d2)))
 }

@@ -586,6 +586,10 @@ const (
 
   // errValueTooSmallToRoundMsg is the error message for aligning decimals by rounding down a number too small to round
   errValueTooSmallToRoundMsg = "The decimal value %s is too small to round down"
+
+  errDecimalOverflowMsg = "The decimal calculation %s %s %s overflowed"
+
+  errDecimalUnderflowMsg = "The decimal calculation %s %s %s underflowed"
 )
 
 // Decimal is like SQL Decimal(precision, scale):
@@ -727,24 +731,17 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
       return fmt.Errorf(errValueTooSmallToRoundMsg, d2.String())
     }
 
-    // Round by manipulating digits directly in string as a []byte
+    // // Round by manipulating digits directly in string as a []byte
     dig1 := []byte(str1)
 
-    // If last digit >= 5, then enter decimal rounding loop:
-    // - applies only to digits we throw away
-    // - as long as prior digits are >= 4, adding 1 makes it >= 5, so round = true
-    // - if a digit is < 4 , adding 1 makes it < 5, so round = false and stop
-    // - stop if scaleDiff digits have been rounded and round is still true
-    // - if resulting round is true, then continue to integer rounding, else stop
-    var round bool = dig1[len1-1] >= '5'
-    for i := len1 - 2; i >= len1 - scaleDiff; i-- {
-      round = dig1[i] >= byte(funcs.Ternary(round, '4', '5'))
-    }
+    // Round by just examining first decimal place, if <= 4 round integer down, else round integer up
+    round := dig1[len1 - scaleDiff] >= '5'
+
     // throw away decimal digits
     dig1 = dig1[:len1 - scaleDiff]
     len1 = len(dig1)
 
-    // Integer rounding only occurs if final decimal round is true, and affects digits of d1 we're keeping
+    // Integer rounding affects digits of d1 we're keeping
     // - as long as integer digit = 9, set to 0
     // - if a digit < 9 is encountered, increment and stop
     // - if all digits are 9, add additional 1 digit on left
@@ -756,7 +753,6 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
     }
 
     // If final round is true, all integer digits are 9, add a leading 1
-    //  + strings.Repeat("0", int(scaleDiff))
     str1 = funcs.Ternary(round, "1" + string(dig1), string(dig1))
 
     // Set d1 scale
@@ -773,7 +769,57 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
   return nil
 }
 
-// Add adds
-// func (d Decimal) Add(x, y Decimal) Decimal {
-//
-// }
+// Negate returns the negation of d.
+// If 0 is passed, the result is 0.
+func (d Decimal) Negate() Decimal {
+  return Decimal{value: -d.value, scale: d.scale}
+}
+
+// addDecimal is internal function called by Add and Sub
+// For Add, o = origO
+// For Sub, o = -origO
+// origO is only needed for error messages
+func addDecimal(d, origO, o Decimal, op string) (Decimal, error) {
+  // Adjust scales to be the same
+  var (
+    r = d
+    oc = o
+  )
+  if err := AdjustDecimalScale(&r, &oc); err != nil {
+    return Decimal{}, err // Stop if an error occurred
+  }
+
+  // Add adjusted values
+  r.value += oc.value
+
+  // If signs are the same, result may have overflowed or underflowed
+  if rs, ocs := r.Sign(), oc.Sign(); rs == ocs {
+    if rs == 1 {
+      // Positives overflowed if result is > max allowed
+      if r.value > decimalMaxValue {
+        return Decimal{}, fmt.Errorf(errDecimalOverflowMsg, d, op, origO)
+      }
+    // Negatives underflow if the result is < min allowed
+    } else if r.value < decimalMinValue {
+      return Decimal{}, fmt.Errorf(errDecimalUnderflowMsg, d, op, origO)
+    }
+  }
+
+  return r, nil
+}
+
+// Add adds two decimals together by first adjusting them to the same scale, then adding their values
+// Returns an error if:
+// - Adjusting the scale produces an error
+// - Addition overflows or underflows
+func (d Decimal) Add(o Decimal) (Decimal, error) {
+  return addDecimal(d, o, o, "+")
+}
+
+// Sub subtracts o from d by first adjusting them to the same scale, then subtracting their values
+// Returns an error if:
+// - Adjusting the scale produces an error
+// - Subtraction overflows or underflows
+func (d Decimal) Sub(o Decimal) (Decimal, error) {
+  return addDecimal(d, o, o.Negate(), "-")
+}
