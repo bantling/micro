@@ -1394,3 +1394,28 @@ func TestDecimalSub_(t *testing.T) {
   d1, d2 = MustDecimal(-999_999_999_999_999_999, 2), MustDecimal(999_999_999_999_999_999, 2)
   assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 - 9999999999999999.99 underflowed")), tuple.Of2(d1.Sub(d2)))
 }
+
+func TestDecimalMul_(t *testing.T) {
+  // 1.5 * 2.5 = 3.75
+  d1, d2 := MustDecimal(15, 1), MustDecimal(25, 1)
+  assert.Equal(t, tuple.Of2(MustDecimal(375,2), error(nil)), tuple.Of2(d1.Mul(d2)))
+
+  // -1.5 * 2.5 = -3.75
+  d1, d2 = MustDecimal(-15, 1), MustDecimal(25, 1)
+  assert.Equal(t, tuple.Of2(MustDecimal(-375,2), error(nil)), tuple.Of2(d1.Mul(d2)))
+
+  // 1.5 * -2.5 = -3.75
+  d1, d2 = MustDecimal(15, 1), MustDecimal(-25, 1)
+  assert.Equal(t, tuple.Of2(MustDecimal(-375,2), error(nil)), tuple.Of2(d1.Mul(d2)))
+
+  // -1.5 * -2.5 = 3.75
+  d1, d2 = MustDecimal(-15, 1), MustDecimal(-25, 1)
+  assert.Equal(t, tuple.Of2(MustDecimal(375,2), error(nil)), tuple.Of2(d1.Mul(d2)))
+
+  // Overflow
+  d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(2, 1)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 0.2 overflowed")), tuple.Of2(d1.Mul(d2)))
+
+  d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(999_999_999_999_999_999, 1)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 99999999999999999.9 overflowed")), tuple.Of2(d1.Mul(d2)))
+}

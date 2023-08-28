@@ -587,9 +587,14 @@ const (
   // errValueTooSmallToRoundMsg is the error message for aligning decimals by rounding down a number too small to round
   errValueTooSmallToRoundMsg = "The decimal value %s is too small to round down"
 
+  // errDecimalOverflowMsg is the error message for an overflow
   errDecimalOverflowMsg = "The decimal calculation %s %s %s overflowed"
 
+  // errDecimalUnderflowMsg is the error message for an underflow
   errDecimalUnderflowMsg = "The decimal calculation %s %s %s underflowed"
+
+  // errDecimalDivisionByZeroMsg is the error message for dividing by zero
+  errDecimalDivisionByZeroMsg = "The decimal calculation %s / 0 is not allowed"
 )
 
 // Decimal is like SQL Decimal(precision, scale):
@@ -822,4 +827,39 @@ func (d Decimal) Add(o Decimal) (Decimal, error) {
 // - Subtraction overflows or underflows
 func (d Decimal) Sub(o Decimal) (Decimal, error) {
   return addDecimal(d, o, o.Negate(), "-")
+}
+
+// Mul multiplies d by o, then sets the result scale to (d scale) + (o scale)
+// Returns an overflow error if the result > 18 9 digits.
+func (d Decimal) Mul(o Decimal) (Decimal, error) {
+  // Start by just multiplying the two 64-bit values together, and adding their scales
+  r := d
+  r.value *= o.value
+  r.scale += o.scale
+
+  // Check if the operation is reversible: if r != 0 and r <= max value, then r / o = d
+  // If not, an overflow or underflow must have occurred
+  // It is an overflow if the signs are the same, underflow if they differ
+  if (r.value != 0) && ((r.value > decimalMaxValue) || (r.value / o.value != d.value)) {
+    return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+  }
+
+  return r, nil
+}
+
+// QuoRem divies d by o, and returns (quotient, remainder)
+// The scale of the quotient is rounded to (d scale) - (o scale)
+// The remainder is d - (o * q), with the same scale as the quotient
+// Returns a division by zero error if o is zero
+func (d Decimal) QuoRem(o Decimal) (Decimal, Decimal) {
+  // If o is 0, return division by zero error
+  if o.value == 0 {
+    return Decimal{}, fmt.Errorf(errDecimalUnderflowMsg, d)
+  }
+
+  // Divide d by o, and round to (d scale) - (o scale)
+  r := d
+  r.value /= o.value
+
+  return r, nil
 }
