@@ -425,6 +425,32 @@ func AddUint[T constraint.UnsignedInteger](ae1 T, ae2 *T) error {
 	return nil
 }
 
+// CmpOrdered compares two ordered types and returns -1, 0, 1, depending on whether val1 is <, =, or > val2.
+func CmpOrdered[T constraint.Ordered](val1, val2 T) (res int) {
+	if val1 < val2 {
+    res = -1
+  } else if val1 > val2 {
+    res = 1
+  }
+
+  return
+}
+
+// CmpComplex compares two complex types and returns -1, 0, 1, depending on whether val1 is <, =, or > val2.
+func CmpComplex[T constraint.Complex](val1, val2 T) (res int) {
+  var (
+    abs1 = cmplx.Abs(complex128(val1))
+    abs2 = cmplx.Abs(complex128(val2))
+  )
+	if abs1 < abs2 {
+		res = -1
+	} else if abs1 > abs2 {
+    res = 1
+  }
+
+	return
+}
+
 // SubInt subtracts two integers as sed = me - sed, overwriting the second value, and returns an error if over/underflow occurs.
 // See AddInt.
 func SubInt[T constraint.SignedInteger](me T, sed *T) error {
@@ -638,21 +664,6 @@ func MustDecimal(value int64, scale ...uint) Decimal {
   return funcs.MustValue(OfDecimal(value, scale...))
 }
 
-// Sign returns the sign of the number:
-// -1 if value < 0
-//  0 if value = 0
-// +1 if value > 0
-func (d Decimal) Sign() (sgn int) {
-	switch {
-  case d.value > 0:
-    sgn = 1
-  case d.value < 0:
-    sgn = -1
-  }
-
-  return
-}
-
 // String is the Stringer interface
 func (d Decimal) String() (str string) {
 	// Convert the abs value of the int to a string to start
@@ -682,6 +693,33 @@ func (d Decimal) String() (str string) {
   }
 
 	return
+}
+
+// Precison returns the total number of digits of a decimal, including trailing zeros.
+// Effectively, the length of the decimal as a string, without a minus sign or decimal point.
+func (d Decimal) Precision() int {
+  // Just use the String() method, remove any minus or decimal point, and get the length
+  return len(strings.Replace(strings.Replace(d.String(), "-", "", 1), ".", "", 1))
+}
+
+// Scale returns the number of digits after the decimal, if any.
+func (d Decimal) Scale() uint {
+  return d.scale
+}
+
+// Sign returns the sign of the number:
+// -1 if value < 0
+//  0 if value = 0
+// +1 if value > 0
+func (d Decimal) Sign() (sgn int) {
+	switch {
+  case d.value > 0:
+    sgn = 1
+  case d.value < 0:
+    sgn = -1
+  }
+
+  return
 }
 
 // AdjustDecimalScale adjusts the scale of d1 and d2:
@@ -777,6 +815,75 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
   return nil
 }
 
+// AdjustDecimalFormat adjusts the two decimals strings to have the same number of digits before and the decimal,
+// and the same number of digits after the decimal. Leading and trailing zeros are added as needed.
+//
+// Examples:
+// 30, 5 -> 30, 05
+// 1.23, 78.295 -> 01.230, 78.295
+func AdjustDecimalFormat(d1, d2 Decimal) (string, string) {
+  var (
+    // Remove optional leading minus from String(), split into before and after decimal
+    parts1 = strings.Split(strings.Replace(d1.String(), "-", "", 1), ".")
+    parts2 = strings.Split(strings.Replace(d2.String(), "-", "", 1), ".")
+
+    // Integer parts before decimal, which must exist, and lengths
+    int1 = parts1[0]
+    int2 = parts2[0]
+
+    li1 = len(int1)
+    li2 = len(int2)
+
+    // Fractional parts after decimal, which may exist, and lengths
+    frac1 = funcs.SliceIndex(parts1, 1)
+    frac2 = funcs.SliceIndex(parts2, 1)
+
+    lf1 = len(frac1)
+    lf2 = len(frac2)
+
+    // Maximum integer and fractional lengths
+    mi = MaxOrdered(li1, li2)
+    mf = MaxOrdered(lf1, lf2)
+
+    // Leading zeros for shorter integer
+    lz1 = strings.Repeat("0", mi - li1)
+    lz2 = strings.Repeat("0", mi - li2)
+
+    // Trailing zeros for shorter fractional
+    tz1 = strings.Repeat("0", mf - lf1)
+    tz2 = strings.Repeat("0", mf - lf2)
+
+    // Builders for formatted strings, starting with integer parts, which must exist
+    bld1, bld2 strings.Builder
+  )
+
+  bld1.WriteString(lz1)
+  bld1.WriteString(int1)
+
+  bld2.WriteString(lz2)
+  bld2.WriteString(int2)
+
+  if ((lf1 > 0) || len(tz1) > 0) {
+    bld1.WriteString(".")
+    bld1.WriteString(frac1)
+    bld1.WriteString(tz1)
+  }
+
+  if ((lf2 > 0) || len(tz2) > 0) {
+    bld2.WriteString(".")
+    bld2.WriteString(frac2)
+    bld2.WriteString(tz2)
+  }
+
+  return bld1.String(), bld2.String()
+}
+
+// Cmp compares d against o, and returns -1, 0, or 1 depending on whether d < o, d = o, or d > o, respectively.
+func (d Decimal) Cmp(o Decimal) int {
+  // Simplest way is to compare adjusted format strings with plain old string comparison
+  return CmpOrdered(AdjustDecimalFormat(d, o))
+}
+
 // Negate returns the negation of d.
 // If 0 is passed, the result is 0.
 func (d Decimal) Negate() Decimal {
@@ -865,16 +972,15 @@ func (d Decimal) MustMul(o Decimal) Decimal {
   return funcs.MustValue(d.Mul(o))
 }
 
-// QuoRem divides d by o, and returns (quotient, remainder, error).
+// DivIntQuoRem divides d by unsigned integer o, and returns (quotient, remainder, error).
 // The scale of the quotient and remainder are the same as that of d.
 // EG, 100.00 / 3 = 33.33 remainder 0.01.
 //
-// The purpose of this method is operations like dividing an amount of money into an integer number of payments.
 // The divisor o cannot be larger than the dividend d.
 //
 // Returns a division by zero error if o is zero.
 // Returns a divisor too large error if the o > d.value.
-func (d Decimal) QuoRem(o uint) (Decimal, Decimal, error) {
+func (d Decimal) DivIntQuoRem(o uint) (Decimal, Decimal, error) {
   // If o is 0, return division by zero error
   if o == 0 {
     return Decimal{}, Decimal{}, fmt.Errorf(errDecimalDivisionByZeroMsg, d)
@@ -900,12 +1006,17 @@ func (d Decimal) QuoRem(o uint) (Decimal, Decimal, error) {
   return q, r, nil
 }
 
-// QuoAdd is like QuoRem, except that it returns a slice of values that add up to d.
+// MustDivIntQuoRem is a must version of DivIntQuoRem
+func (d Decimal) MustDivIntQuoRem(o uint) (Decimal, Decimal) {
+  return funcs.MustValue2(d.DivIntQuoRem(o))
+}
+
+// DintIntAdd is like DivIntQuoRem, except that it returns a slice of values that add up to d.
 // EG, 100.00 / 3 = [33.34, 33.33, 33.33].
-// This method just calls QuoRem and spreads the remainder across the first remainder values returned.
-func (d Decimal) QuoAdd(o uint) ([]Decimal, error) {
+// This method just calls DivIntQuoRem and spreads the remainder across the first remainder values returned.
+func (d Decimal) DivIntAdd(o uint) ([]Decimal, error) {
   // Get the quotient and remainder, returning (nil, error) if an error is returned
-  q, r, e := d.QuoRem(o)
+  q, r, e := d.DivIntQuoRem(o)
   if e != nil {
     return nil, e
   }
@@ -921,4 +1032,9 @@ func (d Decimal) QuoAdd(o uint) ([]Decimal, error) {
   }
 
   return res, nil
+}
+
+// MustDivIntAdd is a must version of DivIntAdd
+func (d Decimal) MustDivIntAdd(o uint) []Decimal {
+  return funcs.MustValue(d.DivIntAdd(o))
 }
