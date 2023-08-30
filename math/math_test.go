@@ -1413,9 +1413,56 @@ func TestDecimalMul_(t *testing.T) {
   assert.Equal(t, tuple.Of2(MustDecimal(375,2), error(nil)), tuple.Of2(d1.Mul(d2)))
 
   // Overflow
+  // - Within bounds of binary, but beyond bounds of 18 decimals
   d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(2, 1)
   assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 0.2 overflowed")), tuple.Of2(d1.Mul(d2)))
 
+  // - Beyond bounds of binary, but only a little
+  d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(16, 0)
+  assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 16 overflowed")), tuple.Of2(d1.Mul(d2)))
+
+  // - Way beyond bounds of binary
   d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(999_999_999_999_999_999, 1)
   assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 99999999999999999.9 overflowed")), tuple.Of2(d1.Mul(d2)))
+}
+
+func TestDecimalQuoRem_(t *testing.T) {
+  // 100.00 / 3 = 33.33 r 00.01
+  de, dv := MustDecimal(100_00), uint(3)
+  assert.Equal(t, tuple.Of3(MustDecimal(3333), MustDecimal(1), error(nil)), tuple.Of3(de.QuoRem(dv)))
+
+  // 100.00 / 100 = 1.00 r 0.00
+  de, dv = MustDecimal(100_00), uint(100)
+  assert.Equal(t, tuple.Of3(MustDecimal(100), MustDecimal(0), error(nil)), tuple.Of3(de.QuoRem(dv)))
+
+  // Division by zero
+  assert.Equal(t, tuple.Of3(Decimal{}, Decimal{}, fmt.Errorf("The decimal calculation 100.00 / 0 is not allowed")), tuple.Of3(de.QuoRem(0)))
+
+  // Division by divisor > dividend
+  assert.Equal(t, tuple.Of3(Decimal{}, Decimal{}, fmt.Errorf("The decimal calculation 100.00 / 101 is not allowed, the divisor is larger than the dividend")), tuple.Of3(de.QuoRem(101)))
+}
+
+func TestDecimalQuoAdd_(t *testing.T) {
+  // 100.00 / 3 = [33.34, 33.34, 33.33]
+  de, dv := MustDecimal(100_00), uint(3)
+  assert.Equal(t, tuple.Of2([]Decimal{MustDecimal(3334), MustDecimal(3333), MustDecimal(3333)}, error(nil)), tuple.Of2(de.QuoAdd(dv)))
+
+  // 100.00 / 5 = [20.00, 20.00, 20.00, 20.00, 20.00]
+  de, dv = MustDecimal(100_00), uint(5)
+  assert.Equal(t, tuple.Of2([]Decimal{MustDecimal(2000), MustDecimal(2000), MustDecimal(2000), MustDecimal(2000), MustDecimal(2000)}, error(nil)), tuple.Of2(de.QuoAdd(dv)))
+
+  // 100.00 / 100 = [1.00 repeated 10 times]
+  de, dv = MustDecimal(100_00), uint(100)
+  add := make([]Decimal, 100)
+  for i := 0; i < 100; i++ {
+    add[i] = MustDecimal(100)
+  }
+  assert.Equal(t, tuple.Of2(add, error(nil)), tuple.Of2(de.QuoAdd(dv)))
+
+  //
+  // // Division by zero
+  // assert.Equal(t, tuple.Of3(Decimal{}, Decimal{}, fmt.Errorf("The decimal calculation 100.00 / 0 is not allowed")), tuple.Of3(de.QuoAdd(0)))
+  //
+  // // Division by divisor > dividend
+  // assert.Equal(t, tuple.Of3(Decimal{}, Decimal{}, fmt.Errorf("The decimal calculation 100.00 / 101 is not allowed, the divisor is larger than the dividend")), tuple.Of3(de.QuoRem(101)))
 }

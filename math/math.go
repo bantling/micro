@@ -595,6 +595,9 @@ const (
 
   // errDecimalDivisionByZeroMsg is the error message for dividing by zero
   errDecimalDivisionByZeroMsg = "The decimal calculation %s / 0 is not allowed"
+
+  // errDecimalDivisorTooLargeMsg is the error message for dividing by a divisor that is larger than the dividend
+  errDecimalDivisorTooLargeMsg = "The decimal calculation %s / %d is not allowed, the divisor is larger than the dividend"
 )
 
 // Decimal is like SQL Decimal(precision, scale):
@@ -821,12 +824,22 @@ func (d Decimal) Add(o Decimal) (Decimal, error) {
   return addDecimal(d, o, o, "+")
 }
 
+// MustAdd is amjust version of Add
+func (d Decimal) MustAdd(o Decimal) Decimal {
+  return funcs.MustValue(d.Add(o))
+}
+
 // Sub subtracts o from d by first adjusting them to the same scale, then subtracting their values
 // Returns an error if:
 // - Adjusting the scale produces an error
 // - Subtraction overflows or underflows
 func (d Decimal) Sub(o Decimal) (Decimal, error) {
   return addDecimal(d, o, o.Negate(), "-")
+}
+
+// MustSub is amjust version of Sub
+func (d Decimal) MustSub(o Decimal) Decimal {
+  return funcs.MustValue(d.Sub(o))
 }
 
 // Mul multiplies d by o, then sets the result scale to (d scale) + (o scale)
@@ -847,19 +860,65 @@ func (d Decimal) Mul(o Decimal) (Decimal, error) {
   return r, nil
 }
 
-// QuoRem divies d by o, and returns (quotient, remainder)
-// The scale of the quotient is rounded to (d scale) - (o scale)
-// The remainder is d - (o * q), with the same scale as the quotient
-// Returns a division by zero error if o is zero
-func (d Decimal) QuoRem(o Decimal) (Decimal, Decimal) {
+// MustMul is a must version of Mul
+func (d Decimal) MustMul(o Decimal) Decimal {
+  return funcs.MustValue(d.Mul(o))
+}
+
+// QuoRem divides d by o, and returns (quotient, remainder, error).
+// The scale of the quotient and remainder are the same as that of d.
+// EG, 100.00 / 3 = 33.33 remainder 0.01.
+//
+// The purpose of this method is operations like dividing an amount of money into an integer number of payments.
+// The divisor o cannot be larger than the dividend d.
+//
+// Returns a division by zero error if o is zero.
+// Returns a divisor too large error if the o > d.value.
+func (d Decimal) QuoRem(o uint) (Decimal, Decimal, error) {
   // If o is 0, return division by zero error
-  if o.value == 0 {
-    return Decimal{}, fmt.Errorf(errDecimalUnderflowMsg, d)
+  if o == 0 {
+    return Decimal{}, Decimal{}, fmt.Errorf(errDecimalDivisionByZeroMsg, d)
   }
 
-  // Divide d by o, and round to (d scale) - (o scale)
-  r := d
-  r.value /= o.value
+  // If o > d, return divisor too large
+  // To tell if o > d, we have to convert o to integer part only by dividing o.value by 10 ^ o.scale
+  var intPartOfD int64 = funcs.Ternary(d.value >= 0, d.value, -d.value)
+  for i := uint(0); i < d.scale; i++ {
+    intPartOfD /= 10
+  }
+  if int64(o) > intPartOfD {
+    return Decimal{}, Decimal{}, fmt.Errorf(errDecimalDivisorTooLargeMsg, d, o)
+  }
 
-  return r, nil
+  // Divide d by o, and set to d scale
+  // Remainder calculated as d - (q * o), the only way to get the decimal place correct
+  var (
+    q = Decimal{scale: d.scale, value: d.value / int64(o)}
+    r = d.MustSub(Decimal{scale: d.scale, value: q.value * int64(o)})
+  )
+
+  return q, r, nil
+}
+
+// QuoAdd is like QuoRem, except that it returns a slice of values that add up to d.
+// EG, 100.00 / 3 = [33.34, 33.33, 33.33].
+// This method just calls QuoRem and spreads the remainder across the first remainder values returned.
+func (d Decimal) QuoAdd(o uint) ([]Decimal, error) {
+  // Get the quotient and remainder, returning (nil, error) if an error is returned
+  q, r, e := d.QuoRem(o)
+  if e != nil {
+    return nil, e
+  }
+
+  // Remainder is just a count of how many values need to be increased by 1
+  var (
+    rc = r.value
+    res = make([]Decimal, o)
+  )
+  for i := int64(0); i < int64(o); i++ {
+    res[i] = Decimal{scale: d.scale, value: q.value + int64(funcs.Ternary(rc > 0, 1, 0))}
+    rc--
+  }
+
+  return res, nil
 }
