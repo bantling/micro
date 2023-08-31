@@ -15,6 +15,16 @@ import (
 
 // ==== Slices
 
+func TestSliceAdd_(t *testing.T) {
+	var slc []int
+	SliceAdd(&slc, 3)
+	assert.NotNil(t, slc)
+	assert.Equal(t, []int{3}, slc)
+
+	SliceAdd(&slc, 4)
+	assert.Equal(t, []int{3, 4}, slc)
+}
+
 func TestSliceCopy_(t *testing.T) {
 	assert.Equal(t, []int{}, SliceCopy([]int(nil)))
 
@@ -186,6 +196,63 @@ func TestMapIndex_(t *testing.T) {
 	assert.Equal(t, 1, MapIndex(mp, ""))
 	assert.Equal(t, 2, MapIndex(mp, "a"))
 	assert.Equal(t, 3, MapIndex(mp, "b", 3))
+}
+
+func TestMapSet_(t *testing.T) {
+	{
+		var mp map[string]int
+		MapSet(&mp, "foo", 3)
+		assert.NotNil(t, mp)
+		assert.Equal(t, map[string]int{"foo": 3}, mp)
+
+		MapSet(&mp, "bar", 4)
+		assert.Equal(t, map[string]int{"foo": 3, "bar": 4}, mp)
+	}
+
+	{
+		var mp map[string]map[int]bool
+		Map2Set(&mp, "foo", 3, true)
+		assert.NotNil(t, mp)
+		assert.NotNil(t, mp["foo"])
+		assert.Equal(t, map[string]map[int]bool{"foo": {3: true}}, mp)
+
+		Map2Set(&mp, "foo", 4, false)
+		assert.Equal(t, map[string]map[int]bool{"foo": {3: true, 4: false}}, mp)
+
+		Map2Set(&mp, "bar", 5, true)
+		assert.Equal(t, map[string]map[int]bool{"foo": {3: true, 4: false}, "bar": {5: true}}, mp)
+	}
+}
+
+func TestMapSliceAdd_(t *testing.T) {
+	{
+		var mp map[string][]int
+		MapSliceAdd(&mp, "foo", 3)
+		assert.NotNil(t, mp)
+		assert.NotNil(t, mp["foo"])
+		assert.Equal(t, map[string][]int{"foo": {3}}, mp)
+
+		MapSliceAdd(&mp, "foo", 4)
+		assert.Equal(t, map[string][]int{"foo": {3, 4}}, mp)
+
+		MapSliceAdd(&mp, "bar", 5)
+		assert.Equal(t, map[string][]int{"foo": {3, 4}, "bar": {5}}, mp)
+	}
+
+	{
+		var mp map[string]map[int][]bool
+		Map2SliceAdd(&mp, "foo", 3, true)
+		assert.NotNil(t, mp)
+		assert.NotNil(t, mp["foo"])
+		assert.NotNil(t, mp["foo"][3])
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{true}}}, mp)
+
+		Map2SliceAdd(&mp, "foo", 3, false)
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{true, false}}}, mp)
+
+		Map2SliceAdd(&mp, "bar", 4, true)
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{true, false}}, "bar": {4: []bool{true}}}, mp)
+	}
 }
 
 func TestMapSort_(t *testing.T) {

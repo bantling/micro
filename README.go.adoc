@@ -210,10 +210,11 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
+* add simple http mux
+* add Makefile target to ensure all packages of Go code have a doc.go file
 * Rename util package to range, funcs is really a util package
 * expand conv.To to include Decimal and JSON.Number
 * remove json.Number funcs that are covered by conv.To
-* add simple http mux
 ** a slice of pairs of regexps (for method, url, and query params) and a func to call
 ** regexp/func pairs simply appended to slice in order they are provided
 ** just applies each regex in turn until one matches, then calls func, else panics

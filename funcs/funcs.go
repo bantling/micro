@@ -28,6 +28,27 @@ const (
 
 // ==== Slices
 
+// SliceAdd makes adding values to slices easier, by automatically creating the slice as needed.
+// Particularly useful for struct fields, as the zero value of the struct will have a nil slice.
+//
+// EG:
+// var slc []int // nil slice
+// SliceAdd(&slc, 3)
+//
+// since slc is nil, sets *slc = []int{}
+// appends 3 to *slc
+//
+// SliceAdd(&slc, 4)
+//
+// since *slc exists, appends 4 to *slc
+func SliceAdd[T any](slc *[]T, value T) {
+	if *slc == nil {
+		*slc = []T{}
+	}
+
+	(*slc) = append((*slc), value)
+}
+
 // SliceCopy returns a copy of a slice, useful for situations such as sorting a copy of a slice without modifying the original.
 // If the original slice is null, the result is empty.
 func SliceCopy[T any](slc []T) (res []T) {
@@ -290,6 +311,133 @@ func MapIndex[K comparable, V any](mp map[K]V, key K, defawlt ...V) V {
 	// Else return zero value of map value type
 	var zv V
 	return zv
+}
+
+// MapSet makes accessing maps easier, by automatically creating the map as needed.
+// Particularly useful for struct fields, as the zero value of the struct will have a nil map.
+//
+// EG:
+// var mp map[string]int // nil map
+// MapSet(&mp, "foo", 3)
+//
+// since mp is nil, sets *mp = map[string]{}
+// sets *mp["foo"] = 3
+//
+// MapSet(&mp, "foo", 4)
+//
+// since *mp exists, sets *mp["foo"] = 4
+func MapSet[K comparable, V any](mp *map[K]V, key K, value V) {
+	// Create top level map if it is nil
+	if *mp == nil {
+		*mp = map[K]V{}
+	}
+
+	// Set value for key K
+	(*mp)[key] = value
+}
+
+// Map2Set makes accessing two level maps easier, by automatically creating the first and second maps as needed.
+// Particularly useful for struct fields, as the zero value of the struct will have a nil map.
+//
+// EG:
+// var mp map[string]map[int]bool // nil map
+// Map2Set(&mp, "foo", 3, true)
+//
+// since mp is nil, sets mp = map[int]bool{}
+// since mp["foo"] is nil, sets mp["foo"] = map[int]bool{}
+// sets mp["foo"][3] = true
+//
+// Map2Set(&mp, "foo", 4, false)
+//
+// since mp and mp["foo"] both exist, sets mp["foo"][4] = false
+func Map2Set[K1, K2 comparable, V any](mp *map[K1]map[K2]V, key1 K1, key2 K2, value V) {
+	// Create top level map if it is nil
+	if *mp == nil {
+		*mp = map[K1]map[K2]V{}
+	}
+
+	// Create second level map for key K1 if it does not exist
+	mp2 := (*mp)[key1]
+	if mp2 == nil {
+		mp2 = map[K2]V{}
+		(*mp)[key1] = mp2
+	}
+
+	// Set second level value for key K2
+	mp2[key2] = value
+}
+
+// MapSliceAdd makes accessing a map whose value is a slice easier, by automatically creating the map and slice as needed.
+// Particularly useful for struct fields, as the zero value of the struct will have a nil map.
+//
+// EG:
+// var mp map[string][]int
+// MapSliceAdd(&mp, "foo", 3)
+//
+// since mp is nil, sets mp = map[string][]int{}
+// since mp["foo"] is nil, sets mp["foo"] = []int{}
+// appends 3 to map["foo"]
+//
+// MapSliceAdd(&mp, "foo", 4)
+//
+// since mp and mp["foo"] both exist, appends 4 to mp["foo"]
+func MapSliceAdd[K comparable, V any](mp *map[K][]V, key K, value V) {
+	// Create top level map if it is nil
+	if *mp == nil {
+		*mp = map[K][]V{}
+	}
+
+	// Create slice for key K if it does not exist
+	slc := (*mp)[key]
+	if slc == nil {
+		slc = []V{}
+		(*mp)[key] = slc
+	}
+
+	// Append value to slice and remap it
+	slc = append(slc, value)
+	(*mp)[key] = slc
+}
+
+// Map2SliceAdd makes accessing a two level map whose value is a slice easier, by automatically creating the first and
+// second maps and slice as needed.
+// Particularly useful for struct fields, as the zero value of the struct will have a nil map.
+//
+// EG:
+// var mp map[string]map[int][]bool
+// Map2SliceAdd(&mp, "foo", 3, true)
+//
+// since mp is nil, sets mp = map[string]map[int][]bool{}
+// since mp["foo"] is nil, sets mp["foo"] = map[int][]bool{}
+// since mp["foo"][3] is nil, sets mp["foo"][3] = []bool{}
+// appends true to map["foo"][3]
+//
+// Map2SliceAdd(&mp, "foo", 3, false)
+//
+// since mp, mp["foo"] and mp["foo"][3] all exist, appends false to mp["foo"][3]
+func Map2SliceAdd[K1, K2 comparable, V any](mp *map[K1]map[K2][]V, key1 K1, key2 K2, value V) {
+	// Create top level map if it is nil
+	if *mp == nil {
+		*mp = map[K1]map[K2][]V{}
+	}
+
+	// Create second level map for key K1 if it does not exist
+	mp2 := (*mp)[key1]
+	if mp2 == nil {
+		mp2 = map[K2][]V{}
+		(*mp)[key1] = mp2
+	}
+
+	// Create slice for key K2 if it does not exist
+	slc := (*mp)[key1][key2]
+	if slc == nil {
+		slc = []V{}
+		(*mp)[key1][key2] = slc
+	}
+
+	// Append value to slice and remap it
+	slc = append(slc, value)
+	(*mp)[key1][key2] = slc
 }
 
 // MapSortOrdered sorts a map with an Ordered key into a []Two[K, V]
