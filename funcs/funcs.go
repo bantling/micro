@@ -144,6 +144,12 @@ func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
 	return zv
 }
 
+// Sliceof allows caller to infer the slice type rather than have to write it out.
+// This is useful when the type is a more lengthy declaration.
+func SliceOf[T any](vals ...T) []T {
+  return vals
+}
+
 // SliceRemove removes a slice element from a slice.
 // By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
 // The new slice is returned.
@@ -1030,6 +1036,20 @@ func FirstValue2[T, U any](t T, u U) T {
 // Useful for functions that return three results and you only care about the first one
 func FirstValue3[T, U, V any](t T, u U, v V) T {
 	return t
+}
+
+// ==== SecondValue
+
+// SecondValue2 takes two values and returns only the second one.
+// Useful for functions that return two results and you only care about the second one
+func SecondValue2[T, U any](t T, u U) U {
+	return u
+}
+
+// SecondValue3 takes three values and returns only the second one.
+// Useful for functions that return three results and you only care about the second one
+func SecondValue3[T, U, V any](t T, u U, v V) U {
+	return u
 }
 
 // ==== TryTo

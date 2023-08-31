@@ -83,6 +83,11 @@ func TestSliceIndex_(t *testing.T) {
 	assert.Equal(t, 3, SliceIndex(slc, 2, 3))
 }
 
+func TestSliceOf_(t *testing.T) {
+  assert.Equal(t, []string{"a"}, SliceOf("a"))
+  assert.Equal(t, []int{1,2}, SliceOf(1, 2))
+}
+
 func TestSliceRemove_(t *testing.T) {
 	assert.Equal(t, []int{}, SliceRemove([]int{}, 0))
 	assert.Equal(t, []int{1, 2, 4}, SliceRemove([]int{1, 2, 3, 4}, 3))
@@ -852,6 +857,14 @@ func TestFirstValue2_(t *testing.T) {
 
 func TestFirstValue3_(t *testing.T) {
 	assert.Equal(t, 1, FirstValue3(1, 2, 3))
+}
+
+func TestSecondValue2_(t *testing.T) {
+	assert.Equal(t, 2, SecondValue2(1, 2))
+}
+
+func TestSecondValue3_(t *testing.T) {
+	assert.Equal(t, 2, SecondValue3(1, 2, 3))
 }
 
 func TestIgnoreResult_(t *testing.T) {
