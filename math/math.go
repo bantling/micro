@@ -817,15 +817,24 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 
 // AdjustDecimalFormat adjusts the two decimals strings to have the same number of digits before and the decimal,
 // and the same number of digits after the decimal. Leading and trailing zeros are added as needed.
+// Since minus has a higher ASCII value than plus, a positive number has a leading slash.
+//
+// The strings returned are almost comparable: "-2" > "-1".
 //
 // Examples:
-// 30, 5 -> 30, 05
-// 1.23, 78.295 -> 01.230, 78.295
+// 30, 5 -> " 30", " 05"
+// 1.23, -78.295 -> " 01.230", "-78.295"
 func AdjustDecimalFormat(d1, d2 Decimal) (string, string) {
   var (
+    str1 = d1.String()
+    str2 = d2.String()
+
+    minus1 = str1[0] == '-'
+    minus2 = str2[0] == '-'
+
     // Remove optional leading minus from String(), split into before and after decimal
-    parts1 = strings.Split(strings.Replace(d1.String(), "-", "", 1), ".")
-    parts2 = strings.Split(strings.Replace(d2.String(), "-", "", 1), ".")
+    parts1 = strings.Split(strings.Replace(str1, "-", "", 1), ".")
+    parts2 = strings.Split(strings.Replace(str2, "-", "", 1), ".")
 
     // Integer parts before decimal, which must exist, and lengths
     int1 = parts1[0]
@@ -857,6 +866,9 @@ func AdjustDecimalFormat(d1, d2 Decimal) (string, string) {
     bld1, bld2 strings.Builder
   )
 
+  bld1.WriteRune(funcs.Ternary(minus1, '-', '/'))
+  bld2.WriteRune(funcs.Ternary(minus2, '-', '/'))
+
   bld1.WriteString(lz1)
   bld1.WriteString(int1)
 
@@ -881,7 +893,12 @@ func AdjustDecimalFormat(d1, d2 Decimal) (string, string) {
 // Cmp compares d against o, and returns -1, 0, or 1 depending on whether d < o, d = o, or d > o, respectively.
 func (d Decimal) Cmp(o Decimal) int {
   // Simplest way is to compare adjusted format strings with plain old string comparison
-  return CmpOrdered(AdjustDecimalFormat(d, o))
+  da, oa := AdjustDecimalFormat(d, o)
+
+  // Have to account for fact that "-2" > "-1"
+  compare := CmpOrdered(AdjustDecimalFormat(d, o))
+  
+  return funcs.Ternary((da[0] == '-') && (oa[0] == '-'), -compare, compare)
 }
 
 // Negate returns the negation of d.

@@ -1331,22 +1331,22 @@ func TestAdjustDecimalScale_(t *testing.T) {
 
 func TestAdjustDecimalFormat_(t *testing.T) {
   d1, d2 := MustDecimal(1,0), MustDecimal(2,0)
-  assert.Equal(t, tuple.Of2("1", "2"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
+  assert.Equal(t, tuple.Of2("/1", "/2"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
 
   d1, d2 = MustDecimal(12,0), MustDecimal(1,0)
-  assert.Equal(t, tuple.Of2("12", "01"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
+  assert.Equal(t, tuple.Of2("/12", "/01"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
 
-  d1, d2 = MustDecimal(1,0), MustDecimal(12,0)
-  assert.Equal(t, tuple.Of2("01", "12"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
+  d1, d2 = MustDecimal(-1,0), MustDecimal(12,0)
+  assert.Equal(t, tuple.Of2("-01", "/12"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
 
-  d1, d2 = MustDecimal(11,0), MustDecimal(12,0)
-  assert.Equal(t, tuple.Of2("11", "12"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
+  d1, d2 = MustDecimal(11,0), MustDecimal(-12,0)
+  assert.Equal(t, tuple.Of2("/11", "-12"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
 
-  d1, d2 = MustDecimal(123,1), MustDecimal(234,1)
-  assert.Equal(t, tuple.Of2("12.3", "23.4"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
+  d1, d2 = MustDecimal(-123,1), MustDecimal(-234,1)
+  assert.Equal(t, tuple.Of2("-12.3", "-23.4"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
 
   d1, d2 = MustDecimal(123, 2), MustDecimal(2345)
-  assert.Equal(t, tuple.Of2("01.23", "23.45"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
+  assert.Equal(t, tuple.Of2("/01.23", "/23.45"), tuple.Of2(AdjustDecimalFormat(d1, d2)))
 }
 
 func TestDecimalCmp_(t *testing.T) {
@@ -1357,6 +1357,14 @@ func TestDecimalCmp_(t *testing.T) {
   assert.Equal(t, -1, MustDecimal(123,2).Cmp(MustDecimal(123,1)))
   assert.Equal(t, 0, MustDecimal(123,1).Cmp(MustDecimal(123,1)))
   assert.Equal(t, 1, MustDecimal(123,1).Cmp(MustDecimal(123,2)))
+
+  assert.Equal(t, -1, MustDecimal(-1).Cmp(MustDecimal(2)))
+  assert.Equal(t, 0, MustDecimal(-1).Cmp(MustDecimal(-1)))
+  assert.Equal(t, 1, MustDecimal(2).Cmp(MustDecimal(-1)))
+
+  assert.Equal(t, -1, MustDecimal(-2).Cmp(MustDecimal(-1)))
+  assert.Equal(t, 0, MustDecimal(-2).Cmp(MustDecimal(-2)))
+  assert.Equal(t, 1, MustDecimal(-1).Cmp(MustDecimal(-2)))
 }
 
 func TestDecimalNegate_(t *testing.T) {
