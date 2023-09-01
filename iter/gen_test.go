@@ -602,11 +602,11 @@ func TestStringAsLinesIterGen_(t *testing.T) {
 func TestConcatIterGen_(t *testing.T) {
 	iter := ConcatIterGen(
 		[]Iter[string]{
-			NewIter(NoValueIterGen[string]()),
-			NewIter(SliceIterGen([]string{"foo", "bar"})),
-			NewIter(NoValueIterGen[string]()),
-			NewIter(SingleValueIterGen("baz")),
-			NewIter(NoValueIterGen[string]()),
+			OfIter(NoValueIterGen[string]()),
+			OfIter(SliceIterGen([]string{"foo", "bar"})),
+			OfIter(NoValueIterGen[string]()),
+			OfIter(SingleValueIterGen("baz")),
+			OfIter(NoValueIterGen[string]()),
 		},
 	)
 

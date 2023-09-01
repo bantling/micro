@@ -13,14 +13,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewIter_(t *testing.T) {
-	it := NewIter(SliceIterGen[int]([]int{1, 2}))
+func TestOfIter_(t *testing.T) {
+	it := OfIter(SliceIterGen[int]([]int{1, 2}))
 	assert.Equal(t, union.OfResult(1), Maybe(it))
 	assert.Equal(t, union.OfResult(2), Maybe(it))
 	assert.Equal(t, union.OfError[int](EOI), Maybe(it))
 	assert.Equal(t, union.OfError[int](EOI), Maybe(it))
 
-	it = NewIter(FibonnaciIterGen())
+	it = OfIter(FibonnaciIterGen())
 	assert.Equal(t, union.OfResult(1), Maybe(it))
 	assert.Equal(t, union.OfResult(1), Maybe(it))
 	assert.Equal(t, union.OfResult(2), Maybe(it))
@@ -32,11 +32,11 @@ func TestNewIter_(t *testing.T) {
 	// Nil iter func
 	funcs.TryTo(
 		func() {
-			NewIter[int](nil)
+			OfIter[int](nil)
 			assert.Fail(t, "Must die")
 		},
 		func(err any) {
-			assert.Equal(t, errNewIterNeedsIterator, err)
+			assert.Equal(t, errOfIterNeedsIterator, err)
 		},
 	)
 }

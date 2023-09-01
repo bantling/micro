@@ -177,7 +177,7 @@ func parseArray(it iter.Iter[token]) iter.Iter[json.Value] {
 		commaBracket token
 	)
 
-	return iter.NewIter(func() (json.Value, error) {
+	return iter.OfIter(func() (json.Value, error) {
 		if first {
 			// Discard opening bracket
 			it.Next()

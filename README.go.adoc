@@ -195,13 +195,10 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* Ensure constructors don't return a pointer just because there are pointer receiver methods
+* add Thirdvalue to funcs
 * expand conv.To to include Decimal and JSON.Number
 * remove json.Number funcs that are covered by conv.To
-** a slice of pairs of regexps (for method, url, and query params) and a func to call
-** regexp/func pairs simply appended to slice in order they are provided
-** just applies each regex in turn until one matches, then calls func, else panics
-** user can supply a func to use instead of panicking
+* update this README
 * ETL
 ** Mainly operating on streams, with 3 basic operation types:
 *** Combine streams

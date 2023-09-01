@@ -14,11 +14,11 @@ import (
 // ==== Constants
 
 var (
-	errNewIterNeedsIterator = fmt.Errorf("NewIter requires a non-nil iterating function")
-	errValueExpected        = fmt.Errorf("Value has to be called after Next")
-	errNextExpected         = fmt.Errorf("Next has to be called before Value")
-	errNoMoreValues         = fmt.Errorf("Value cannot be called after Next returns false")
-	EOI                     = fmt.Errorf("End of Iteration")
+	errOfIterNeedsIterator = fmt.Errorf("OfIter requires a non-nil iterating function")
+	errValueExpected       = fmt.Errorf("Value has to be called after Next")
+	errNextExpected        = fmt.Errorf("Next has to be called before Value")
+	errNoMoreValues        = fmt.Errorf("Value cannot be called after Next returns false")
+	EOI                    = fmt.Errorf("End of Iteration")
 )
 
 // ==== Types
@@ -46,7 +46,7 @@ type IterImpl[T any] struct {
 
 // ==== Construct
 
-// NewIter constructs an Iter[T] from an iterating function that returns (T, error).
+// OfIter constructs an Iter[T] from an iterating function that returns (T, error).
 // The function must return (nextItem, nil) for every item available to iterate, then return (invalid, EOI) on the
 // next call after the last item, where invalid is any value of type T.
 // If some actual error occurs attempting read the next value, then the function must return (invalid, non-nil non-EOI error).
@@ -54,9 +54,9 @@ type IterImpl[T any] struct {
 // Panics if iterFn is nil.
 //
 // See IterImpl.
-func NewIter[T any](iterFn func() (T, error)) Iter[T] {
+func OfIter[T any](iterFn func() (T, error)) Iter[T] {
 	if iterFn == nil {
-		panic(errNewIterNeedsIterator)
+		panic(errOfIterNeedsIterator)
 	}
 
 	return &IterImpl[T]{iterFn: iterFn}
@@ -66,69 +66,69 @@ func NewIter[T any](iterFn func() (T, error)) Iter[T] {
 //
 // See SliceIterGen.
 func Of[T any](items ...T) Iter[T] {
-	return NewIter[T](SliceIterGen[T](items))
+	return OfIter[T](SliceIterGen[T](items))
 }
 
 // OfEmpty constructs an Iter[T] that iterates no values.
 //
 // See NoValueIterGen.
 func OfEmpty[T any]() Iter[T] {
-	return NewIter[T](NoValueIterGen[T]())
+	return OfIter[T](NoValueIterGen[T]())
 }
 
 // OfOne constructs an Iter[T] that iterates a single value.
 //
 // See SingleValueIterGen.
 func OfOne[T any](item T) Iter[T] {
-	return NewIter[T](SingleValueIterGen[T](item))
+	return OfIter[T](SingleValueIterGen[T](item))
 }
 
 // Of constructs an Iter[tuple.Two[K, V]] that iterates the items passed.
 //
 // See MapIterGen.
 func OfMap[K comparable, V any](items map[K]V) Iter[tuple.Two[K, V]] {
-	return NewIter[tuple.Two[K, V]](MapIterGen[K, V](items))
+	return OfIter[tuple.Two[K, V]](MapIterGen[K, V](items))
 }
 
 // OfReader constructs an Iter[byte] that iterates the bytes of a Reader.
 //
 // See ReaderIterGen.
 func OfReader(src io.Reader) Iter[byte] {
-	return NewIter[byte](ReaderIterGen(src))
+	return OfIter[byte](ReaderIterGen(src))
 }
 
 // OfReaderAsRunes constructs an Iter[rune] that iterates the UTF-8 runes of a Reader.
 //
 // See ReaderAsRunesIterGen.
 func OfReaderAsRunes(src io.Reader) Iter[rune] {
-	return NewIter(ReaderAsRunesIterGen(src))
+	return OfIter(ReaderAsRunesIterGen(src))
 }
 
 // OfStringAsRunes constructs an Iter[rune] that iterates runes of a string.
 //
 // See SliceIterGen.
 func OfStringAsRunes(src string) Iter[rune] {
-	return NewIter(SliceIterGen([]rune(src)))
+	return OfIter(SliceIterGen([]rune(src)))
 }
 
 // OfReaderAsLines constructs an Iter[string] that iterates the UTF-8 lines of a Reader.
 //
 // See ReaderAsLinesIterGen.
 func OfReaderAsLines(src io.Reader) Iter[string] {
-	return NewIter(ReaderAsLinesIterGen(src))
+	return OfIter(ReaderAsLinesIterGen(src))
 }
 
 // OfStringAsLines constructs an Iter[rune] that iterates lines of a string.
 //
 // See ReaderAsLinesIterGen.
 func OfStringAsLines(src string) Iter[string] {
-	return NewIter(ReaderAsLinesIterGen(strings.NewReader(src)))
+	return OfIter(ReaderAsLinesIterGen(strings.NewReader(src)))
 }
 
 // Concatenate any number of Iter[T] into a single Iter[T] that iterates all the elements of each Iter[T], until the
 // last element of the last iterator has been returned.
 func Concat[T any](iters ...Iter[T]) Iter[T] {
-	return NewIter(ConcatIterGen(iters))
+	return OfIter(ConcatIterGen(iters))
 }
 
 // ==== IterImpl Methods
@@ -183,7 +183,7 @@ func Maybe[T any](it Iter[T]) union.Result[T] {
 
 // SetError sets a particular error to occur instead of the first non-nil error the given iterator returns.
 func SetError[T any](it Iter[T], err error) Iter[T] {
-	return NewIter[T](func() (T, error) {
+	return OfIter[T](func() (T, error) {
 		if v, e := it.Next(); e == nil {
 			return v, e
 		} else {

@@ -43,7 +43,7 @@ var (
 // The resulting iter can return any kind of error from source iter, or EOI.
 func Map[T, U any](mapper func(T) U) func(iter.Iter[T]) iter.Iter[U] {
 	return func(it iter.Iter[T]) iter.Iter[U] {
-		return iter.NewIter(func() (U, error) {
+		return iter.OfIter(func() (U, error) {
 			val, err := it.Next()
 			if err == nil {
 				return mapper(val), nil
@@ -61,7 +61,7 @@ func Map[T, U any](mapper func(T) U) func(iter.Iter[T]) iter.Iter[U] {
 // The resulting iter can return any kind of error from source iter, or EOI.
 func MapError[T, U any](mapper func(T) (U, error)) func(iter.Iter[T]) iter.Iter[U] {
 	return func(it iter.Iter[T]) iter.Iter[U] {
-		return iter.NewIter(func() (U, error) {
+		return iter.OfIter(func() (U, error) {
 			val, err := it.Next()
 			if err == nil {
 				var mval U
@@ -81,7 +81,7 @@ func MapError[T, U any](mapper func(T) (U, error)) func(iter.Iter[T]) iter.Iter[
 // The resulting iter can return any kind of error from source iter, or EOI.
 func Filter[T any](filter func(T) bool) func(iter.Iter[T]) iter.Iter[T] {
 	return func(it iter.Iter[T]) iter.Iter[T] {
-		return iter.NewIter(func() (T, error) {
+		return iter.OfIter(func() (T, error) {
 			var (
 				val T
 				err error
@@ -126,7 +126,7 @@ func Reduce[T any](
 	return func(it iter.Iter[T]) iter.Iter[T] {
 		var done bool
 
-		return iter.NewIter(func() (T, error) {
+		return iter.OfIter(func() (T, error) {
 			var (
 				val T
 				zv  T
@@ -215,7 +215,7 @@ func ReduceTo[T, U any](
 	return func(it iter.Iter[T]) iter.Iter[U] {
 		var done bool
 
-		return iter.NewIter(func() (U, error) {
+		return iter.OfIter(func() (U, error) {
 			var (
 				val T
 				zv  U
@@ -303,7 +303,7 @@ func ReduceToBool[T any](
 	return func(it iter.Iter[T]) iter.Iter[bool] {
 		var done bool
 
-		return iter.NewIter(func() (bool, error) {
+		return iter.OfIter(func() (bool, error) {
 			if done {
 				return false, iter.EOI
 			}
@@ -363,7 +363,7 @@ func ReduceToBool[T any](
 func ReduceToSlice[T any](it iter.Iter[T]) iter.Iter[[]T] {
 	var done bool
 
-	return iter.NewIter(func() ([]T, error) {
+	return iter.OfIter(func() ([]T, error) {
 		if done {
 			return nil, iter.EOI
 		}
@@ -410,7 +410,7 @@ func ReduceIntoSlice[T any](slc []T) func(iter.Iter[T]) iter.Iter[[]T] {
 			i    int
 		)
 
-		return iter.NewIter(func() ([]T, error) {
+		return iter.OfIter(func() ([]T, error) {
 			if done {
 				return nil, iter.EOI
 			}
@@ -458,7 +458,7 @@ func ExpandSlices[T any](it iter.Iter[[]T]) iter.Iter[T] {
 		idx int
 	)
 
-	return iter.NewIter(func() (T, error) {
+	return iter.OfIter(func() (T, error) {
 		if (slc == nil) || (idx == len(slc)) {
 			// Search for next non-nil non-empty slice
 			// Nilify slc var in case we just finished iterating last element of last slice, which is non-nil
@@ -510,7 +510,7 @@ func ExpandSlices[T any](it iter.Iter[[]T]) iter.Iter[T] {
 func ReduceToMap[K comparable, V any](it iter.Iter[tuple.Two[K, V]]) iter.Iter[map[K]V] {
 	var done bool
 
-	return iter.NewIter(func() (map[K]V, error) {
+	return iter.OfIter(func() (map[K]V, error) {
 		if done {
 			return nil, iter.EOI
 		}
@@ -555,7 +555,7 @@ func ExpandMaps[K comparable, V any](it iter.Iter[map[K]V]) iter.Iter[tuple.Two[
 		mr *reflect.MapIter
 	)
 
-	return iter.NewIter(func() (tuple.Two[K, V], error) {
+	return iter.OfIter(func() (tuple.Two[K, V], error) {
 		var (
 			zv  tuple.Two[K, V]
 			err error
@@ -607,7 +607,7 @@ func Skip[T any](n uint) func(iter.Iter[T]) iter.Iter[T] {
 	return func(it iter.Iter[T]) iter.Iter[T] {
 		skip := n
 
-		return iter.NewIter(func() (T, error) {
+		return iter.OfIter(func() (T, error) {
 			var (
 				val T
 				zv  T
@@ -648,7 +648,7 @@ func Limit[T any](n uint) func(iter.Iter[T]) iter.Iter[T] {
 	return func(it iter.Iter[T]) iter.Iter[T] {
 		limit := n
 
-		return iter.NewIter(func() (T, error) {
+		return iter.OfIter(func() (T, error) {
 			var (
 				val T
 				zv  T
@@ -677,7 +677,7 @@ func Limit[T any](n uint) func(iter.Iter[T]) iter.Iter[T] {
 // Peek executes a func for every item being iterated, which is a side effect.
 func Peek[T any](fn func(T)) func(iter.Iter[T]) iter.Iter[T] {
 	return func(it iter.Iter[T]) iter.Iter[T] {
-		return iter.NewIter(func() (T, error) {
+		return iter.OfIter(func() (T, error) {
 			// Read next value
 			val, err := it.Next()
 
@@ -912,7 +912,7 @@ func AbsBigOps[T constraint.BigOps[T]](it iter.Iter[T]) iter.Iter[T] {
 // The average is rounded.
 // See math.Add, math.Div.
 func AvgInt[T constraint.SignedInteger](it iter.Iter[T]) iter.Iter[T] {
-	return iter.NewIter(
+	return iter.OfIter(
 		func() (T, error) {
 			var (
 				sum   T
@@ -956,7 +956,7 @@ func AvgInt[T constraint.SignedInteger](it iter.Iter[T]) iter.Iter[T] {
 // The average is rounded.
 // See math.Add, math.Div.
 func AvgUint[T constraint.UnsignedInteger](it iter.Iter[T]) iter.Iter[T] {
-	return iter.NewIter(
+	return iter.OfIter(
 		func() (T, error) {
 			var (
 				sum   T
@@ -1000,7 +1000,7 @@ func AvgUint[T constraint.UnsignedInteger](it iter.Iter[T]) iter.Iter[T] {
 // If the input set is empty, the result is empty. The average is rounded only for *big.Int.
 // See math.DivBigOps
 func AvgBigOps[T constraint.BigOps[T]](it iter.Iter[T]) iter.Iter[T] {
-	return iter.NewIter(
+	return iter.OfIter(
 		func() (T, error) {
 			var (
 				sum   T

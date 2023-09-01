@@ -455,7 +455,7 @@ func lex(it iter.Iter[rune]) (token, error) {
 
 // lexer uses lex and converts an iter[rune] into an iter[token]
 func lexer(it iter.Iter[rune]) iter.Iter[token] {
-	return iter.NewIter(func() (token, error) {
+	return iter.OfIter(func() (token, error) {
 		return lex(it)
 	})
 }
