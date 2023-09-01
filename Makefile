@@ -61,7 +61,7 @@ PODMAN_GO_CACHE_BUILD := $(GO_CACHE_ROOT)/podman/build
 
 # Make using host packages - the default way of building (host, docker, podman)
 .PHONY: all
-all: spdx vars tidy compile lint format test
+all: vars tidy compile lint format test spdx check-doc-go depgraph .readme.html .readme.go.html coverage
 
 # Make using docker - the docker image uses all target (host)
 .PHONY: docker
@@ -143,26 +143,47 @@ test:
 coverage:
 	go tool cover -html=.coverage.html
 
+# Check that every README and .go file contains the string SPDX-License-Identifier: Apache-2.0
+.PHONY: spdx
+.SILENT: spdx
+spdx:
+		# Recursive search for all README and .go files
+		for f in $$(find $(THIS_MAKEFILE_DIR) -type f \( -iname 'README*' -o -iname '*.go' \)); do \
+			[ $$(grep -c "SPDX-License-Identifier: Apache-2.0" "$$f") -gt 0 ] || { \
+				echo "$$f: missing SPDX-License-Identifier: Apache-2.0"; \
+				exit 1; \
+			} \
+		done
+
+.PHONY: check-doc-go
+check-doc-go:
+	for srcDir in $$(find . -type f -name '*.go' | sed -r 's,[.]/(.*)/[^/]*,\1,' | sort -u); do \
+		if [ \! -f "$$srcDir/doc.go" ]; then { echo "Missing $$srcDir/doc.go"; exit 1; }; fi; \
+	done
+
 .PHONY: have-dot
 have-dot:
 	@which dot 2>&1 > /dev/null || echo "The Graphviz package must be installed to generate a dependency graph"
 
 .PHONY: depgraph
 depgraph: have-dot
-	# Full gragh
 	{ \
 		mod="$$(grep module go.mod | awk '{print $$2}')"; \
-		echo "digraph dependencies {"; \
+		echo 'digraph dependencies {'; \
+		echo 'node [shape=box]'; \
+		echo '"encoding/json" [style=filled fillcolor="#87CEFA"]'; \
+		echo '"encoding/json/parse" [style=filled fillcolor="#87CEFA"]'; \
+		echo '"encoding/json/write" [style=filled fillcolor="#87CEFA"]'; \
+		echo '"event" [style=filled fillcolor="#87CEFA"]'; \
+		echo '"rest" [style=filled fillcolor="#87CEFA"]'; \
+		echo '"stream" [style=filled fillcolor="#87CEFA"]'; \
+		echo '"iter" [style=filled fillcolor="#E6E6FA"]'; \
 		for srcDir in $$(find . -type f -name '*.go' | sed -r 's,[.]/(.*)/[^/]*,\1,' | sort -u); do \
 			(cd "$$srcDir"; go list -f '{{.Imports}}') | tr -d '[]' | tr ' ' '\n' | sort | grep "$$mod" | sed -r "s,$$mod/(.*),\"$$srcDir\" -> \"\\1\","; \
 		done; \
 		echo "}"; \
-	} > .depgraph.dot
+	} | cat > .depgraph.dot
 	dot -Tsvg .depgraph.dot > depgraph.svg
-	# Only iter and above
-	grep -Ev '"constraint"|"conv"|"event"|"funcs"|"io"|"io/writer"|"math"|"reflect"|"tuple"|"union"|"util"' .depgraph.dot | dot -Tsvg > depgraph.above.svg
-	# Only iter and below
-	grep -Ev '"encoding"|"encoding/json"|"encoding/json/parse"|"encoding/json/write"|"stream"' .depgraph.dot | dot -Tsvg > depgraph.below.svg
 
 .PHONY: have-asciidoc
 have-asciidoc:
@@ -198,15 +219,3 @@ vars:
 .PHONY: clean
 clean:
 	rm -rf "$(GO_CACHE_ROOT)"
-
-# Check that every README and .go file contains the string SPDX-License-Identifier: Apache-2.0
-.PHONY: spdx
-.SILENT: spdx
-spdx:
-		# Recursive search for all README and .go files
-		for f in $$(find $(THIS_MAKEFILE_DIR) -type f \( -iname 'README*' -o -iname '*.go' \)); do \
-			[ $$(grep -c "SPDX-License-Identifier: Apache-2.0" "$$f") -gt 0 ] || { \
-				echo "$$f: missing SPDX-License-Identifier: Apache-2.0"; \
-				exit 1; \
-			} \
-		done

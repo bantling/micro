@@ -1,4 +1,4 @@
-package util
+package math
 
 // SPDX-License-Identifier: Apache-2.0
 
@@ -45,12 +45,12 @@ func OfRange[T constraint.IntegerAndFloat](
 	max T,
 	maxMode RangeMode,
 	initial T,
-) *Range[T] {
+) Range[T] {
 	if (min >= max) || (max <= min) {
 		panic(fmt.Errorf(errMinMaxMsg, conv.ToString(min), conv.ToString(max)))
 	}
 
-	return &Range[T]{min, minMode, max, maxMode, initial}
+	return Range[T]{min, minMode, max, maxMode, initial}
 }
 
 // GetMin returns the minimum value and mode

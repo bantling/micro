@@ -84,8 +84,8 @@ func TestSliceIndex_(t *testing.T) {
 }
 
 func TestSliceOf_(t *testing.T) {
-  assert.Equal(t, []string{"a"}, SliceOf("a"))
-  assert.Equal(t, []int{1,2}, SliceOf(1, 2))
+	assert.Equal(t, []string{"a"}, SliceOf("a"))
+	assert.Equal(t, []int{1, 2}, SliceOf(1, 2))
 }
 
 func TestSliceRemove_(t *testing.T) {

@@ -110,22 +110,7 @@ of elements can be processed without having to read entire input.
 
 === Dependency Graph
 
-A dependency graph can be generated anytime by running `make depgraph`, which produces several files:
-
-[cols="1,1"]
-|===
-|File
-|Purpose
-
-|link:depgraph.svg[]
-|A complete dependency graph
-
-|link:depgraph.above.svg[]
-|A graph of iter package and above
-
-|link:depgraph.below.svg[]
-|A graph of iter package and below
-|===
+A dependency graph can be generated anytime by running `make depgraph`, which produces depgraph.svg.
 
 === Makefile
 
@@ -210,9 +195,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* add simple http mux
-* add Makefile target to ensure all packages of Go code have a doc.go file
-* Rename util package to range, funcs is really a util package
+* Ensure constructors don't return a pointer just because there are pointer receiver methods
 * expand conv.To to include Decimal and JSON.Number
 * remove json.Number funcs that are covered by conv.To
 ** a slice of pairs of regexps (for method, url, and query params) and a func to call

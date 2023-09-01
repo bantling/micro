@@ -147,7 +147,7 @@ func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
 // Sliceof allows caller to infer the slice type rather than have to write it out.
 // This is useful when the type is a more lengthy declaration.
 func SliceOf[T any](vals ...T) []T {
-  return vals
+	return vals
 }
 
 // SliceRemove removes a slice element from a slice.

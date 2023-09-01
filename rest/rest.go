@@ -15,7 +15,7 @@ import (
 var (
 	errEmptyMethod  = fmt.Errorf("The method cannot be empty")
 	errEmptyPattern = fmt.Errorf("The pattern cannot be empty")
-	errNilHandler = fmt.Errorf("The handler cannot be nil")
+	errNilHandler   = fmt.Errorf("The handler cannot be nil")
 )
 
 const (
@@ -24,7 +24,7 @@ const (
 )
 
 const (
-  UUIDGroup = "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
+	UUIDGroup = "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
 )
 
 // Handler is a REST handler
@@ -39,7 +39,7 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request, urlParts []string)
 
 // ServeHTTP is HandlerFunc adapter method
 func (hf HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request, urlParts []string) {
-  hf(w, r, urlParts)
+	hf(w, r, urlParts)
 }
 
 // A RESTServeMux handles REST requests by performing pattern matching that considers the method and URL, rather than just
@@ -65,18 +65,18 @@ func (rsm *RESTServeMux) Handle(method, pattern string, handler Handler) error {
 		return errEmptyPattern
 	}
 
-  // The handler cannot be nil
-  if handler == nil {
-    return errNilHandler
-  }
+	// The handler cannot be nil
+	if handler == nil {
+		return errNilHandler
+	}
 
-  // The pattern must be a valid regex
+	// The pattern must be a valid regex
 	regex, err := regexp.Compile(pattern)
 	if err != nil {
 		return err
 	}
 
-  // Add method, pattern, and handler triple
+	// Add method, pattern, and handler triple
 	funcs.SliceAdd(&rsm.handlers, tuple.Of3(method, regex, handler))
 
 	return nil
@@ -117,7 +117,7 @@ func (rsm RESTServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Method not found
 		http.Error(w, MethodNotAllowedMsg, http.StatusMethodNotAllowed)
 	} else {
-    // URL not found
+		// URL not found
 		http.Error(w, NotFoundMsg, http.StatusNotFound)
 	}
 }
