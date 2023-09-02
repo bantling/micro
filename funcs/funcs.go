@@ -1052,6 +1052,14 @@ func SecondValue3[T, U, V any](t T, u U, v V) U {
 	return u
 }
 
+// ==== ThirdValue
+
+// ThirdValue3 takes three values and returns only the third one.
+// Useful for functions that return three results and you only care about the third one
+func ThirdValue3[T, U, V any](t T, u U, v V) V {
+	return v
+}
+
 // ==== TryTo
 
 // IgnoreResult takes a func of no args that returns any type, and generates a func of no args and no return value

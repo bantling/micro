@@ -53,7 +53,7 @@ func parseValue(it iter.Iter[token]) (json.Value, error) {
 	case tString:
 		return json.FromString(tok.value), nil
 	case tNumber:
-		return json.FromNumberString(json.NumberString(tok.value)), nil
+		return json.FromNumber(json.NumberString(tok.value)), nil
 	case tBoolean:
 		return json.FromBool(tok.value == "true"), nil
 	case tNull:

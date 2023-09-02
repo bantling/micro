@@ -59,6 +59,8 @@ func TestBigRatToNormalizedString_(t *testing.T) {
 	assert.Equal(t, "1.25", BigRatToNormalizedString(big.NewRat(125, 100)))
 }
 
+type TestString string
+
 func TestToString_(t *testing.T) {
 	assert.Equal(t, "1", ToString(int(1)))
 	assert.Equal(t, "2", ToString(int8(2)))
@@ -78,6 +80,12 @@ func TestToString_(t *testing.T) {
 	assert.Equal(t, "1", ToString(big.NewInt(1)))
 	assert.Equal(t, "1.25", ToString(big.NewFloat(1.25)))
 	assert.Equal(t, "2.75", ToString(big.NewRat(275, 100)))
+
+  assert.Equal(
+    t,
+    "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890e12345678901234567890",
+    ToString(TestString("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890e12345678901234567890")),
+  )
 }
 
 // ==== int/uint to int/uint, float to int, float64 to float32
@@ -2285,6 +2293,11 @@ func TestTo_(t *testing.T) {
 		assert.Nil(t, To(byte('A'), &r))
 		assert.Equal(t, 'A', r)
 	}
+
+  {
+    var c chan bool
+    assert.Equal(t, fmt.Errorf("The string value of str cannot be converted to %%!s(chan bool=<nil>)"), To("str", &c))
+  }
 }
 
 func TestToBigOps_(t *testing.T) {

@@ -20,7 +20,7 @@ func TestParseValue_(t *testing.T) {
 	assert.Equal(t, union.OfResult(json.FromMap(map[string]any{"foo": "bar"})), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes(`{"foo": "bar"}`)))))
 	assert.Equal(t, union.OfResult(json.FromSlice([]any{"bar"})), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes(`["bar"]`)))))
 	assert.Equal(t, union.OfResult(json.FromString("bar")), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes(`"bar"`)))))
-	assert.Equal(t, union.OfResult(json.FromNumberString("1.25")), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes("1.25")))))
+	assert.Equal(t, union.OfResult(json.FromNumber("1.25")), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes("1.25")))))
 	assert.Equal(t, union.OfResult(json.TrueValue), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes("true")))))
 	assert.Equal(t, union.OfResult(json.NullValue), union.OfResultError(parseValue(lexer(iter.OfStringAsRunes("null")))))
 
@@ -91,7 +91,7 @@ func TestParseArray_(t *testing.T) {
 	// Case 9
 	assert.Equal(t, union.OfError[[]json.Value](anErr), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.SetError(iter.OfStringAsRunes(`[1,[`), anErr))))))
 	// Case 10 - ordinary success case
-	assert.Equal(t, union.OfResult([]json.Value{json.FromNumberType(1)}), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1]`))))))
+	assert.Equal(t, union.OfResult([]json.Value{json.FromNumber(1)}), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1]`))))))
 	// Case 11
 	assert.Equal(t, union.OfError[[]json.Value](errArrayRequiresCommaOrBracket), iter.Maybe(stream.ReduceToSlice(parseArray(lexer(iter.OfStringAsRunes(`[1}`))))))
 }

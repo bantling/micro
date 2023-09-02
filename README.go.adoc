@@ -195,9 +195,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* add Thirdvalue to funcs
-* expand conv.To to include Decimal and JSON.Number
-* remove json.Number funcs that are covered by conv.To
+* expand conv.To to include Decimal
 * update this README
 * ETL
 ** Mainly operating on streams, with 3 basic operation types:

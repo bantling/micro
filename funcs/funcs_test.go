@@ -867,6 +867,10 @@ func TestSecondValue3_(t *testing.T) {
 	assert.Equal(t, 2, SecondValue3(1, 2, 3))
 }
 
+func TestThirdValue3_(t *testing.T) {
+	assert.Equal(t, 3, ThirdValue3(1, 2, 3))
+}
+
 func TestIgnoreResult_(t *testing.T) {
 	called := false
 	IgnoreResult(func() int { called = true; return 0 })()

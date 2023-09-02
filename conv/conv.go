@@ -1084,7 +1084,7 @@ func BigRatToNormalizedString(val *big.Rat) string {
 
 // Converts any signed or unsigned int type, any float type, *big.Int, *big.Float, or *big.Rat to a string.
 // The *big.Rat string will be normalized (see BigRatToNormalizedString).
-func ToString[T constraint.Numeric](val T) string {
+func ToString[T constraint.Numeric | ~string](val T) string {
 	if v, isa := any(val).(int); isa {
 		return IntToString(v)
 	} else if v, isa := any(val).(int8); isa {
@@ -1113,10 +1113,12 @@ func ToString[T constraint.Numeric](val T) string {
 		return BigIntToString(v)
 	} else if v, isa := any(val).(*big.Float); isa {
 		return BigFloatToString(v)
-	}
+	} else if v, isa := any(val).(*big.Rat); isa {
+    return BigRatToNormalizedString(v)
+  }
 
-	// Must be *big.Rat
-	return BigRatToNormalizedString(any(val).(*big.Rat))
+	// Must be string or ~string. Note that ~string cannot be converted to string, so use reflection.
+  return goreflect.ValueOf(val).String()
 }
 
 // ==== int/uint to int/uint, float to int, float64 to float32
@@ -1839,7 +1841,9 @@ func MustFloatStringToBigRat(ival string, oval **big.Rat) {
 
 // To converts any numeric or string into any other such type.
 // The actual conversion is performed by other funcs.
-func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, tgt *T) error {
+// The source is typed any to allow for cases where the caller accepts type any.
+// If no conversion can be found, or the conversion fails, an error is returned.
+func To[T any](src any, tgt *T) error {
 	var (
 		valsrc = goreflect.ValueOf(src)
 		valtgt = goreflect.ValueOf(tgt)
@@ -1871,11 +1875,16 @@ func To[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, t
 	}
 
 	// Types differ, lookup conversion using base types and execute it, returning result
-	return convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()](valsrc.Interface(), valtgt.Interface())
+  if fn := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; fn != nil {
+    return fn(valsrc.Interface(), valtgt.Interface())
+  }
+
+  // Must be a type we can't convert
+  return fmt.Errorf(errMsg, src, src, *tgt)
 }
 
 // MustTo is a Must version of To
-func MustTo[S constraint.Numeric | ~string, T constraint.Numeric | ~string](src S, tgt *T) {
+func MustTo[T any](src any, tgt *T) {
 	funcs.Must(To(src, tgt))
 }
 

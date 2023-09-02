@@ -4,9 +4,9 @@ package json
 
 import (
 	"fmt"
-	"math/big"
+  "math/big"
+  "strings"
 
-	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
 )
@@ -57,12 +57,6 @@ func (typ ValueType) String() string {
 // NumberString is a special type that allows a plain string to be considered a JSON Number
 type NumberString string
 
-// NumberType is a constraint of all possible number types
-// int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float, *big.Rat, NumberString
-type NumberType interface {
-	constraint.Numeric | NumberString
-}
-
 // Value represents any kind of JSON value - object, array, string, number, boolean, null
 type Value struct {
 	typ   ValueType
@@ -77,54 +71,13 @@ var (
 	InvalidValue = Value{}
 )
 
-// fromNumberInternal converts any kind of number into a Value
-// returns zero value if the given value is not any recognized numeric type
-func fromNumberInternal(n any) Value {
-	if v, isa := n.(int); isa {
-		return FromSignedInt(v)
-	} else if v, isa := n.(int8); isa {
-		return FromSignedInt(v)
-	} else if v, isa := n.(int16); isa {
-		return FromSignedInt(v)
-	} else if v, isa := n.(int32); isa {
-		return FromSignedInt(v)
-	} else if v, isa := n.(int64); isa {
-		return FromSignedInt(v)
-	} else if v, isa := n.(uint); isa {
-		return FromUnsignedInt(v)
-	} else if v, isa := n.(uint8); isa {
-		return FromUnsignedInt(v)
-	} else if v, isa := n.(uint16); isa {
-		return FromUnsignedInt(v)
-	} else if v, isa := n.(uint32); isa {
-		return FromUnsignedInt(v)
-	} else if v, isa := n.(uint64); isa {
-		return FromUnsignedInt(v)
-	} else if v, isa := n.(float32); isa {
-		return FromFloat(v)
-	} else if v, isa := n.(float64); isa {
-		return FromFloat(v)
-	} else if v, isa := n.(*big.Int); isa {
-		return FromBigInt(v)
-	} else if v, isa := n.(*big.Float); isa {
-		return FromBigFloat(v)
-	} else if v, isa := n.(*big.Rat); isa {
-		return FromBigRat(v)
-	} else if v, isa := n.(NumberString); isa {
-		return FromNumberString(v)
-	}
-
-	return InvalidValue
-}
-
 // FromValue converts a Go value into a Value, where the Go value must be as follows:
 //
 // Object: map[string]any
 // Array: []any
 // String: string
 // Number: int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float,
-//
-//	*big.Rat, or NumberString
+//	       *big.Rat, or NumberString
 //
 // Boolean: bool
 // Null: nil
@@ -148,9 +101,9 @@ func FromValue(v any) Value {
 		jval = NullValue
 	} else if jv, isa := v.(Value); isa {
 		jval = jv
-	} else if jval = fromNumberInternal(v); jval.value == nil {
-		panic(fmt.Errorf(errInvalidGoValueMsg, v))
-	}
+	} else if jval = FromNumber(v); (jval == Value{}) {
+    panic(fmt.Errorf(errInvalidGoValueMsg, v))
+  }
 
 	return jval
 }
@@ -215,52 +168,23 @@ func FromString(s string) Value {
 }
 
 // FromNumeric converts any constraint.Numeric type to a Value
-func FromNumeric[T constraint.Numeric](n T) Value {
-	var s NumberString
-	conv.To(n, &s)
+// If the conversion fails, an Invalid Value is returned
+func FromNumber(n any) Value {
+  // The value can be any value conv.To accepts.
+  // *big.Rat must be converted to a normalized string.
+  var s NumberString
+
+  if br, isa := n.(*big.Rat); isa {
+    s = NumberString(conv.BigRatToNormalizedString(br))
+  } else if str, isa := n.(string); isa && (strings.TrimSpace(str) == "") {
+    return Value{}
+  } else {
+    if err := conv.To(n, &s); err != nil {
+      return Value{}
+    }
+  }
+
 	return Value{typ: Number, value: s}
-}
-
-// FromSignedInt converts any kind of signed int into a Value
-func FromSignedInt[T constraint.SignedInteger](n T) Value {
-	return Value{typ: Number, value: NumberString(conv.IntToString(n))}
-}
-
-// FromUnsignedInt converts any kind of unsigned int into a Value
-func FromUnsignedInt[T constraint.UnsignedInteger](n T) Value {
-	return Value{typ: Number, value: NumberString(conv.UintToString(n))}
-}
-
-// FromFloat converts any kind of float into a Value
-func FromFloat[T constraint.Float](n T) Value {
-	return Value{typ: Number, value: NumberString(conv.FloatToString(n))}
-}
-
-// FromBigInt converts a *big.Int into a Value
-func FromBigInt(n *big.Int) Value {
-	return Value{typ: Number, value: NumberString(conv.BigIntToString(n))}
-}
-
-// FromBigFloat converts a *big.Float into a Value
-func FromBigFloat(n *big.Float) Value {
-	return Value{typ: Number, value: NumberString(conv.BigFloatToString(n))}
-}
-
-// FromBigRat converts a *big.Rat into a Value
-func FromBigRat(n *big.Rat) Value {
-	return Value{typ: Number, value: NumberString(conv.BigRatToNormalizedString(n))}
-}
-
-// FromNumberString converts a NumberString into a Value
-func FromNumberString(n NumberString) Value {
-	// Convert to *big.Float first, to ensure only a floating point string is acceptable.
-	// Then convert to *big.Rat, as that is the internal value for numbers.
-	return Value{typ: Number, value: n}
-}
-
-// FromNumberType converts any NumberType to a Value
-func FromNumberType[N NumberType](n N) Value {
-	return fromNumberInternal(n)
 }
 
 // FromBool converts a bool into a Value

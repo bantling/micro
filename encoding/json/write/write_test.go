@@ -31,7 +31,7 @@ func TestWrite_(t *testing.T) {
 	assert.Equal(t, `"foo"`, str.String())
 
 	str.Reset()
-	assert.Nil(t, Write(json.FromNumberString("1"), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.FromNumber("1"), writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "1", str.String())
 
 	str.Reset()
