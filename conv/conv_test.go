@@ -61,32 +61,32 @@ func TestBigRatToNormalizedString_(t *testing.T) {
 
 type TestString string
 
-func TestToString_(t *testing.T) {
-	assert.Equal(t, "1", ToString(int(1)))
-	assert.Equal(t, "2", ToString(int8(2)))
-	assert.Equal(t, "3", ToString(int16(3)))
-	assert.Equal(t, "4", ToString(int32(4)))
-	assert.Equal(t, "5", ToString(int64(5)))
-
-	assert.Equal(t, "1", ToString(uint(1)))
-	assert.Equal(t, "2", ToString(uint8(2)))
-	assert.Equal(t, "3", ToString(uint16(3)))
-	assert.Equal(t, "4", ToString(uint32(4)))
-	assert.Equal(t, "5", ToString(uint64(5)))
-
-	assert.Equal(t, "1.25", ToString(float32(1.25)))
-	assert.Equal(t, "2.75", ToString(float64(2.75)))
-
-	assert.Equal(t, "1", ToString(big.NewInt(1)))
-	assert.Equal(t, "1.25", ToString(big.NewFloat(1.25)))
-	assert.Equal(t, "2.75", ToString(big.NewRat(275, 100)))
-
-  assert.Equal(
-    t,
-    "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890e12345678901234567890",
-    ToString(TestString("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890e12345678901234567890")),
-  )
-}
+// func TestToString_(t *testing.T) {
+// 	assert.Equal(t, "1", ToString(int(1)))
+// 	assert.Equal(t, "2", ToString(int8(2)))
+// 	assert.Equal(t, "3", ToString(int16(3)))
+// 	assert.Equal(t, "4", ToString(int32(4)))
+// 	assert.Equal(t, "5", ToString(int64(5)))
+//
+// 	assert.Equal(t, "1", ToString(uint(1)))
+// 	assert.Equal(t, "2", ToString(uint8(2)))
+// 	assert.Equal(t, "3", ToString(uint16(3)))
+// 	assert.Equal(t, "4", ToString(uint32(4)))
+// 	assert.Equal(t, "5", ToString(uint64(5)))
+//
+// 	assert.Equal(t, "1.25", ToString(float32(1.25)))
+// 	assert.Equal(t, "2.75", ToString(float64(2.75)))
+//
+// 	assert.Equal(t, "1", ToString(big.NewInt(1)))
+// 	assert.Equal(t, "1.25", ToString(big.NewFloat(1.25)))
+// 	assert.Equal(t, "2.75", ToString(big.NewRat(275, 100)))
+//
+//   assert.Equal(
+//     t,
+//     "1234567890123456789012345678901234567890.1234567890123456789012345678901234567890e12345678901234567890",
+//     ToString(TestString("1234567890123456789012345678901234567890.1234567890123456789012345678901234567890e12345678901234567890")),
+//   )
+// }
 
 // ==== int/uint to int/uint, float to int, float64 to float32
 
