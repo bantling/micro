@@ -42,10 +42,10 @@ func (hf HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request, urlParts
 	hf(w, r, urlParts)
 }
 
-// A RESTServeMux handles REST requests by performing pattern matching that considers the method and URL, rather than just
+// A ServeMux handles REST requests by performing pattern matching that considers the method and URL, rather than just
 // the URL alone like the http.ServeMux implementation.
 // The zero value is ready to use.
-type RESTServeMux struct {
+type ServeMux struct {
 	// [](method, regexp, handler)
 	// A flat structure if used to disambiguate a 404 not found error from a 405 method not allowed error
 	handlers []tuple.Three[string, *regexp.Regexp, Handler]
@@ -54,7 +54,7 @@ type RESTServeMux struct {
 // Handle maps the given method and regex string to the given handler.
 // The regex allows capturing path parts that are variable, like a UUID.
 // The Handle can be called anytime, even while HTTP requests are being served.
-func (rsm *RESTServeMux) Handle(method, pattern string, handler Handler) error {
+func (rsm *ServeMux) Handle(method, pattern string, handler Handler) error {
 	// The method cannot be empty
 	if method == "" {
 		return errEmptyMethod
@@ -83,12 +83,12 @@ func (rsm *RESTServeMux) Handle(method, pattern string, handler Handler) error {
 }
 
 // MustHandle is a must version of Handle
-func (rsm *RESTServeMux) MustHandle(method, pattern string, handler Handler) {
+func (rsm *ServeMux) MustHandle(method, pattern string, handler Handler) {
 	funcs.Must(rsm.Handle(method, pattern, handler))
 }
 
 // ServeHTTP is http.Handler interface method
-func (rsm RESTServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (rsm ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get the method and url
 	method, url := r.Method, (*r.URL).Path
 

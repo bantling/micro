@@ -25,7 +25,7 @@ func (t *testData) ServeHTTP(w http.ResponseWriter, r *http.Request, urlParts []
 
 func TestHandle_(t *testing.T) {
 	var (
-		mux  RESTServeMux
+		mux  ServeMux
 		td   testData
 		h    Handler = &td
 		pat1         = "^/customer$"

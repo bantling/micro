@@ -4,8 +4,8 @@ package json
 
 import (
 	"fmt"
-  "math/big"
-  "strings"
+	"math/big"
+	"strings"
 
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
@@ -77,7 +77,8 @@ var (
 // Array: []any
 // String: string
 // Number: int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float,
-//	       *big.Rat, or NumberString
+//
+//	*big.Rat, or NumberString
 //
 // Boolean: bool
 // Null: nil
@@ -102,8 +103,8 @@ func FromValue(v any) Value {
 	} else if jv, isa := v.(Value); isa {
 		jval = jv
 	} else if jval = FromNumber(v); (jval == Value{}) {
-    panic(fmt.Errorf(errInvalidGoValueMsg, v))
-  }
+		panic(fmt.Errorf(errInvalidGoValueMsg, v))
+	}
 
 	return jval
 }
@@ -170,19 +171,19 @@ func FromString(s string) Value {
 // FromNumeric converts any constraint.Numeric type to a Value
 // If the conversion fails, an Invalid Value is returned
 func FromNumber(n any) Value {
-  // The value can be any value conv.To accepts.
-  // *big.Rat must be converted to a normalized string.
-  var s NumberString
+	// The value can be any value conv.To accepts.
+	// *big.Rat must be converted to a normalized string.
+	var s NumberString
 
-  if br, isa := n.(*big.Rat); isa {
-    s = NumberString(conv.BigRatToNormalizedString(br))
-  } else if str, isa := n.(string); isa && (strings.TrimSpace(str) == "") {
-    return Value{}
-  } else {
-    if err := conv.To(n, &s); err != nil {
-      return Value{}
-    }
-  }
+	if br, isa := n.(*big.Rat); isa {
+		s = NumberString(conv.BigRatToNormalizedString(br))
+	} else if str, isa := n.(string); isa && (strings.TrimSpace(str) == "") {
+		return Value{}
+	} else {
+		if err := conv.To(n, &s); err != nil {
+			return Value{}
+		}
+	}
 
 	return Value{typ: Number, value: s}
 }

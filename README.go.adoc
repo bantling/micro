@@ -12,9 +12,6 @@ which means import statements in go can import any package as `import github.com
 
 === Packages
 
-* app
-** Help write a data-driven application using a TOML file
-** Consider using SQLPage to generate the html: see https://sql.ophir.dev
 * constraint
 ** defines generic type constraints, some are similar to golang.org/x/exp/constraints
 * conv
@@ -22,10 +19,10 @@ which means import statements in go can import any package as `import github.com
 * encoding/json
 ** Value type that describes any kind of JSON value
 ** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
-** default numeric type is NumberString, but custom conversion functions can be used for some other numeric type
-** streaming parser that can provide individual elements of top level array as they are read in, so that a large number
-of elements can be processed without having to read entire input.
-** write a json.Value to a writer
+** default numeric type is NumberString, but custom conversion functions can be used
+** parse package has streaming parser that can provide individual elements of top level array as they are read in, so
+   that a large number of elements can be processed without having to read entire input.
+** write package writes a json.Value to an micro/io/Writer[rune], which in turn writes to an io.Writer
 * event
 ** A simple system for sending events and getting results back
 ** Same generic type is used for input and output
@@ -76,6 +73,11 @@ of elements can be processed without having to read entire input.
 ** integer division that rounds quotient up when remainder >= half way point
 ** generate a mask of n consecutive 1 bits that are left or right aligned
 ** min and mask functions for all numeric types
+** decimal type
+*** accurate decimal addition, subtraction, and multiplication
+*** division by integers only
+** Range can hold a range of values between a minimum and maximum, where minimum and maximum values themselves may or
+   may not be allowed. Attempting to set the value outside the range returns an error and does not change the value.
 * reflect
 ** utilities to make reflection usage easier
 ** DerefType derefs a Type until it is not a pointer
@@ -92,6 +94,13 @@ of elements can be processed without having to read entire input.
 ** ToBaseType converts zero or one pointers to a primitive subtype to the underlying type (eg rune -> int32, or *rune to *int32)
 ** ValueMaxOnePtrType returns the underlying Type of zero or one pointers to a Value.
    If the Value given has multiple pointers, the Value is not a valid parameter value, and the result is nil.
+* rest
+** Simple ServeMux very similar to net/http/ServeMux
+*** Considers verb and url to determine which Handler to execute
+*** Handle method accepts a string regex (compiled with regexp package) which can have groups for path parts
+*** Handler method accepts a slice of path parts for the values of the above groups provided by the client
+*** sets sttaus and message to 404 if url not matched, 405 if url matches, but not the method
+*** When a handler is executed, the handler sets the status and message
 * stream
 ** Provides streaming functionality (similar to that of Java 8 streams).
 ** Some functions take params and return a func of Iter[T] -> Iter[U]
@@ -104,9 +113,6 @@ of elements can be processed without having to read entire input.
 * union
 ** Unions of 2, 3 or 4 elements of separate generic types
 ** Result is union of one generic type and an error
-* util
-** Range can hold a range of values between a minimum and maximum, where minimum and maximum values themselves may or
-   may not be allowed. Attempting to set the value outside the range returns an error and does not change the value.
 
 === Dependency Graph
 
@@ -140,6 +146,10 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 |builds in a podman container with caching for dependencies and compiling across builds
 |
 
+|vars
+|display values of make vars defined in this Makefile
+|
+
 |tidy
 |runs `go mod tidy`, and cleanup tasks for docker-cache or podman-cache
 |
@@ -157,23 +167,18 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 |
 
 |test
-|runs `go test ./...` in every go package dir to test source code
+|tests go code in every go package dir
 |`-count=num` to run tests N times, `pkg=./package_name` to test only one package, `run=test_name` to run matching tests
 
-|coverage
-|runs `go tool cover` to display code coverage in default browser
+|spdx
+|ensures every go source file contains an spdx license line
 |
 
-|have-dot
-|Check if graphViz `dot` program is installed, fail with an error message if not
-|
+|check-doc-go
+| ensures every go package contains a doc.go file
 
 |depgraph
 |Creates the three dependency graph files described above using graphViz dot program
-|
-
-|have-asciidoc
-|Check if `asciidoc` program is installed, fail with an error message if not
 |
 
 |.readme.html
@@ -184,8 +189,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 | Generates an HTML version of this README using asciidoc, output should be the same as GitHub or GitLab
 |
 
-|vars
-| Displays all variables declared in the Makefile, useful for debugging issues with docker or podman targets
+|coverage
+|runs display code coverage in default browser
 |
 
 |clean
@@ -195,8 +200,12 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* expand conv.To to include Decimal
+* rewrite json, decimal, and range to register conversion funcs with conv, so that conv.To can convert to/from those types
+** json, decimal, and range can use conv.to internally to perform the function
 * update this README
+* simple ORM
+** map structs, assuming each field camelcase name translates to snake case column name
+** query structs, where each field is a func with a spring data like name (no child fields), or field has a struct tag with query
 * ETL
 ** Mainly operating on streams, with 3 basic operation types:
 *** Combine streams
