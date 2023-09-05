@@ -1232,6 +1232,27 @@ func TestFloatStringToBigRat_(t *testing.T) {
 	)
 }
 
+func TestRegisterConversion_(t *testing.T) {
+  type Foo struct {fld int}
+
+  {
+    // Working conversion
+    fn := func(src int, tgt *Foo) error {(*tgt).fld = src; return nil}
+    assert.Nil(t, RegisterConversion[int, Foo](0, nil, fn))
+    var f Foo
+    assert.Nil(t, To(5, &f))
+    assert.Equal(t, Foo{5}, f)
+
+    // Same type error
+    assert.Equal(t, fmt.Errorf("The conversion from int to *conv.Foo has already been registered"), RegisterConversion[int, Foo](0, nil, fn))
+  }
+
+  {
+    fn := func(src Foo, tgt *Foo) error {return nil}
+    assert.Equal(t, fmt.Errorf("The conversion from conv.Foo to *conv.Foo is not a conversion, the types are the same (use *conv.Foo, **conv.Foo if you really want to do this)"), RegisterConversion[Foo, Foo](Foo{}, nil, fn))
+  }
+}
+
 func TestTo_(t *testing.T) {
 	// == int
 	{
@@ -2294,10 +2315,10 @@ func TestTo_(t *testing.T) {
 		assert.Equal(t, 'A', r)
 	}
 
-  {
-    var c chan bool
-    assert.Equal(t, fmt.Errorf("The string value of str cannot be converted to %%!s(chan bool=<nil>)"), To("str", &c))
-  }
+	{
+		var c chan bool
+		assert.Equal(t, fmt.Errorf("The string value of str cannot be converted to %%!s(chan bool=<nil>)"), To("str", &c))
+	}
 }
 
 func TestToBigOps_(t *testing.T) {
@@ -2350,6 +2371,6 @@ func TestToBigOps_(t *testing.T) {
 			MustToBigOps("a", &br)
 			assert.Fail(t, "Never execute")
 		},
-		func(e any) { assert.Equal(t, fmt.Sprintf(errMsg, "a", "a", "*big.Int"), e.(error).Error()) },
+		func(e any) { assert.Equal(t, fmt.Sprintf("The string value of a cannot be converted to *big.Int"), e.(error).Error()) },
 	)
 }

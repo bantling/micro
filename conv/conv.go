@@ -15,7 +15,9 @@ import (
 )
 
 var (
-	errMsg = "The %T value of %s cannot be converted to %s"
+	errMsg                = "The %T value of %s cannot be converted to %s"
+  errRegisterSameTypeMsg = "The conversion from %[1]s to %[2]s is not a conversion, the types are the same (use *%[1]s, *%[2]s if you really want to do this)"
+	errRegisterExistsMsg  = "The conversion from %s to %s has already been registered"
 
 	log2Of10 = math.Log2(10)
 
@@ -1800,6 +1802,47 @@ func MustFloatStringToBigRat(ival string, oval **big.Rat) {
 	funcs.Must(FloatStringToBigRat(ival, oval))
 }
 
+// RegisterConversion registers a conversion from a value of type s to a value of type t.
+// Note the function must accept a pointer type for the target.
+// If the taregt is already a pointer type, an additional level of pointer is required.
+//
+// Examples:
+// RegisterConversion(0, Foo{}, func(int, *Foo) error {...})
+// RegisterConversion((*int)(nil), (*Foo)(nil), func(*int, **Foo) error {...})
+//
+// A conversion may be registered for pointers where the types are the same (eg, a *Foo to a **Foo)
+// It is assumed in such cases that some kind of copy is made.
+//
+// It is an error if:
+// - the source and target types are the same (other than above pointer exception)
+// - such a conversion already exists
+func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
+	var (
+		sTyp, tTyp = goreflect.TypeOf(s), goreflect.TypeOf(t)
+	)
+
+  // Check if the source and target types are the same, and it is NOT the edge case of converting *Foo to a **Foo
+  if (sTyp == tTyp.Elem()) && (sTyp.Kind() != goreflect.Pointer) {
+    return fmt.Errorf(errRegisterSameTypeMsg, sTyp, tTyp)
+  }
+
+	// The conversion map key is just the source type name followed by target type name, with no separator,
+	// and the level of indirection indicated in the types as passed.
+	// So RegisterConversion(0, Foo{}, func(int, *Foo) error) results in a key of intFoo.
+	convKey := sTyp.String() + tTyp.Elem().String()
+	if _, haveIt := convertFromTo[convKey]; haveIt {
+		// Already have this combination registered
+		return fmt.Errorf(errRegisterExistsMsg, sTyp, tTyp)
+	}
+
+	// Store the conversion in the map - we have to store a func(any, any), so generate one
+	convertFromTo[convKey] = func(src, tgt any) error {
+		return convFn(src.(S), tgt.(*T))
+	}
+
+	return nil
+}
+
 // To converts any numeric or string into any other such type.
 // The actual conversion is performed by other funcs.
 // The source is typed any to allow for cases where the caller accepts type any.
@@ -1836,12 +1879,12 @@ func To[T any](src any, tgt *T) error {
 	}
 
 	// Types differ, lookup conversion using base types and execute it, returning result
-  if fn := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; fn != nil {
-    return fn(valsrc.Interface(), valtgt.Interface())
-  }
+	if fn, haveIt := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; haveIt {
+		return fn(valsrc.Interface(), valtgt.Interface())
+	}
 
-  // Must be a type we can't convert
-  return fmt.Errorf(errMsg, src, src, *tgt)
+	// Must be a type we can't convert
+	return fmt.Errorf(errMsg, src, src, *tgt)
 }
 
 // MustTo is a Must version of To

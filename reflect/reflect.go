@@ -170,7 +170,7 @@ func IsPrimitive[T KindElem[T]](val T) bool {
 // The only case where the result is different from the argument is when the argument is typed as interface{}.
 // For example, if the interface{} value is actually an int, then the result will be typed as int.
 // This generally only happens in corner cases like iterating the elements of a slice typed as []interface{} - even though
-// the elements may be strings, ints, etc, each element will be typed as []interface{}.
+// the elements may be strings, ints, etc, each element will be typed as interface{}.
 func ResolveValueType(val goreflect.Value) goreflect.Value {
 	// Check special case
 	if val.IsValid() && (val.Kind() == goreflect.Interface) {

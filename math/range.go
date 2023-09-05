@@ -47,9 +47,9 @@ func OfRange[T constraint.IntegerAndFloat](
 	initial T,
 ) Range[T] {
 	if (min >= max) || (max <= min) {
-    var minStr, maxStr string
-    conv.To(min, &minStr)
-    conv.To(max, &maxStr)
+		var minStr, maxStr string
+		conv.To(min, &minStr)
+		conv.To(max, &maxStr)
 		panic(fmt.Errorf(errMinMaxMsg, minStr, maxStr))
 	}
 
@@ -81,10 +81,10 @@ func (r *Range[T]) SetValue(val T) error {
 		return nil
 	}
 
-  var valStr, minStr, maxStr string
-  conv.To(val, &valStr)
-  conv.To(r.min, &minStr)
-  conv.To(r.max, &maxStr)
+	var valStr, minStr, maxStr string
+	conv.To(val, &valStr)
+	conv.To(r.min, &minStr)
+	conv.To(r.max, &maxStr)
 
 	return fmt.Errorf(
 		errOutsideRangeMsg,
