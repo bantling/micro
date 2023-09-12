@@ -2317,7 +2317,7 @@ func TestTo_(t *testing.T) {
 
 	{
 		var c chan bool
-		assert.Equal(t, fmt.Errorf("The string value of str cannot be converted to %%!s(chan bool=<nil>)"), To("str", &c))
+		assert.Equal(t, fmt.Errorf("The string value of str cannot be converted to *chan bool"), To("str", &c))
 	}
 }
 

@@ -19,19 +19,19 @@ import (
 func TestWrite_(t *testing.T) {
 	var str strings.Builder
 
-	assert.Nil(t, Write(json.FromMap(map[string]any{}), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.MustToValue(map[string]any{}), writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "{}", str.String())
 
 	str.Reset()
-	assert.Nil(t, Write(json.FromSlice([]any{}), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.MustToValue([]any{}), writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "[]", str.String())
 
 	str.Reset()
-	assert.Nil(t, Write(json.FromString("foo"), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.MustToValue("foo"), writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, `"foo"`, str.String())
 
 	str.Reset()
-	assert.Nil(t, Write(json.FromNumber("1"), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.MustToValue(json.NumberString("1")), writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, "1", str.String())
 
 	str.Reset()
@@ -65,7 +65,7 @@ func TestWriteObject_(t *testing.T) {
 		}
 	)
 
-	assert.Nil(t, Write(json.FromMap(m), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.MustToValue(m), writer.OfIOWriterAsRunes(&str)))
 
 	// Can't rely on map ordering in string result. We could use our parser, but using go built in parser is a better idea.
 	// Note that go parses a number as a float64 when using a map.
@@ -80,19 +80,19 @@ func TestWriteObject_(t *testing.T) {
 
 	// Fail to write opening {
 	w := io.NewErrorWriter(0, err)
-	assert.Equal(t, err, Write(json.FromMap(m), writer.OfIOWriterAsRunes(w)))
+	assert.Equal(t, err, Write(json.MustToValue(m), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write first key
 	w = io.NewErrorWriter(1, err)
-	assert.Equal(t, err, Write(json.FromMap(m), writer.OfIOWriterAsRunes(w)))
+	assert.Equal(t, err, Write(json.MustToValue(m), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write first value
 	w = io.NewErrorWriter(7, err)
-	assert.Equal(t, err, Write(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(w)))
+	assert.Equal(t, err, Write(json.MustToValue(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(w)))
 
 	funcs.TryTo(
 		func() {
-			MustWriteObject(json.FromMap(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
+			MustWriteObject(json.MustToValue(map[string]any{"foo": "bar"}), writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
 			assert.Fail(t, "Must die")
 		},
 		func(e any) { assert.Equal(t, err, e.(error)) },
@@ -112,7 +112,7 @@ func TestWriteArray_(t *testing.T) {
 		}
 	)
 
-	assert.Nil(t, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(&str)))
+	assert.Nil(t, Write(json.MustToValue(s), writer.OfIOWriterAsRunes(&str)))
 	assert.Equal(t, `[{"foo":"bar"},["foo"],"foo",1,false,null]`, str.String())
 
 	// Test errors
@@ -120,19 +120,19 @@ func TestWriteArray_(t *testing.T) {
 
 	// Fail to write opening [
 	w := io.NewErrorWriter(0, err)
-	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
+	assert.Equal(t, err, Write(json.MustToValue(s), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write first comma
 	w = io.NewErrorWriter(14, err)
-	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
+	assert.Equal(t, err, Write(json.MustToValue(s), writer.OfIOWriterAsRunes(w)))
 
 	// Fail to write second value
 	w = io.NewErrorWriter(15, err)
-	assert.Equal(t, err, Write(json.FromSlice(s), writer.OfIOWriterAsRunes(w)))
+	assert.Equal(t, err, Write(json.MustToValue(s), writer.OfIOWriterAsRunes(w)))
 
 	funcs.TryTo(
 		func() {
-			MustWriteArray(json.FromSlice(s), writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
+			MustWriteArray(json.MustToValue(s), writer.OfIOWriterAsRunes(io.NewErrorWriter(0, err)))
 			assert.Fail(t, "Must die")
 		},
 		func(e any) { assert.Equal(t, err, e.(error)) },

@@ -4,12 +4,18 @@ package json
 
 import (
 	"fmt"
-	"math/big"
-	"strings"
+  "math/big"
+  goreflect "reflect"
+  "regexp"
 
+	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/union"
 )
+
+// NumberString regex
+var numberStringRegex    = regexp.MustCompile("-?[0-9]+([.][0-9]+)?(e[0-9]+)?")
 
 // Error constants
 var (
@@ -20,16 +26,16 @@ var (
 	errNotNumber         = fmt.Errorf("The Value is not a number")
 	errNotBoolean        = fmt.Errorf("The Value is not a boolean")
 	errNotStringable     = fmt.Errorf("The Value is not a string, number, or boolean")
-	errNotAStructMsg     = "The value of type %T is not a struct"
-	errNilPtrMsg         = "The value of type %T has multiple pointers, where one of the leading pointers is nil"
+
 )
 
-// ValueType is an enum of value types
-type ValueType uint
+// Type is an enum of json types
+type Type uint
 
 // The value types
 const (
-	Object ValueType = iota
+  Invalid Type = iota
+	Object
 	Array
 	String
 	Number
@@ -39,7 +45,7 @@ const (
 
 // The value types as strings
 var (
-	valueTypeToString = map[ValueType]string{
+	valueTypeToString = map[Type]string{
 		Object:  "Object",
 		Array:   "Array",
 		String:  "String",
@@ -50,151 +56,206 @@ var (
 )
 
 // ToString is the Stringer interface for fmt
-func (typ ValueType) String() string {
+func (typ Type) String() string {
 	return valueTypeToString[typ]
 }
 
-// NumberString is a special type that allows a plain string to be considered a JSON Number
+// NumberString is a type that allows a plain string to be considered a JSON Number.
+// Allows differentiation between an actual string value, and a string that is really a number value.
 type NumberString string
 
 // Value represents any kind of JSON value - object, array, string, number, boolean, null
 type Value struct {
-	typ   ValueType
-	value any
+	typ Type
+  val union.Four[map[string]Value, []Value, string, bool]
 }
 
-// Constant values for a true, false, and Null
+// Constant values for a invalid, true, false, and null
 var (
-	TrueValue    = Value{typ: Boolean, value: true}
-	FalseValue   = Value{typ: Boolean, value: false}
-	NullValue    = Value{typ: Null, value: nil}
-	InvalidValue = Value{}
+  invalidValue = Value{}
+	TrueValue    = Value{typ: Boolean, val: union.Of4W[map[string]Value, []Value, string, bool](true)}
+	FalseValue   = Value{typ: Boolean, val: union.Of4W[map[string]Value, []Value, string, bool](false)}
+	NullValue    = Value{typ: Null, val: union.Four[map[string]Value, []Value, string, bool]{}}
 )
 
-// FromValue converts a Go value into a Value, where the Go value must be as follows:
+// toValue is common code for ToValue, MapToValue, and SliceToValue
+func toValue(val any) (res Value, err error) {
+  // Object
+  if mp, isa := val.(map[string]any); isa {
+    // recursive call
+    if res, err = MapToValue(mp); err != nil {
+      return
+    }
+
+  // Array
+  } else if arr, isa := val.([]any); isa {
+    // recursive call
+    if res, err = SliceToValue(arr); err != nil {
+      return
+    }
+
+  // Boolean
+  } else if bln, isa := val.(bool); isa {
+    res = BoolToValue(bln)
+
+  // Null : cannot test an any value of some unknown type as == nil, have to type assert or use reflection
+  } else if funcs.IsNilValue(val) {
+    // nil only occurs if a *big is nil
+    res = NullValue
+
+  } else {
+    // string and NumberString
+    typ := goreflect.TypeOf(val)
+
+    if typ.Kind() == goreflect.String {
+      if typ.AssignableTo(goreflect.TypeOf(NumberString(""))) {
+        res, err = numberToValue(val.(NumberString))
+      } else {
+        res = StringToValue(val.(string))
+      }
+
+      return
+
+    // Must be Number
+    } else {
+      res, err = numberToValue(val)
+    }
+  }
+
+  return
+}
+
+// ToValue converts value types any into a Value
+func ToValue[T map[string]any | map[string]Value | []any | []Value | string | NumberString | constraint.Numeric | bool](val T) (res Value, err error) {
+  return toValue(any(val))
+}
+
+// MustToValue is a must version of ToValue
+func MustToValue[T map[string]any | map[string]Value | []any | []Value | string | NumberString | constraint.Numeric | bool](val T) Value {
+  return funcs.MustValue(ToValue(val))
+}
+
+// MapToValue converts a map[string]any to a Value of type Object, where the map values must be:
+// - map[string]any for a sub Object
+// - []any for a sub Array
+// - string for a String
+// - NumberString or any constraint.Numeric type for a Number
+// - bool for a Boolean
+// - nil for a Null
 //
-// Object: map[string]any
-// Array: []any
-// String: string
-// Number: int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, *big.Int, *big.Float,
+// Any other key value results in (Invalid Value, error)
+func MapToValue[T map[string]any | map[string]Value](val T) (mval Value, err error) {
+  var (
+    av = any(val)
+    mp map[string]Value
+    jval Value
+  )
+
+  if v, isa := av.(map[string]Value); isa {
+    mp = v
+  } else {
+    mp = map[string]Value{}
+
+    for k, v := range av.(map[string]any) {
+      if jval, err = toValue(v); err != nil {
+        return
+      }
+
+      mp[k] = jval
+    }
+  }
+
+  mval = Value{typ: Object, val: union.Of4T[map[string]Value, []Value, string, bool](mp)}
+
+  return
+}
+
+// MustMapToValue is a must version of MapToValue
+func MustMapToValue[T map[string]any | map[string]Value](val T) Value {
+  return funcs.MustValue(MapToValue(val))
+}
+
+// SliceToValue converts a []any to a Value of type Array, where the slice values must be the same as map key values
+// (see MapToValue).
 //
-//	*big.Rat, or NumberString
-//
-// Boolean: bool
-// Null: nil
-//
-// To make recursive algorithms whose base case returns calls to functions like FromMap and FromSlice easier and more
-// efficient to implement, the value can also already be a Value, which is used as is.
-//
-// Panics if any other kind of value is provided
-func FromValue(v any) Value {
-	var jval Value
+// Any other slice value results in the (Invalid Value, error)
+func SliceToValue[T []any | []Value](val T) (sval Value, err error) {
+  var (
+    av = any(val)
+    slc []Value
+    jval Value
+  )
 
-	if jv, isa := v.(map[string]any); isa {
-		jval = FromMap(jv)
-	} else if jv, isa := v.([]any); isa {
-		jval = FromSlice(jv)
-	} else if jv, isa := v.(string); isa {
-		jval = FromString(jv)
-	} else if jv, isa := v.(bool); isa {
-		jval = FromBool(jv)
-	} else if v == nil {
-		jval = NullValue
-	} else if jv, isa := v.(Value); isa {
-		jval = jv
-	} else if jval = FromNumber(v); (jval == Value{}) {
-		panic(fmt.Errorf(errInvalidGoValueMsg, v))
-	}
+  if v, isa := av.([]Value); isa {
+    slc = v
+  } else {
+    slc = make([]Value, len(val))
 
-	return jval
+    for i, v := range av.([]any) {
+      if jval, err = toValue(v); err != nil {
+        return
+      }
+
+      slc[i] = jval
+    }
+  }
+
+  sval = Value{typ: Array, val: union.Of4U[map[string]Value, []Value, string, bool](slc)}
+
+  return
 }
 
-// FromMap converts a map[string]any into a Value.
-// The types of the map keys must be acceptable to FromValue.
-func FromMap(m map[string]any) Value {
-	jv := map[string]Value{}
-
-	for k, v := range m {
-		jv[k] = FromValue(v)
-	}
-
-	return Value{typ: Object, value: jv}
+// MustSliceToValue is a must version of SliceToValue
+func MustSliceToValue[T []any | []Value](val T) Value {
+  return funcs.MustValue(SliceToValue(val))
 }
 
-// FromMapOfValue converts a map[string]Value into a Value
-func FromMapOfValue(m map[string]Value) Value {
-	return Value{typ: Object, value: m}
+// StringToValue converts a string to a Value
+func StringToValue(val string) Value {
+  return Value{typ: String, val: union.Of4V[map[string]Value, []Value, string, bool](val)}
 }
 
-// FromSlice converts a []any into a Value.
-// The types of the slice elements must be acceptable to FromValue.
-func FromSlice(a []any) Value {
-	js := make([]Value, len(a))
+// numberToValue is common code for ToValue and NumberToValue
+func numberToValue(val any) (nval Value, err error) {
+	var str string
 
-	for i, v := range a {
-		js[i] = FromValue(v)
-	}
-
-	return Value{typ: Array, value: js}
-}
-
-// FromSliceOfValue converts a []Value into a Value
-func FromSliceOfValue(a []Value) Value {
-	return Value{typ: Array, value: a}
-}
-
-// FromDocument converts a map[string]any or []any into a Value.
-// See FromMap and FromSlice.
-func FromDocument[T map[string]any | []any](doc T) Value {
-	if m, isa := any(doc).(map[string]any); isa {
-		return FromMap(m)
-	}
-
-	return FromSlice(any(doc).([]any))
-}
-
-// FromDocumentOfValue converts a map[string]Value or []Value into a Value.
-// See FromMapOfValue and FromSliceOfValue.
-func FromDocumentOfValue[T map[string]Value | []Value](doc T) Value {
-	if m, isa := any(doc).(map[string]Value); isa {
-		return FromMapOfValue(m)
-	}
-
-	return FromSliceOfValue(any(doc).([]Value))
-}
-
-// FromString converts a string into a Value
-func FromString(s string) Value {
-	return Value{typ: String, value: s}
-}
-
-// FromNumeric converts any constraint.Numeric type to a Value
-// If the conversion fails, an Invalid Value is returned
-func FromNumber(n any) Value {
-	// The value can be any value conv.To accepts.
-	// *big.Rat must be converted to a normalized string.
-	var s NumberString
-
-	if br, isa := n.(*big.Rat); isa {
-		s = NumberString(conv.BigRatToNormalizedString(br))
-	} else if str, isa := n.(string); isa && (strings.TrimSpace(str) == "") {
-		return Value{}
+	if br, isa := val.(*big.Rat); isa {
+	  // *big.Rat must be converted to a normalized string.
+		str = conv.BigRatToNormalizedString(br)
 	} else {
-		if err := conv.To(n, &s); err != nil {
-			return Value{}
-		}
-	}
+    // All other numeric types that remain are convertible to string by conv.To
+    if err = conv.To(val, &str); err != nil {
+      return
+    }
 
-	return Value{typ: Number, value: s}
+    // A NumberString could be the empty string, or "foo" or some other value that is not a number
+    if ns, isa := val.(NumberString); isa && (!numberStringRegex.MatchString(string(ns))) {
+      err = errNotNumber
+      return
+    }
+  }
+
+  nval = Value{typ: Number, val: union.Of4V[map[string]Value, []Value, string, bool](str)}
+  return
 }
 
-// FromBool converts a bool into a Value
-func FromBool(b bool) Value {
-	return funcs.Ternary(b, TrueValue, FalseValue)
+// NumberToValue converts any numeric type into a Value
+func NumberToValue[T NumberString | constraint.Numeric](val T) (Value, error) {
+  return numberToValue(val)
+}
+
+// MustNumberToValue is a must version of NumberToValue
+func MustNumberToValue[T NumberString | constraint.Numeric](val T) Value {
+  return funcs.MustValue(NumberToValue(val))
+}
+
+// BoolToValue converts a bool into a Value
+func BoolToValue(val bool) Value {
+  return funcs.Ternary(val, TrueValue, FalseValue)
 }
 
 // Type returns the type of value this Value contains
-func (jv Value) Type() ValueType {
+func (jv Value) Type() Type {
 	return jv.typ
 }
 
@@ -205,7 +266,7 @@ func (jv Value) AsMap() map[string]Value {
 		panic(errNotObject)
 	}
 
-	return jv.value.(map[string]Value)
+	return jv.val.T()
 }
 
 // AsSlice returns a slice representation of a Value.
@@ -215,7 +276,7 @@ func (jv Value) AsSlice() []Value {
 		panic(errNotArray)
 	}
 
-	return jv.value.([]Value)
+	return jv.val.U()
 }
 
 // AsString returns a string representation of a Value.
@@ -223,24 +284,24 @@ func (jv Value) AsSlice() []Value {
 func (jv Value) AsString() string {
 	switch jv.typ {
 	case String:
-		return jv.value.(string)
+		fallthrough
 	case Number:
-		return string(jv.value.(NumberString))
+		return jv.val.V()
 	case Boolean:
-		return fmt.Sprintf("%t", jv.value.(bool))
+		return fmt.Sprintf("%t", jv.val.W())
 	}
 
 	panic(errNotStringable)
 }
 
-// AsBigRat returns a NumberString representation of a Value.
+// AsNumber returns a NumberString representation of a Value.
 // Panics if the Value is not a number.
-func (jv Value) AsNumberString() NumberString {
+func (jv Value) AsNumber() NumberString {
 	if jv.typ != Number {
 		panic(errNotNumber)
 	}
 
-	return jv.value.(NumberString)
+	return NumberString(jv.val.V())
 }
 
 // AsBoolean returns a bool representation of a Value.
@@ -250,7 +311,7 @@ func (jv Value) AsBool() bool {
 		panic(errNotBoolean)
 	}
 
-	return jv.value.(bool)
+	return jv.val.W()
 }
 
 // IsNull returns true if the Value is a null, else false
@@ -264,15 +325,21 @@ func (jv Value) IsNull() bool {
 // String  = string
 // Number  = NumberString
 // Boolean = bool
-// NUll    = nil
+// Null    = nil
 func (jv Value) ToAny() any {
 	switch jv.typ {
 	case Object:
 		return jv.ToMap()
 	case Array:
 		return jv.ToSlice()
+	case String:
+		return jv.val.V()
+	case Number:
+		return NumberString(jv.val.V())
+  case Boolean:
+    return jv.val.W()
 	default:
-		return jv.value
+		return nil
 	}
 }
 
@@ -285,7 +352,7 @@ func (jv Value) ToMap() map[string]any {
 
 	m := map[string]any{}
 
-	for k, v := range jv.value.(map[string]Value) {
+	for k, v := range jv.val.T() {
 		m[k] = v.ToAny()
 	}
 
@@ -302,7 +369,7 @@ func (jv Value) ToSlice(visitor ...func(Value) any) []any {
 
 	s := []any{}
 
-	for _, v := range jv.value.([]Value) {
+	for _, v := range jv.val.U() {
 		s = append(s, v.ToAny())
 	}
 

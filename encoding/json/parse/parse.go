@@ -49,13 +49,13 @@ func parseValue(it iter.Iter[token]) (json.Value, error) {
 		if slc, err = stream.ReduceToSlice(parseArray(it)).Next(); err != nil {
 			return zv, err
 		}
-		return json.FromSliceOfValue(slc), nil
+		return json.SliceToValue(slc)
 	case tString:
-		return json.FromString(tok.value), nil
+		return json.StringToValue(tok.value), nil
 	case tNumber:
-		return json.FromNumber(json.NumberString(tok.value)), nil
+		return funcs.MustValue(json.NumberToValue(json.NumberString(tok.value))), nil
 	case tBoolean:
-		return json.FromBool(tok.value == "true"), nil
+		return json.BoolToValue(tok.value == "true"), nil
 	case tNull:
 		return json.NullValue, nil
 	}
@@ -94,7 +94,7 @@ func parseObject(it iter.Iter[token]) (json.Value, error) {
 
 		// If closing brace, valid empty object
 		if key.typ == tCBrace {
-			return json.FromMapOfValue(object), nil
+			return json.MapToValue(object)
 		}
 
 		// If not closing brace, must be string key
@@ -159,7 +159,7 @@ func parseObject(it iter.Iter[token]) (json.Value, error) {
 	}
 
 	// Return value built from map
-	return json.FromMapOfValue(object), nil
+	return json.MapToValue(object)
 }
 
 // parseArray parses a JSON array, making potetially recursive calls to parseValue for each element value.

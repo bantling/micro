@@ -34,18 +34,18 @@ func TestRegistry(t *testing.T) {
 func TestDefaultRegistry(t *testing.T) {
 	var (
 		f Receiver[json.Value] = ReceiverFunc[json.Value](func(d json.Value) json.Value {
-			return json.FromString(d.AsString() + d.AsString())
+			return json.StringToValue(d.AsString() + d.AsString())
 		})
 	)
 
 	Register(f) // 5 -> 55
 	Register(f) // 55 -> 5555
 	Register(f) // 5555 -> 55555555
-	assert.Equal(t, "55555555", Send(json.FromString("5")).AsString())
+	assert.Equal(t, "55555555", Send(json.StringToValue("5")).AsString())
 
 	Remove(f)
-	assert.Equal(t, "5555", Send(json.FromString("5")).AsString())
+	assert.Equal(t, "5555", Send(json.StringToValue("5")).AsString())
 
 	Remove(f, ALL)
-	assert.Equal(t, "5", Send(json.FromString("5")).AsString())
+	assert.Equal(t, "5", Send(json.StringToValue("5")).AsString())
 }

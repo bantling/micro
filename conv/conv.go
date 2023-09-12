@@ -1884,7 +1884,7 @@ func To[T any](src any, tgt *T) error {
 	}
 
 	// Must be a type we can't convert
-	return fmt.Errorf(errMsg, src, src, *tgt)
+	return fmt.Errorf(errMsg, src, src, goreflect.TypeOf(tgt))
 }
 
 // MustTo is a Must version of To

@@ -586,6 +586,10 @@ func TestNillable_(t *testing.T) {
 		func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
 	)
 
+  assert.False(t, IsNilValue(0))
+  assert.False(t, IsNilValue(c))
+  assert.True(t, IsNilValue(cn))
+
 	TryTo(
 		func() {
 			IsNonNil[int]()

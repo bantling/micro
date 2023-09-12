@@ -787,6 +787,7 @@ func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
 
 // IsNil generates a filter func (func(T) bool) that returns true if the value given is nil.
 // A type constraint cannot be used to describe nillable types at compile time, so reflection is used.
+// Panics if T is not a nillable type.
 func IsNil[T any]() func(T) bool {
 	var n T
 	MustBeNillable(reflect.TypeOf(n))
@@ -794,6 +795,13 @@ func IsNil[T any]() func(T) bool {
 	return func(t T) bool {
 		return reflect.ValueOf(t).IsNil()
 	}
+}
+
+// IsNilValue returns true if the value given is nil
+func IsNilValue(val any) bool {
+  rv := reflect.ValueOf(val)
+  // In the case of an untyped nil any value, reflect.ValueOf() returns Invalid, which means you cannot call IsNil()
+  return (!rv.IsValid()) || (Nillable(rv.Type()) && rv.IsNil())
 }
 
 // IsNonNil generates a filter func (func(T) bool) that returns true if the value given is non-nil.
