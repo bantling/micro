@@ -1233,24 +1233,24 @@ func TestFloatStringToBigRat_(t *testing.T) {
 }
 
 func TestRegisterConversion_(t *testing.T) {
-  type Foo struct {fld int}
+	type Foo struct{ fld int }
 
-  {
-    // Working conversion
-    fn := func(src int, tgt *Foo) error {(*tgt).fld = src; return nil}
-    assert.Nil(t, RegisterConversion[int, Foo](0, nil, fn))
-    var f Foo
-    assert.Nil(t, To(5, &f))
-    assert.Equal(t, Foo{5}, f)
+	{
+		// Working conversion
+		fn := func(src int, tgt *Foo) error { (*tgt).fld = src; return nil }
+		assert.Nil(t, RegisterConversion[int, Foo](0, nil, fn))
+		var f Foo
+		assert.Nil(t, To(5, &f))
+		assert.Equal(t, Foo{5}, f)
 
-    // Same type error
-    assert.Equal(t, fmt.Errorf("The conversion from int to *conv.Foo has already been registered"), RegisterConversion[int, Foo](0, nil, fn))
-  }
+		// Same type error
+		assert.Equal(t, fmt.Errorf("The conversion from int to *conv.Foo has already been registered"), RegisterConversion[int, Foo](0, nil, fn))
+	}
 
-  {
-    fn := func(src Foo, tgt *Foo) error {return nil}
-    assert.Equal(t, fmt.Errorf("The conversion from conv.Foo to *conv.Foo is not a conversion, the types are the same (use *conv.Foo, **conv.Foo if you really want to do this)"), RegisterConversion[Foo, Foo](Foo{}, nil, fn))
-  }
+	{
+		fn := func(src Foo, tgt *Foo) error { return nil }
+		assert.Equal(t, fmt.Errorf("The conversion from conv.Foo to *conv.Foo is not a conversion, the types are the same (use *conv.Foo, **conv.Foo if you really want to do this)"), RegisterConversion[Foo, Foo](Foo{}, nil, fn))
+	}
 }
 
 func TestTo_(t *testing.T) {
@@ -2365,12 +2365,32 @@ func TestToBigOps_(t *testing.T) {
 		assert.Equal(t, big.NewRat(3, 1), br)
 	}
 
+  // Subtypes where no conversion exists, base types are the same
+  {
+    type foo int
+    type bar int
+    var b bar
+    assert.Nil(t, To(foo(1), &b))
+    assert.Equal(t, bar(1), b)
+  }
+
+  // Subtypes where no conversion exists, base types are different
+  {
+    type foo uint
+    type bar int
+    var b bar
+    assert.Nil(t, To(foo(1), &b))
+    assert.Equal(t, bar(1), b)
+  }
+
 	funcs.TryTo(
 		func() {
 			var br *big.Int
 			MustToBigOps("a", &br)
 			assert.Fail(t, "Never execute")
 		},
-		func(e any) { assert.Equal(t, fmt.Sprintf("The string value of a cannot be converted to *big.Int"), e.(error).Error()) },
+		func(e any) {
+			assert.Equal(t, fmt.Sprintf("The string value of a cannot be converted to *big.Int"), e.(error).Error())
+		},
 	)
 }

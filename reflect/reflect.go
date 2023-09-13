@@ -148,8 +148,8 @@ func IsBigPtr(typ goreflect.Type) bool {
 
 // IsNumeric returns true if the given type satisfies constraint.Numeric
 func IsNumeric(typ goreflect.Type) bool {
-  knd := typ.Kind()
-  return ((knd >= goreflect.Int) && (knd <= goreflect.Float64) && (knd != goreflect.Uintptr)) || IsBigPtr(typ)
+	knd := typ.Kind()
+	return ((knd >= goreflect.Int) && (knd <= goreflect.Float64) && (knd != goreflect.Uintptr)) || IsBigPtr(typ)
 }
 
 // IsNillable returns true if ke.Kind() is nillable, which means it is Chan, Func, Interface, Map, Pointer, or Slice.

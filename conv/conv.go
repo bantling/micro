@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	errMsg                = "The %T value of %s cannot be converted to %s"
-  errRegisterSameTypeMsg = "The conversion from %[1]s to %[2]s is not a conversion, the types are the same (use *%[1]s, *%[2]s if you really want to do this)"
-	errRegisterExistsMsg  = "The conversion from %s to %s has already been registered"
+	errMsg                 = "The %T value of %s cannot be converted to %s"
+	errRegisterSameTypeMsg = "The conversion from %[1]s to %[2]s is not a conversion, the types are the same (use *%[1]s, *%[2]s if you really want to do this)"
+	errRegisterExistsMsg   = "The conversion from %s to %s has already been registered"
 
 	log2Of10 = math.Log2(10)
 
@@ -1821,10 +1821,10 @@ func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 		sTyp, tTyp = goreflect.TypeOf(s), goreflect.TypeOf(t)
 	)
 
-  // Check if the source and target types are the same, and it is NOT the edge case of converting *Foo to a **Foo
-  if (sTyp == tTyp.Elem()) && (sTyp.Kind() != goreflect.Pointer) {
-    return fmt.Errorf(errRegisterSameTypeMsg, sTyp, tTyp)
-  }
+	// Check if the source and target types are the same, and it is NOT the edge case of converting *Foo to a **Foo
+	if (sTyp == tTyp.Elem()) && (sTyp.Kind() != goreflect.Pointer) {
+		return fmt.Errorf(errRegisterSameTypeMsg, sTyp, tTyp)
+	}
 
 	// The conversion map key is just the source type name followed by target type name, with no separator,
 	// and the level of indirection indicated in the types as passed.
@@ -1843,19 +1843,35 @@ func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 	return nil
 }
 
-// To converts any numeric or string into any other such type.
-// The actual conversion is performed by other funcs.
-// The source is typed any to allow for cases where the caller accepts type any.
-// If no conversion can be found, or the conversion fails, an error is returned.
+// To converts any supported combination of source and target types.
+// The actual conversion is performed by the functions above, or by registered functions.
+//
+// The source is typed any for two reasons:
+// - to allow for cases where the caller accepts type any
+// - arbitrary new conversions can be registered (ideally via an init function)
+//
+// Subtype conversions are searched for first, then base type conversions.
+// Eg, byte is a subtype of uint8. So if souce and/or target is a byte, a conversion for byte is looked for first.
+// If no conversion exists, then a conversion for uint8 is used if it exists.
+// Base types do not apply to pointers.
+//
+// Only two combinations are checked for:
+// - souce and target types as is
+// - source and target base types
+//
+// The built in big types (*Int, *Float, and *Rat) are handled specially when the source and target are the same.
+// A copy is made, so that the source and target pointers refer to separate memory areas.
+//
+// Errors occur for two reasons:
+// - No conversion can be found
+// - The conversion returns an error
 func To[T any](src any, tgt *T) error {
 	var (
 		valsrc = goreflect.ValueOf(src)
 		valtgt = goreflect.ValueOf(tgt)
 	)
 
-	// Convert source and target to base types
-	reflect.ToBaseType(&valsrc)
-	reflect.ToBaseType(&valtgt)
+	// ==== Search for subtypes as is first (eg, byte is a subtype of uint8)
 
 	// No conversion function exists if src and *tgt are the same type, unless they are *big types
 	copy := valsrc.Type() == valtgt.Elem().Type()
@@ -1878,7 +1894,24 @@ func To[T any](src any, tgt *T) error {
 		return nil
 	}
 
-	// Types differ, lookup conversion using base types and execute it, returning result
+	// Types differ, lookup conversion using source And target types and execute it, returning result
+	if fn, haveIt := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; haveIt {
+		return fn(valsrc.Interface(), valtgt.Interface())
+	}
+
+	// ==== Search base types next, in case no subtype conversion exists
+
+	// Convert source and target to base types, so that we can find a conversion for subtypes
+	reflect.ToBaseType(&valsrc)
+	reflect.ToBaseType(&valtgt)
+
+	// No conversion function exists if src and *tgt are the same type
+	if valsrc.Type() == valtgt.Elem().Type() {
+		valtgt.Elem().Set(valsrc)
+		return nil
+	}
+
+	// Types differ, lookup conversion using source and target types and execute it, returning result
 	if fn, haveIt := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; haveIt {
 		return fn(valsrc.Interface(), valtgt.Interface())
 	}

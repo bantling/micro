@@ -799,9 +799,9 @@ func IsNil[T any]() func(T) bool {
 
 // IsNilValue returns true if the value given is nil
 func IsNilValue(val any) bool {
-  rv := reflect.ValueOf(val)
-  // In the case of an untyped nil any value, reflect.ValueOf() returns Invalid, which means you cannot call IsNil()
-  return (!rv.IsValid()) || (Nillable(rv.Type()) && rv.IsNil())
+	rv := reflect.ValueOf(val)
+	// In the case of an untyped nil any value, reflect.ValueOf() returns Invalid, which means you cannot call IsNil()
+	return (!rv.IsValid()) || (Nillable(rv.Type()) && rv.IsNil())
 }
 
 // IsNonNil generates a filter func (func(T) bool) that returns true if the value given is non-nil.

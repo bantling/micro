@@ -38,7 +38,7 @@ func assertNull(t *testing.T, a union.Result[Value]) {
 }
 
 func assertError(t *testing.T, e error, a union.Result[Value]) {
-  assert.Equal(t, union.OfError[Value](e), a)
+	assert.Equal(t, union.OfError[Value](e), a)
 }
 
 func TestString_(t *testing.T) {
@@ -53,8 +53,8 @@ func TestString_(t *testing.T) {
 func TestToValue_(t *testing.T) {
 	// Object
 	assertObject(t, map[string]Value{"foo": StringToValue("bar")}, union.OfResultError(ToValue(map[string]any{"foo": "bar"})))
-  assertObject(t, map[string]Value{"foo": StringToValue("bar")}, union.OfResult(MustToValue(map[string]any{"foo": "bar"})))
-  assertObject(t, map[string]Value{"foo": StringToValue("bar")}, union.OfResult(MustMapToValue(map[string]any{"foo": "bar"})))
+	assertObject(t, map[string]Value{"foo": StringToValue("bar")}, union.OfResult(MustToValue(map[string]any{"foo": "bar"})))
+	assertObject(t, map[string]Value{"foo": StringToValue("bar")}, union.OfResult(MustMapToValue(map[string]any{"foo": "bar"})))
 
 	// Array
 	assertArray(t, []Value{StringToValue("bar")}, union.OfResultError(ToValue([]any{"bar"})))
@@ -109,12 +109,12 @@ func TestToValue_(t *testing.T) {
 	// Null
 	assertNull(t, union.OfResultError(ToValue((*big.Int)(nil))))
 
-  // Map failure
-  var c = make(chan bool)
-  assert.Equal(t, union.OfError[Value](fmt.Errorf("The chan bool value of %s cannot be converted to *string", any(c))), union.OfResultError(ToValue(map[string]any{"foo": c})))
+	// Map failure
+	var c = make(chan bool)
+	assert.Equal(t, union.OfError[Value](fmt.Errorf("The chan bool value of %s cannot be converted to *string", any(c))), union.OfResultError(ToValue(map[string]any{"foo": c})))
 
-  // Slice failure
-  assert.Equal(t, union.OfError[Value](fmt.Errorf("The chan bool value of %s cannot be converted to *string", any(c))), union.OfResultError(ToValue([]any{c})))
+	// Slice failure
+	assert.Equal(t, union.OfError[Value](fmt.Errorf("The chan bool value of %s cannot be converted to *string", any(c))), union.OfResultError(ToValue([]any{c})))
 }
 
 func TestMapToValue_(t *testing.T) {
@@ -198,7 +198,7 @@ func TestType_(t *testing.T) {
 }
 
 func TestAsMap_(t *testing.T) {
-  mp := map[string]any{"foo": "bar"}
+	mp := map[string]any{"foo": "bar"}
 	val, _ := MapToValue(mp)
 	assert.Equal(t, map[string]Value{"foo": StringToValue("bar")}, val.AsMap())
 
@@ -214,7 +214,7 @@ func TestAsMap_(t *testing.T) {
 }
 
 func TestAsSlice_(t *testing.T) {
-  slc := []any{"foo"}
+	slc := []any{"foo"}
 	val, _ := SliceToValue(slc)
 	assert.Equal(t, []Value{StringToValue("foo")}, val.AsSlice())
 
