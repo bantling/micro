@@ -152,6 +152,32 @@ func TestIsBigPtr_(t *testing.T) {
 	assert.False(t, IsBigPtr(goreflect.TypeOf(0)))
 }
 
+func TestIsNumeric_(t *testing.T) {
+	assert.True(t, IsNumeric(goreflect.TypeOf(int(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(int8(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(int16(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(int32(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(int64(0))))
+
+	assert.True(t, IsNumeric(goreflect.TypeOf(uint(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(uint8(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(uint16(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(uint32(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(uint64(0))))
+
+	assert.True(t, IsNumeric(goreflect.TypeOf(float32(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(float64(0))))
+
+	assert.True(t, IsNumeric(goreflect.TypeOf((*big.Int)(nil))))
+	assert.True(t, IsNumeric(goreflect.TypeOf((*big.Float)(nil))))
+	assert.True(t, IsNumeric(goreflect.TypeOf((*big.Rat)(nil))))
+
+	assert.True(t, IsNumeric(goreflect.TypeOf(byte(0))))
+	assert.True(t, IsNumeric(goreflect.TypeOf(rune(0))))
+
+	assert.False(t, IsNumeric(goreflect.TypeOf("")))
+}
+
 func TestIsNillable_(t *testing.T) {
 	assert.False(t, IsNillable(goreflect.TypeOf(0)))
 	assert.True(t, IsNillable(goreflect.TypeOf((chan int)(nil))))

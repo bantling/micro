@@ -35,6 +35,22 @@ func TestOfDecimal_(t *testing.T) {
 	)
 }
 
+func TestStringToDecimal_(t *testing.T) {
+	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 100}, error(nil)), tuple.Of2(StringToDecimal("100")))
+	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1001}, error(nil)), tuple.Of2(StringToDecimal("-1.001")))
+
+	assert.Equal(
+		t,
+		tuple.Of2(Decimal{}, fmt.Errorf("The string value 1234567890123456789 is not a valid decimal string")),
+		tuple.Of2(StringToDecimal("1234567890123456789")),
+	)
+	assert.Equal(
+		t,
+		tuple.Of2(Decimal{}, fmt.Errorf("The string value -1234567890123456789 is not a valid decimal string")),
+		tuple.Of2(StringToDecimal("-1234567890123456789")),
+	)
+}
+
 func TestDecimalString_(t *testing.T) {
 	assert.Equal(t, "123", MustDecimal(123, 0).String())
 	assert.Equal(t, "-123", MustDecimal(-123, 0).String())

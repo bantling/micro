@@ -4,10 +4,15 @@ package math
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
+)
+
+var (
+	decimalRegex = regexp.MustCompile("(-?)([1-9][0-9]*)(?:.([0-9]+))?")
 )
 
 const (
@@ -36,6 +41,12 @@ const (
 	// decimalRoundMinValue is the minimum decimal value that can be rounded down without requiring a 19th digit
 	//                             123 456 789 012 345 678
 	decimalRoundMinValue int64 = -999_999_999_999_999_994
+
+	// errInvalidStringMsg is the error message for an invalid string to construct a decimal from
+	errInvalidStringMsg = "The string value %s is not a valid decimal string"
+
+	// errToBigIntMsg is the error message for converting a Decimal whose value is fractional to a *big.Int
+	errToBigIntMsg = "The decimal value %s cannot be converted to a *big.Int"
 
 	// errScaleTooLargeMsg is the error message for a decimal scale value that is too large
 	errScaleTooLargeMsg = "The Decimal scale %d is too large: the value must be <= 18"
@@ -101,6 +112,34 @@ func OfDecimal(value int64, scale ...uint) (d Decimal, err error) {
 // MustDecimal is a must version of OfDecimal
 func MustDecimal(value int64, scale ...uint) Decimal {
 	return funcs.MustValue(OfDecimal(value, scale...))
+}
+
+// StringToDecimal creates a Decimal from the given string
+// The string must contain no more than 18 significant digits (leading zeros are not allowed), and satisfy the following regex:
+// -?[1-9][0-9]*(.[0-9]+)?
+func StringToDecimal(value string) (d Decimal, err error) {
+	parts := decimalRegex.FindStringSubmatch(value)
+
+	// Error if string doesn't match regex
+	// Error if total number of digits > 18
+	// indexes : 1 = optional leading minus sign, 2 = required digits before decimal, 3 = optional digits after decimal
+	if (parts == nil) || ((len(parts[2]) + len(parts[3])) > 18) {
+		err = fmt.Errorf(errInvalidStringMsg, value)
+		return
+	}
+
+	// Set scale to number of digits after decimal, which may be zero
+	d.scale = uint(len(parts[3]))
+
+	// Combine digits before and after decimal into a single string, and convert it to the int64 value
+	conv.To(parts[2]+parts[3], &d.value)
+
+	// If there is a leading minus sign, negate the value
+	if len(parts[1]) > 0 {
+		d.value = -d.value
+	}
+
+	return
 }
 
 // String is the Stringer interface

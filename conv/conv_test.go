@@ -2365,23 +2365,23 @@ func TestToBigOps_(t *testing.T) {
 		assert.Equal(t, big.NewRat(3, 1), br)
 	}
 
-  // Subtypes where no conversion exists, base types are the same
-  {
-    type foo int
-    type bar int
-    var b bar
-    assert.Nil(t, To(foo(1), &b))
-    assert.Equal(t, bar(1), b)
-  }
+	// Subtypes where no conversion exists, base types are the same
+	{
+		type foo int
+		type bar int
+		var b bar
+		assert.Nil(t, To(foo(1), &b))
+		assert.Equal(t, bar(1), b)
+	}
 
-  // Subtypes where no conversion exists, base types are different
-  {
-    type foo uint
-    type bar int
-    var b bar
-    assert.Nil(t, To(foo(1), &b))
-    assert.Equal(t, bar(1), b)
-  }
+	// Subtypes where no conversion exists, base types are different
+	{
+		type foo uint
+		type bar int
+		var b bar
+		assert.Nil(t, To(foo(1), &b))
+		assert.Equal(t, bar(1), b)
+	}
 
 	funcs.TryTo(
 		func() {
