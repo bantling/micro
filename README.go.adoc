@@ -200,7 +200,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* rewrite json, decimal, and range to register conversion funcs with conv, so that conv.To can convert to/from those types
+* rewrite range to register conversion funcs with conv, so that conv.To can convert to/from those types
 ** json, decimal, and range can use conv.to internally to perform the function
 * update this README
 * simple ORM
