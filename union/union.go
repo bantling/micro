@@ -5,12 +5,15 @@ package union
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/bantling/micro/funcs"
 )
 
 // Errors
 
 var (
-	errWhichMsg = "Member %s is not available"
+	errWhichMsg   = "Member %s is not available"
+	errEmptyMaybe = fmt.Errorf("Empty Maybe cannot return a value")
 )
 
 // ==== Types
@@ -61,6 +64,12 @@ type Four[T, U, V, W any] struct {
 	v     V
 	w     W
 	which Which
+}
+
+// Maybe is a wrapper around a single value that may or may not exist, as an alternative to a pointer or an Iter
+type Maybe[T any] struct {
+	v       T
+	present bool
 }
 
 // Result is a variation of Two where the second value is predefined as an error
@@ -114,6 +123,16 @@ func Of4V[TT, UU, VV, WW any](v VV) Four[TT, UU, VV, WW] {
 // Of4W constructs a Four that holds a W
 func Of4W[TT, UU, VV, WW any](w WW) Four[TT, UU, VV, WW] {
 	return Four[TT, UU, VV, WW]{w: w, which: W}
+}
+
+// Of constructs a Maybe that holds a T
+func Of[TT any](t TT) Maybe[TT] {
+	return Maybe[TT]{v: t, present: true}
+}
+
+// Empty constructs an empty Maybe
+func Empty[TT any]() Maybe[TT] {
+	return Maybe[TT]{}
 }
 
 // OfResult constructs a Result that holds an R
@@ -282,6 +301,43 @@ func (s Four[TT, UU, VV, WW]) W() WW {
 func (s *Four[TT, UU, VV, WW]) SetW(w WW) {
 	s.w = w
 	s.which = W
+}
+
+// ==== Maybe
+
+// Present returns true if Maybe contains a value
+func (m Maybe[T]) Present() bool {
+	return m.present
+}
+
+// Empty returns true if Maybe does not contain a value
+func (m Maybe[T]) Empty() bool {
+	return !m.present
+}
+
+// Get returns the value of the Maybe, which panics if it is not present
+func (m Maybe[T]) Get() T {
+	if !m.present {
+		panic(errEmptyMaybe)
+	}
+
+	return m.v
+}
+
+// OrElse returns the value of the Maybe if present, or the else value provided if it is empty
+func (m Maybe[T]) OrElse(elseVal T) T {
+	return funcs.Ternary(m.present, m.v, elseVal)
+}
+
+// OrError returns (value of the Maybe, nil) if present, or (zero value of T, error provided) if not present
+func (m Maybe[T]) OrError(e error) (res T, err error) {
+	if m.present {
+		res = m.v
+	} else {
+		err = e
+	}
+
+	return
 }
 
 // ==== Result

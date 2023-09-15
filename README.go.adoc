@@ -200,12 +200,26 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* rewrite range to register conversion funcs with conv, so that conv.To can convert to/from those types
-** json, decimal, and range can use conv.to internally to perform the function
-* update this README
+* make json Value better
+** search by path to get/set a value
+** path can dig into map keys and array indexes
+** simple path using . for keys, and [] for indexes
+** eg .addresses[3].city => top object key addresses is an array, index 3 is an object, key city is read/written
+* modify events to be less simplistic
+** ability to modify chain of handlers on the fly in a self-organizing way
+** when new handlers added, can specify they come before another event, after another event, or both
+** if adding new handler is impossible to satisfy conditions, it is an error
+* add capability in reflect package to populate a struct from a map, or map from a struct
+** use conv.To to convert map elements to struct fields, to correctly handle subtypes
+** field kind must be bool, ints, floats, complex, array, map, slice, string, or struct/*struct
+** fields of sub struct/*struct must be above types
+** if a field may or may not have a value of type T, use union.Maybe, which is handled specially
+** support case conversions, with built-in converters for UpperCamel/lowerCamel, Upper_Snake/lower_snake, Upper-Kebab, lower-kebab
+** each case conversion is a pair of func(string) string, with each func the converse of the other
 * simple ORM
-** map structs, assuming each field camelcase name translates to snake case column name
+** map tables to structs, using reflect package map struct, translating column name <-> field name using any available case conversion
 ** query structs, where each field is a func with a spring data like name (no child fields), or field has a struct tag with query
+** query structs fields can be select, insert, update, upsert, or delete
 * ETL
 ** Mainly operating on streams, with 3 basic operation types:
 *** Combine streams

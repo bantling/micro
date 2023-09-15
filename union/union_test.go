@@ -394,3 +394,38 @@ func TestResult_(t *testing.T) {
 		assert.Equal(t, fmt.Errorf("A Result cannot have both a non-zero R value and a non-nil error"), e)
 	}
 }
+
+func TestMaybe_(t *testing.T) {
+	var altError = fmt.Errorf("Alternate error")
+
+	// Of
+	{
+		res := Of(1)
+		assert.True(t, res.Present())
+		assert.False(t, res.Empty())
+		assert.Equal(t, 1, res.Get())
+		assert.Equal(t, 1, res.OrElse(2))
+		assert.Equal(t, OfResult(1), OfResultError(res.OrError(altError)))
+	}
+
+	// Empty
+	{
+		res := Empty[int]()
+		assert.False(t, res.Present())
+		assert.True(t, res.Empty())
+
+		var e error
+		funcs.TryTo(
+			func() {
+				res.Get()
+				assert.Fail(t, "Must die")
+			},
+			func(r any) {
+				e = r.(error)
+			},
+		)
+		assert.Equal(t, errEmptyMaybe, e)
+		assert.Equal(t, 2, res.OrElse(2))
+		assert.Equal(t, OfError[int](altError), OfResultError(res.OrError(altError)))
+	}
+}
