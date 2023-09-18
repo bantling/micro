@@ -20,6 +20,7 @@ which means import statements in go can import any package as `import github.com
 ** Value type that describes any kind of JSON value
 ** convert between go types to Value and vice-versa (eg, map[string]any -> Value of type Object -> map[string]any)
 ** default numeric type is NumberString, but custom conversion functions can be used
+** search a Value with a string path like .addresses[3].city
 ** parse package has streaming parser that can provide individual elements of top level array as they are read in, so
    that a large number of elements can be processed without having to read entire input.
 ** write package writes a json.Value to an micro/io/Writer[rune], which in turn writes to an io.Writer
@@ -200,11 +201,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* make json Value better
-** search by path to get/set a value
-** path can dig into map keys and array indexes
-** simple path using . for keys, and [] for indexes
-** eg .addresses[3].city => top object key addresses is an array, index 3 is an object, key city is read/written
 * modify events to be less simplistic
 ** ability to modify chain of handlers on the fly in a self-organizing way
 ** when new handlers added, can specify they come before another event, after another event, or both

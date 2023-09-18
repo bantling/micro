@@ -14,17 +14,28 @@ import (
 var (
 	// regexPathParts is a pre compiled regex for object key and array index path parts
 	// the leading dot of an object key and square brackets around an array index are not returned, just the keys and indexes
-	regexPathParts = regexp.MustCompile(`(?:\.([^.\[\]]+)|\[([0-9])+\])`)
+	regexPathParts = regexp.MustCompile(`(?:\.([^.\[\]]+)|\[([0-9]+)\])`)
 
 	errIllegalPathMsg = "The path %s is not a valid path, it must consist of a series of object keys and indexes, such as .addresses[3].city"
-	errNoSuchPathMsg  = "The path %s cannot be found, as %s is not the correct type, or does not contain the index %s"
+	errNoSuchPathMsg  = "The path %s cannot be found, as %s is not the correct type, or does not contain the index %v"
 )
 
-// Convert a path into an Object or Array, such as .addresses[3].city, or [3].city, into a func(Value) Value that performs
-// the lookup on an input Value.
-// If any path part does not exist in the Value passed to the func, an Invalid Value is returned.
-// If the given path is not valid, an error is returned.
-func ParsePath(p string) (fn func(Value) (Value, error), err error) {
+// parsePath parses a path string into a slice of tuple/union structures that represents what to search for.
+// The structures contain {path, union of {key, index}}.
+// The idea is that for .addresses[3].city, there would be e tuple/union structures:
+// - {t: ".addresses", u: {t: "addresses"}}
+// - {t: "[3]", {u: 3}}
+// - {t: ".city", {t: "city"}}
+//
+// An error is returned if the given path does not match the regex for a valid path
+func parsePath(p string) (lookups []tuple.Two[string, union.Two[string, int]], err error) {
+	// Ensure there are no extra characters in the string before or after the path parts
+	// The only way to do this is to replace all matches with the empty string, and verify the result is an empty string
+	if len(regexPathParts.ReplaceAllLiteralString(p, "")) > 0 {
+		err = fmt.Errorf(errIllegalPathMsg, p)
+		return
+	}
+
 	// Break up the path into individual object key and array index lookups
 	// Result is a [][]string, where the inner []string for a given match is [match, key without ., index without brackets],
 	// such as [".address", "addresses", ""] or ["[3]", "", "3"]
@@ -40,7 +51,6 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 	// The full path is for errors, to indicate at which point the failure occurs in a lookup.
 	// The key or index is for performing the lookup.
 	var (
-		lookups             = []tuple.Two[string, union.Two[string, int]]{}
 		path, key, fullPath string
 		index               int
 	)
@@ -54,7 +64,9 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 			lookups = append(lookups, tuple.Of2(fullPath, union.Of2T[string, int](key)))
 		} else {
 			// Array index
+			fmt.Printf("Array index %s\n", part[2])
 			if err = conv.To(part[2], &index); err != nil {
+				fmt.Printf("conv error\n")
 				// Must be an index so large it can't be converted to an int
 				err = fmt.Errorf(errIllegalPathMsg, path)
 				return
@@ -64,9 +76,17 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 		}
 	}
 
-	// Return a function that applies each path part to a Value provided to the func.
-	// If the path exists in the Value, the resulting Value is returned.
-	fn = func(in Value) (out Value, outErr error) {
+	return
+}
+
+// lookupsToFunc converts the tuple/union structure of parsePath into a func(Value) (Value, error).
+// The function applies the path to the Value to try and find the element.
+//
+// The function returns an error if:
+// - The Value given is not an Object or Array
+// - Any portion of the path cannot be found in the Value
+func lookupsToFunc(lookups []tuple.Two[string, union.Two[string, int]]) func(Value) (Value, error) {
+	return func(in Value) (out Value, err error) {
 		var (
 			curValue      = in
 			keyIndex      union.Two[string, int]
@@ -79,14 +99,14 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 		for _, lookup := range lookups {
 			fullPath, keyIndex = lookup.Values()
 
-			// Is this path part an object?
+			// Is this path part a key?
 			if keyIndex.Which() == union.T {
 				key = keyIndex.T()
 
 				// Is this value an Object?
 				if typ = curValue.Type(); typ != Object {
 					// No, can't apply key to it
-					outErr = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, key)
+					err = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, key)
 					return
 				}
 
@@ -96,7 +116,7 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 					curValue = v
 				} else {
 					// No, can't find key
-					outErr = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, key)
+					err = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, key)
 					return
 				}
 			} else {
@@ -106,7 +126,7 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 				// Is this value an array?
 				if typ = curValue.Type(); typ != Array {
 					// No, can't apply it
-					outErr = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, index)
+					err = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, index)
 					return
 				}
 
@@ -116,14 +136,29 @@ func ParsePath(p string) (fn func(Value) (Value, error), err error) {
 					curValue = slc[index]
 				} else {
 					// No, can't find index
-					outErr = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, index)
+					err = fmt.Errorf(errNoSuchPathMsg, fullPath, typ, index)
 					return
 				}
 			}
 		}
 
+		out = curValue
+		return
+	}
+}
+
+// Convert a path into an Object or Array, such as .addresses[3].city, or [3].city, into a func(Value) Value that performs
+// the lookup on an input Value.
+// If any path part does not exist in the Value passed to the func, an Invalid Value is returned.
+// If the given path is not valid, an error is returned.
+func ParsePath(p string) (fn func(Value) (Value, error), err error) {
+	// Convert path into lookups
+	var lookups []tuple.Two[string, union.Two[string, int]]
+	if lookups, err = parsePath(p); err != nil {
 		return
 	}
 
+	// Convert lookups into a function
+	fn = lookupsToFunc(lookups)
 	return
 }

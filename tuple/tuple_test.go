@@ -41,6 +41,12 @@ func TestOf4Same_(t *testing.T) {
 
 // ==== methods
 
+func TestString_(t *testing.T) {
+	assert.Equal(t, "{T: a, U: 1}", Of2("a", 1).String())
+	assert.Equal(t, "{T: a, U: 1, V: map[foo:bar]}", Of3("a", 1, map[string]string{"foo": "bar"}).String())
+	assert.Equal(t, "{T: a, U: 1, V: map[foo:bar], W: [foo bar]}", Of4("a", 1, map[string]string{"foo": "bar"}, []string{"foo", "bar"}).String())
+}
+
 func TestValues_(t *testing.T) {
 	at, au := Of2("a", 1).Values()
 	assert.Equal(t, "a", at)

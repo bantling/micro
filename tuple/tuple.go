@@ -2,6 +2,16 @@ package tuple
 
 // SPDX-License-Identifier: Apache-2.0
 
+import (
+	"fmt"
+)
+
+var (
+	twoStringMsg   = "{T: %v, U: %v}"
+	threeStringMsg = "{T: %v, U: %v, V: %v}"
+	fourStringMsg  = "{T: %v, U: %v, V: %v, W: %v}"
+)
+
 // ==== Types
 
 // Two is a tuple of two values for cases where it isn't worthwhile to declare your own struct.
@@ -54,12 +64,27 @@ func Of4Same[T any](t T, u T, v T, w T) Four[T, T, T, T] {
 
 // ==== Methods
 
+// String is the Stringer interface for Two
+func (t Two[T, U]) String() string {
+	return fmt.Sprintf(twoStringMsg, t.T, t.U)
+}
+
 func (t Two[T, U]) Values() (T, U) {
 	return t.T, t.U
 }
 
+// String is the Stringer interface for Three
+func (t Three[T, U, V]) String() string {
+	return fmt.Sprintf(threeStringMsg, t.T, t.U, t.V)
+}
+
 func (t Three[T, U, V]) Values() (T, U, V) {
 	return t.T, t.U, t.V
+}
+
+// String is the Stringer interface for Four
+func (t Four[T, U, V, W]) String() string {
+	return fmt.Sprintf(fourStringMsg, t.T, t.U, t.V, t.W)
 }
 
 func (t Four[T, U, V, W]) Values() (T, U, V, W) {
