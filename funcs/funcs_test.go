@@ -203,7 +203,7 @@ func TestMapIndex_(t *testing.T) {
 	assert.Equal(t, 3, MapIndex(mp, "b", 3))
 }
 
-func TestMapSet_(t *testing.T) {
+func TestMapSetTestUnset_(t *testing.T) {
 	{
 		var mp map[string]int
 		MapSet(&mp, "foo", 3)
@@ -212,6 +212,18 @@ func TestMapSet_(t *testing.T) {
 
 		MapSet(&mp, "bar", 4)
 		assert.Equal(t, map[string]int{"foo": 3, "bar": 4}, mp)
+
+		assert.True(t, MapTest(mp, "foo"))
+		assert.False(t, MapTest(mp, "baz"))
+		assert.False(t, MapTest((map[string]int)(nil), "baz"))
+
+		MapUnset(mp, "foo")
+		assert.Equal(t, map[string]int{"bar": 4}, mp)
+
+		MapUnset(mp, "foo") // second call doesn't differ
+		assert.Equal(t, map[string]int{"bar": 4}, mp)
+
+		MapUnset((map[string]int)(nil), "foo") // doesn't panic
 	}
 
 	{
@@ -226,10 +238,26 @@ func TestMapSet_(t *testing.T) {
 
 		Map2Set(&mp, "bar", 5, true)
 		assert.Equal(t, map[string]map[int]bool{"foo": {3: true, 4: false}, "bar": {5: true}}, mp)
+
+		assert.True(t, Map2Test(mp, "foo", 3))
+		assert.False(t, Map2Test(mp, "foo", 5))
+		assert.False(t, Map2Test(mp, "baz", 0))
+		assert.False(t, Map2Test((map[string]map[int]bool)(nil), "foo", 3))
+
+		Map2Unset(mp, "foo", 3)
+		assert.Equal(t, map[string]map[int]bool{"foo": {4: false}, "bar": {5: true}}, mp)
+
+		Map2Unset(mp, "foo", 3) // second call doesn't matter
+		assert.Equal(t, map[string]map[int]bool{"foo": {4: false}, "bar": {5: true}}, mp)
+
+		Map2Unset(mp, "baz", 4) // ok if key1 does not exist
+		assert.Equal(t, map[string]map[int]bool{"foo": {4: false}, "bar": {5: true}}, mp)
+
+		Map2Unset((map[string]map[int]bool)(nil), "", 0) // ok if top map is nil
 	}
 }
 
-func TestMapSliceAdd_(t *testing.T) {
+func TestMapSliceAddRemove_(t *testing.T) {
 	{
 		var mp map[string][]int
 		MapSliceAdd(&mp, "foo", 3)
@@ -242,6 +270,35 @@ func TestMapSliceAdd_(t *testing.T) {
 
 		MapSliceAdd(&mp, "bar", 5)
 		assert.Equal(t, map[string][]int{"foo": {3, 4}, "bar": {5}}, mp)
+
+		MapSliceRemove(mp, "foo", 3)
+		assert.Equal(t, map[string][]int{"foo": {4}, "bar": {5}}, mp)
+
+		MapSliceRemove(mp, "foo", 3) // second call doesn't matter
+		assert.Equal(t, map[string][]int{"foo": {4}, "bar": {5}}, mp)
+
+		MapSliceRemove(mp, "baz", 3) // ok if key does not exist
+		assert.Equal(t, map[string][]int{"foo": {4}, "bar": {5}}, mp)
+
+		MapSliceRemove((map[string][]int)(nil), "baz", 3) // ok if map is nil
+
+		// Uncomparable
+		var (
+			mpu map[string][]Uncomparable[int]
+			f1  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + 1 })
+			f2  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + i })
+		)
+		MapSliceAdd(&mpu, "foo", f1)
+		MapSliceAdd(&mpu, "foo", f2)
+		MapSliceAdd(&mpu, "foo", f2)
+		MapSliceAdd(&mpu, "foo", f2)
+		assert.Equal(t, 4, len(mpu["foo"]))
+
+		MapSliceRemoveUncomparable(mpu, "foo", f1)
+		assert.Equal(t, 3, len(mpu["foo"]))
+
+		MapSliceRemoveUncomparable(mpu, "foo", f2, true)
+		assert.Equal(t, 0, len(mpu["foo"]))
 	}
 
 	{
@@ -257,6 +314,39 @@ func TestMapSliceAdd_(t *testing.T) {
 
 		Map2SliceAdd(&mp, "bar", 4, true)
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{true, false}}, "bar": {4: []bool{true}}}, mp)
+
+		Map2SliceRemove(mp, "foo", 3, true)
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
+
+		Map2SliceRemove(mp, "foo", 3, true) // second call doesn't matter
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
+
+		Map2SliceRemove(mp, "foo", 5, true) // ok if second key does not exist
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
+
+		Map2SliceRemove(mp, "baz", 5, true) // ok if first key does not exist
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
+
+		Map2SliceRemove((map[string]map[int][]bool)(nil), "baz", 5, true) // ok if map is nil
+		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
+
+		// Uncomparable
+		var (
+			mpu map[string]map[int][]Uncomparable[int]
+			f1  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + 1 })
+			f2  Uncomparable[int] = UncomparableFunc[int](func(i int) int { return i + i })
+		)
+		Map2SliceAdd(&mpu, "foo", 0, f1)
+		Map2SliceAdd(&mpu, "foo", 0, f2)
+		Map2SliceAdd(&mpu, "foo", 0, f2)
+		Map2SliceAdd(&mpu, "foo", 0, f2)
+		assert.Equal(t, 4, len(mpu["foo"][0]))
+
+		Map2SliceRemoveUncomparable(mpu, "foo", 0, f1)
+		assert.Equal(t, 3, len(mpu["foo"][0]))
+
+		Map2SliceRemoveUncomparable(mpu, "foo", 0, f2, true)
+		assert.Equal(t, 0, len(mpu["foo"][0]))
 	}
 }
 

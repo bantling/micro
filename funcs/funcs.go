@@ -183,7 +183,7 @@ func SliceRemove[T comparable](slc []T, val T, all ...bool) []T {
 }
 
 // SliceRemoveUncomparable removes a slice element from a slice of uncomparable values (they must be pointers).
-// By default, only the first occurrence is removed. If the option all param is true, then all occurrences are removed.
+// By default, only the first occurrence is removed. If the optional all param is true, then all occurrences are removed.
 // The new slice is returned.
 //
 // Note: If only the first occurrence is removed, then the the append builtin is used twice, once with all elements before
@@ -342,6 +342,21 @@ func MapSet[K comparable, V any](mp *map[K]V, key K, value V) {
 	(*mp)[key] = value
 }
 
+// MapTest returns true if the map is non-nil and contains the given key
+func MapTest[K comparable, V any](mp map[K]V, key K) (exists bool) {
+	if mp != nil {
+		_, exists = mp[key]
+	}
+
+	return
+}
+
+// MapUnset is the reverse of MapSet, for consistency
+func MapUnset[K comparable, V any](mp map[K]V, key K) {
+	// Doesn't matter if map is nil, or if key does not exist
+	delete(mp, key)
+}
+
 // Map2Set makes accessing two level maps easier, by automatically creating the first and second maps as needed.
 // Particularly useful for struct fields, as the zero value of the struct will have a nil map.
 //
@@ -371,6 +386,31 @@ func Map2Set[K1, K2 comparable, V any](mp *map[K1]map[K2]V, key1 K1, key2 K2, va
 
 	// Set second level value for key K2
 	mp2[key2] = value
+}
+
+// Map2Test returns true if mp[K1] and
+func Map2Test[K1, K2 comparable, V any](mp map[K1]map[K2]V, key1 K1, key2 K2) (exists bool) {
+	if mp != nil {
+		if m2 := mp[key1]; m2 != nil {
+			_, exists = m2[key2]
+		}
+	}
+
+	return
+}
+
+// Map2Unset makes accessing two level maps easier, by removing K2 from second level map.
+//
+// EG:
+// var mp map[string]map[int]bool
+// Map2Set(&mp, "foo", 3, true)
+// Map2Set(&mp, "foo", 4, false)
+// Map2Unset(&mp, "foo", 3) -> only mp["foo"][4] exists
+func Map2Unset[K1, K2 comparable, V any](mp map[K1]map[K2]V, key1 K1, key2 K2) {
+	if mp != nil {
+		// Doesn't matter if second level map is nil, or if key2 does not exist
+		delete(mp[key1], key2)
+	}
 }
 
 // MapSliceAdd makes accessing a map whose value is a slice easier, by automatically creating the map and slice as needed.
@@ -403,6 +443,25 @@ func MapSliceAdd[K comparable, V any](mp *map[K][]V, key K, value V) {
 	// Append value to slice and remap it
 	slc = append(slc, value)
 	(*mp)[key] = slc
+}
+
+// MapSliceRemove makes accessing a map whose value is a slice easier, by removing a value from the slice if it exists.
+// If the optional all is true, all occurrences of V are removed, otherwise only the first is removed.
+func MapSliceRemove[K, V comparable](mp map[K][]V, key K, value V, all ...bool) {
+	if mp != nil {
+		if slc, hasIt := mp[key]; hasIt {
+			mp[key] = SliceRemove(slc, value, all...)
+		}
+	}
+}
+
+// MapSliceRemoveUncomparable is an uncomparable version of MapSliceRemove
+func MapSliceRemoveUncomparable[K comparable, V any](mp map[K][]V, key K, value V, all ...bool) {
+	if mp != nil {
+		if slc, hasIt := mp[key]; hasIt {
+			mp[key] = SliceRemoveUncomparable(slc, value, all...)
+		}
+	}
 }
 
 // Map2SliceAdd makes accessing a two level map whose value is a slice easier, by automatically creating the first and
@@ -444,6 +503,29 @@ func Map2SliceAdd[K1, K2 comparable, V any](mp *map[K1]map[K2][]V, key1 K1, key2
 	// Append value to slice and remap it
 	slc = append(slc, value)
 	(*mp)[key1][key2] = slc
+}
+
+// Map2SliceRemove makes accessing a two level map whose value is a slice easier, by removing a value from the slice if it exists.
+// If the optional all is true, all occurrences of V are removed, otherwise only the first is removed.
+func Map2SliceRemove[K1, K2, V comparable](mp map[K1]map[K2][]V, key1 K1, key2 K2, value V, all ...bool) {
+	if mp != nil {
+		if mp2, hasIt := mp[key1]; hasIt {
+			if slc, hasIt := mp2[key2]; hasIt {
+				mp2[key2] = SliceRemove(slc, value, all...)
+			}
+		}
+	}
+}
+
+// Map2SliceRemoveUncomparable is an uncomparable version of Map2SliceRemove
+func Map2SliceRemoveUncomparable[K1, K2 comparable, V any](mp map[K1]map[K2][]V, key1 K1, key2 K2, value V, all ...bool) {
+	if mp != nil {
+		if mp2, hasIt := mp[key1]; hasIt {
+			if slc, hasIt := mp2[key2]; hasIt {
+				mp2[key2] = SliceRemoveUncomparable(slc, value, all...)
+			}
+		}
+	}
 }
 
 // MapSortOrdered sorts a map with an Ordered key into a []Two[K, V]

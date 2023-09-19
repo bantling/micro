@@ -27,7 +27,15 @@ which means import statements in go can import any package as `import github.com
 * event
 ** A simple system for sending events and getting results back
 ** Same generic type is used for input and output
-** default registry can be used to send and receive json.Value objects
+** Receivers are partitioned by an ordered id type, where a given id value is associated with any number of receivers
+** When an event is sent, it is sent to all receivers of the lowest id value, then all receivers of the next lowest id value, etc.
+** This for flow like the following:
+*** lowest id is unmarshalling a JSON Value
+*** next id is converting JSON to a struct
+*** next id is any number of validators
+*** next id is persisting to database
+*** at any time, new validators could be added, steps can be reordered just by registering with different ids
+*** changes could be made on the fly, at compile time, or both
 * funcs
 ** slices:
 *** flatten multiple dimensions into one
@@ -202,9 +210,22 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 === TODO
 
 * modify events to be less simplistic
-** ability to modify chain of handlers on the fly in a self-organizing way
-** when new handlers added, can specify they come before another event, after another event, or both
 ** if adding new handler is impossible to satisfy conditions, it is an error
+** example:
+** id type is int and has values 0 for unmarshal data, 1 for validate data, 2 for write data to SQL
+** Register(0, unmarshal)
+** Register(1, validate1)
+** Register(1, validate2)
+** Register(2, persist)
+** above register calls be in any order, since the id type has to comparable, and is therefore sortable
+** when Send is called, the current order is used to call all the receivers as follows:
+*** all receivers of type 0 in order registered
+*** all receivers of type 1 in order registered
+*** all receivers of type 2 in order registered
+** It is up to the caller to understand semantic details such as:
+*** There can be only one unmarshaller
+*** There can be any number of validators
+*** There can be only one persister
 * add capability in reflect package to populate a struct from a map, or map from a struct
 ** use conv.To to convert map elements to struct fields, to correctly handle subtypes
 ** field kind must be bool, ints, floats, complex, array, map, slice, string, or struct/*struct
