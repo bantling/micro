@@ -55,21 +55,7 @@ func (r ReceiverFunc[T]) Process(t T) T {
 //
 // The zero value is ready to use.
 type Registry[I constraint.Ordered, T any] struct {
-	receivers        map[I][]Receiver[T]
-	sortedIds        []tuple.Two[I, []Receiver[T]]
-	receiversChanged bool
-}
-
-// sortIds sorts the ids of the receivers map, but only if ids have been added and/or removed since last call.
-// It doesn't matter if receivers were added to an existing id, that has no effect on ordering.
-// It is up to other methods to set the idsChanged flag.
-func (r *Registry[I, T]) sortIds() []tuple.Two[I, []Receiver[T]] {
-	if r.receiversChanged {
-		r.receiversChanged = false
-		r.sortedIds = funcs.MapSortOrdered(r.receivers)
-	}
-
-	return r.sortedIds
+	receivers []tuple.Two[I, []Receiver[T]]
 }
 
 // Register a receiver.
@@ -78,27 +64,44 @@ func (r *Registry[I, T]) sortIds() []tuple.Two[I, []Receiver[T]] {
 // It can be particularly useful to add a debugging receiver after each normal receiver, to debug the data processing after
 // each step.
 func (r *Registry[I, T]) Register(id I, rcvr Receiver[T]) {
-	// Track id changes so we know when to re-sort
-	r.receiversChanged = r.receiversChanged || !funcs.MapTest(r.receivers, id)
-
 	// Add receiver to end of existing list of receivers for the given operation
-	funcs.MapSliceAdd(&r.receivers, id, rcvr)
+	for i, idRcvrs := range r.receivers {
+		switch {
+		case idRcvrs.T == id:
+			// Matching id, add to end of slice
+			r.receivers[i] = tuple.Of2(id, append(idRcvrs.U, rcvr))
+			return
+		case idRcvrs.T > id:
+			// Next lowest id after matching id, insert new slice before it
+			r.receivers = append(append(r.receivers[:i], tuple.Of2(id, []Receiver[T]{rcvr})), r.receivers[i:]...)
+			return
+		}
+	}
+
+	// Must be no ids, or only ids < id
+	r.receivers = append(r.receivers, tuple.Of2(id, []Receiver[T]{rcvr}))
 }
 
 // Remove a given id and all receivers associated with it.
 func (r *Registry[I, T]) RemoveId(id I) {
-	// Remove id from map
-	funcs.MapUnset(r.receivers, id)
-
-	// Track receiver changes so we know when to re-sort
-	r.receiversChanged = true
+	// Remove id from appropriate slice entry, if it exists
+	for i, idRcvrs := range r.receivers {
+		if idRcvrs.T == id {
+			r.receivers = append(r.receivers[:i], r.receivers[i+1:]...)
+			return
+		}
+	}
 }
 
 // Remove a receiver from a specific id.
 // Removes only the first occurrence, unless the optional all flag is true.
 func (r *Registry[I, T]) Remove(id I, rcvr Receiver[T], all ...bool) {
-	funcs.MapSliceRemoveUncomparable(r.receivers, id, rcvr, all...)
-	r.receiversChanged = true
+	for i, idRcvrs := range r.receivers {
+		if idRcvrs.T == id {
+			r.receivers[i] = tuple.Of2(id, funcs.SliceRemoveUncomparable(idRcvrs.U, rcvr, all...))
+			return
+		}
+	}
 }
 
 // Send an event to any receivers of the specified operation.
@@ -110,12 +113,9 @@ func (r *Registry[I, T]) Remove(id I, rcvr Receiver[T], all ...bool) {
 //
 // See comments on Receiver interface regarding the None type and error handling.
 func (r *Registry[I, T]) Send(val T) T {
-	// []tuple.Two[I, []Receiver[T]]
-	if sIds := r.sortIds(); sIds != nil {
-		for _, idRcvrs := range sIds {
-			for _, rcvr := range idRcvrs.U {
-				val = rcvr.Process(val)
-			}
+	for _, idRcvrs := range r.receivers {
+		for _, rcvr := range idRcvrs.U {
+			val = rcvr.Process(val)
 		}
 	}
 
