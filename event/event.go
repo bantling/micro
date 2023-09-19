@@ -8,11 +8,6 @@ import (
 	"github.com/bantling/micro/tuple"
 )
 
-const (
-	// The ALL constant is for the Remove method
-	ALL = true
-)
-
 // None is an empty struct, for cases where receivers do not need any data to process
 type None struct{}
 
@@ -65,43 +60,19 @@ type Registry[I constraint.Ordered, T any] struct {
 // each step.
 func (r *Registry[I, T]) Register(id I, rcvr Receiver[T]) {
 	// Add receiver to end of existing list of receivers for the given operation
-	for i, idRcvrs := range r.receivers {
-		switch {
-		case idRcvrs.T == id:
-			// Matching id, add to end of slice
-			r.receivers[i] = tuple.Of2(id, append(idRcvrs.U, rcvr))
-			return
-		case idRcvrs.T > id:
-			// Next lowest id after matching id, insert new slice before it
-			r.receivers = append(append(r.receivers[:i], tuple.Of2(id, []Receiver[T]{rcvr})), r.receivers[i:]...)
-			return
-		}
-	}
-
-	// Must be no ids, or only ids < id
-	r.receivers = append(r.receivers, tuple.Of2(id, []Receiver[T]{rcvr}))
+	funcs.OrderedTuple2SliceAdd(&r.receivers, id, rcvr)
 }
 
 // Remove a given id and all receivers associated with it.
 func (r *Registry[I, T]) RemoveId(id I) {
 	// Remove id from appropriate slice entry, if it exists
-	for i, idRcvrs := range r.receivers {
-		if idRcvrs.T == id {
-			r.receivers = append(r.receivers[:i], r.receivers[i+1:]...)
-			return
-		}
-	}
+	funcs.OrderedTuple2SliceRemoveKey(&r.receivers, id)
 }
 
 // Remove a receiver from a specific id.
 // Removes only the first occurrence, unless the optional all flag is true.
 func (r *Registry[I, T]) Remove(id I, rcvr Receiver[T], all ...bool) {
-	for i, idRcvrs := range r.receivers {
-		if idRcvrs.T == id {
-			r.receivers[i] = tuple.Of2(id, funcs.SliceRemoveUncomparable(idRcvrs.U, rcvr, all...))
-			return
-		}
-	}
+	funcs.OrderedTuple2SliceRemoveUncomparable(&r.receivers, id, rcvr, all...)
 }
 
 // Send an event to any receivers of the specified operation.

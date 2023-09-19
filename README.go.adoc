@@ -209,23 +209,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* modify events to be less simplistic
-** if adding new handler is impossible to satisfy conditions, it is an error
-** example:
-** id type is int and has values 0 for unmarshal data, 1 for validate data, 2 for write data to SQL
-** Register(0, unmarshal)
-** Register(1, validate1)
-** Register(1, validate2)
-** Register(2, persist)
-** above register calls be in any order, since the id type has to comparable, and is therefore sortable
-** when Send is called, the current order is used to call all the receivers as follows:
-*** all receivers of type 0 in order registered
-*** all receivers of type 1 in order registered
-*** all receivers of type 2 in order registered
-** It is up to the caller to understand semantic details such as:
-*** There can be only one unmarshaller
-*** There can be any number of validators
-*** There can be only one persister
 * add capability in reflect package to populate a struct from a map, or map from a struct
 ** use conv.To to convert map elements to struct fields, to correctly handle subtypes
 ** field kind must be bool, ints, floats, complex, array, map, slice, string, or struct/*struct

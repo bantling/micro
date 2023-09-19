@@ -24,6 +24,9 @@ const (
 	convertToSlice2ElemMsg     = "expected %s[%v][%v] to be %T, not %T"
 	assertMapTypeMsg           = "expected %s to be %T, not %T"
 	assertMapTypeValueMsg      = "expected %s[%v] to be %T, not %T"
+
+	// The ALL constant is for some remove funcs
+	ALL = true
 )
 
 // ==== Slices
@@ -585,6 +588,113 @@ func MapKeysToSlice[K comparable, V any](mp map[K]V) []K {
 	}
 
 	return slc
+}
+
+// ==== []Tuple.Two used as a sorted map
+
+// OrderedTuple2Search searches a []Tuple.Two[K, V] for a Tuple.Two whose K value is the one provided.
+// The result is the index of the largest K that is <= the K provided, and true if it is an exact match.
+// When false is returned, it means if the given K is to be inserted, it needs to be inserted after the returned index.
+//
+// # If the slice is nil or empty, then the result is -1, false
+//
+// An ordered []Tuple.Two[K, V] can be used as a sorted map[K]V
+func OrderedTuple2Search[K constraint.Ordered, V any](mp []tuple.Two[K, V], key K) (int, bool) {
+	var (
+		l, r, m = 0, len(mp) - 1, 0
+		k       K
+	)
+
+	if r < 0 {
+		return -1, false
+	}
+
+	// Example of how this works, searching for key 3 in a slice that contains keys 1, 2, 5, 6
+	// l (left)   = 0
+	// r (right)  = len - 1 = 3
+	// m (middle) = 0
+	// k = zero value of type K = 0
+	//
+	// l, r = 0, 3:
+	// 0 != 3
+	// m = ceil((l + r) / 2) = ceil(1.5) = 2
+	// index 2 key = 5, which is > desired key 3, search left of m
+	// r = m - 1 = 1
+	//
+	// l, r = 0, 1:
+	// 0 != 1
+	// m = ceil((l + r) / 2) = ceil(0.5) = 1
+	// index 1 key = 2, which is < desired key 3, search right of m
+	// l = m = 1
+	//
+	// l, r = 1, 1
+	// 1 == 1
+	// return l, index 1 key (2) == desired key 3
+	// return 1, false
+	//
+	// This indicates add new entry for desired key 3 after index 1
+	for l != r {
+		// m = ceil((l + r) / 2)
+		m = (l + r) / 2
+		if (l+r)%2 == 1 {
+			m++
+		}
+
+		if k = mp[m].T; k > key {
+			// too high, search to the left of m
+			r = m - 1
+		} else {
+			// too low, search to the right of m
+			l = m
+		}
+	}
+
+	// if l != r, k is not assigned a new value, so compare original key param to mp[l].T
+	return l, key == mp[l].T
+}
+
+// OrderedTuple2SliceAdd searches a []Tuple.Two[K, []V] for a tuple with the given key K.
+// If such a tuple exists, the value V is added to the end of the slice.
+// If no such tuple exists, a new tuple is inserted with a slice containing only the value V provided.
+func OrderedTuple2SliceAdd[K constraint.Ordered, V any](mp *[]tuple.Two[K, []V], key K, value V) {
+	// Get index of matching tuple, if it exists
+	index, matches := OrderedTuple2Search(*mp, key)
+	switch {
+	case index == -1:
+		*mp = []tuple.Two[K, []V]{tuple.Of2(key, []V{value})}
+
+	case matches:
+		// index of matching tuple, replace tuple with new tuple that has value appended to slice
+		(*mp)[index] = tuple.Of2(key, append((*mp)[index].U, value))
+
+	default:
+		// index of tuple that a new tuple should be inserted after
+		// due to pointer used for original slice, we have to start building from an empty slice
+		*mp = append(append(append([]tuple.Two[K, []V]{}, (*mp)[:index+1]...), tuple.Of2(key, []V{value})), (*mp)[index+1:]...)
+	}
+}
+
+// OrderedTuple2SliceRemoveKey removes a key from the []Tuple.Two[K, V], if the key exists
+func OrderedTuple2SliceRemoveKey[K constraint.Ordered, V any](mp *[]tuple.Two[K, V], key K) {
+	if index, matches := OrderedTuple2Search(*mp, key); matches {
+		*mp = append((*mp)[:index], (*mp)[index+1:]...)
+	}
+}
+
+// OrderedTuple2SliceRemoveValue removes a value from the []Tuple.Two[K, []V], if the key exists and the slice contains the value.
+// If the optional all is true, then all occurrences of the value are removed, else the first occurrence is removed.
+func OrderedTuple2SliceRemoveValue[K constraint.Ordered, V comparable](mp *[]tuple.Two[K, []V], key K, value V, all ...bool) {
+	if index, matches := OrderedTuple2Search(*mp, key); matches {
+		(*mp)[index] = tuple.Of2(key, SliceRemove((*mp)[index].U, value, all...))
+	}
+}
+
+// OrderedTuple2SliceRemoveUncomparable removes an uncomparable value from the []Tuple.Two[K, []V], if the key exists and the slice contains the value.
+// If the optional all is true, then all occurrences of the value are removed, else the first occurrence is removed.
+func OrderedTuple2SliceRemoveUncomparable[K constraint.Ordered, V any](mp *[]tuple.Two[K, []V], key K, value V, all ...bool) {
+	if index, matches := OrderedTuple2Search(*mp, key); matches {
+		(*mp)[index] = tuple.Of2(key, SliceRemoveUncomparable((*mp)[index].U, value, all...))
+	}
 }
 
 // ==== Filters - and, not, or

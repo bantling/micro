@@ -92,7 +92,7 @@ func TestSliceRemove_(t *testing.T) {
 	assert.Equal(t, []int{}, SliceRemove([]int{}, 0))
 	assert.Equal(t, []int{1, 2, 4}, SliceRemove([]int{1, 2, 3, 4}, 3))
 	assert.Equal(t, []int{1, 2, 4, 3, 3}, SliceRemove([]int{1, 2, 3, 4, 3, 3}, 3))
-	assert.Equal(t, []int{1, 2, 4}, SliceRemove([]int{1, 2, 3, 4, 3, 3}, 3, true))
+	assert.Equal(t, []int{1, 2, 4}, SliceRemove([]int{1, 2, 3, 4, 3, 3}, 3, ALL))
 }
 
 type Uncomparable[T any] interface {
@@ -113,9 +113,9 @@ func TestSliceRemoveUncomparable_(t *testing.T) {
 		slc                   = []Uncomparable[int]{f1, f2, f1, f2}
 	)
 
-	assert.Equal(t, 3, len(SliceRemoveUncomparable(slc, f1)))       // One removed
-	assert.Equal(t, 4, len(SliceRemoveUncomparable(slc, f3)))       // None removed
-	assert.Equal(t, 2, len(SliceRemoveUncomparable(slc, f2, true))) // Two removed
+	assert.Equal(t, 3, len(SliceRemoveUncomparable(slc, f1)))      // One removed
+	assert.Equal(t, 4, len(SliceRemoveUncomparable(slc, f3)))      // None removed
+	assert.Equal(t, 2, len(SliceRemoveUncomparable(slc, f2, ALL))) // Two removed
 }
 
 func TestSliceReverse_(t *testing.T) {
@@ -297,7 +297,7 @@ func TestMapSliceAddRemove_(t *testing.T) {
 		MapSliceRemoveUncomparable(mpu, "foo", f1)
 		assert.Equal(t, 3, len(mpu["foo"]))
 
-		MapSliceRemoveUncomparable(mpu, "foo", f2, true)
+		MapSliceRemoveUncomparable(mpu, "foo", f2, ALL)
 		assert.Equal(t, 0, len(mpu["foo"]))
 	}
 
@@ -315,19 +315,19 @@ func TestMapSliceAddRemove_(t *testing.T) {
 		Map2SliceAdd(&mp, "bar", 4, true)
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{true, false}}, "bar": {4: []bool{true}}}, mp)
 
-		Map2SliceRemove(mp, "foo", 3, true)
+		Map2SliceRemove(mp, "foo", 3, ALL)
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
 
-		Map2SliceRemove(mp, "foo", 3, true) // second call doesn't matter
+		Map2SliceRemove(mp, "foo", 3, ALL) // second call doesn't matter
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
 
-		Map2SliceRemove(mp, "foo", 5, true) // ok if second key does not exist
+		Map2SliceRemove(mp, "foo", 5, ALL) // ok if second key does not exist
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
 
-		Map2SliceRemove(mp, "baz", 5, true) // ok if first key does not exist
+		Map2SliceRemove(mp, "baz", 5, ALL) // ok if first key does not exist
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
 
-		Map2SliceRemove((map[string]map[int][]bool)(nil), "baz", 5, true) // ok if map is nil
+		Map2SliceRemove((map[string]map[int][]bool)(nil), "baz", 5, ALL) // ok if map is nil
 		assert.Equal(t, map[string]map[int][]bool{"foo": {3: []bool{false}}, "bar": {4: []bool{true}}}, mp)
 
 		// Uncomparable
@@ -345,7 +345,7 @@ func TestMapSliceAddRemove_(t *testing.T) {
 		Map2SliceRemoveUncomparable(mpu, "foo", 0, f1)
 		assert.Equal(t, 3, len(mpu["foo"][0]))
 
-		Map2SliceRemoveUncomparable(mpu, "foo", 0, f2, true)
+		Map2SliceRemoveUncomparable(mpu, "foo", 0, f2, ALL)
 		assert.Equal(t, 0, len(mpu["foo"][0]))
 	}
 }
@@ -385,6 +385,309 @@ func TestMapKeysToSlice_(t *testing.T) {
 	assert.Equal(t, []int{}, MapKeysToSlice(map[int]int{}))
 	assert.Equal(t, []int{1}, MapKeysToSlice(map[int]int{1: 0}))
 	assert.Equal(t, []int{1, 2, 3}, SliceSortOrdered(MapKeysToSlice(map[int]int{1: 0, 2: 0, 3: 0})))
+}
+
+func TestOrderedTuple2Search_(t *testing.T) {
+	var mp []tuple.Two[int, string]
+	assert.Equal(t, tuple.Of2(-1, false), tuple.Of2(OrderedTuple2Search(mp, 0)))
+
+	mp = []tuple.Two[int, string]{}
+	assert.Equal(t, tuple.Of2(-1, false), tuple.Of2(OrderedTuple2Search(mp, 0)))
+
+	mp = []tuple.Two[int, string]{
+		tuple.Of2(1, "1"),
+		tuple.Of2(2, "2"),
+		tuple.Of2(5, "5"),
+		tuple.Of2(6, "6"),
+	}
+
+	// Search for key 0 that does not exist
+	assert.Equal(t, tuple.Of2(0, false), tuple.Of2(OrderedTuple2Search(mp, 0)))
+
+	// Search for key 1 that does exist
+	assert.Equal(t, tuple.Of2(0, true), tuple.Of2(OrderedTuple2Search(mp, 1)))
+
+	// Search for key 2 that does exist
+	assert.Equal(t, tuple.Of2(1, true), tuple.Of2(OrderedTuple2Search(mp, 2)))
+
+	// Search for key 3 that does not exist
+	assert.Equal(t, tuple.Of2(1, false), tuple.Of2(OrderedTuple2Search(mp, 3)))
+
+	// Search for key 4 that does exist
+	assert.Equal(t, tuple.Of2(1, false), tuple.Of2(OrderedTuple2Search(mp, 4)))
+
+	// Search for key 5 that does exist
+	assert.Equal(t, tuple.Of2(2, true), tuple.Of2(OrderedTuple2Search(mp, 5)))
+
+	// Search for key 6 that does exist
+	assert.Equal(t, tuple.Of2(3, true), tuple.Of2(OrderedTuple2Search(mp, 6)))
+
+	// Search for key 7 that does not exist
+	assert.Equal(t, tuple.Of2(3, false), tuple.Of2(OrderedTuple2Search(mp, 7)))
+}
+
+func TestOrderedTuple2SliceAdd_(t *testing.T) {
+	var mp []tuple.Two[int, []string]
+
+	OrderedTuple2SliceAdd(&mp, 1, "1")
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(1, []string{"1"}),
+		},
+		mp,
+	)
+	assert.Equal(t, tuple.Of2(0, true), tuple.Of2(OrderedTuple2Search(mp, 1)))
+
+	OrderedTuple2SliceAdd(&mp, 1, "2")
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(1, []string{"1", "2"}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(1, []string{"1"}),
+		tuple.Of2(2, []string{"2"}),
+		tuple.Of2(5, []string{"5"}),
+		tuple.Of2(6, []string{"6"}),
+	}
+
+	OrderedTuple2SliceAdd(&mp, 3, "3")
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(1, []string{"1"}),
+			tuple.Of2(2, []string{"2"}),
+			tuple.Of2(3, []string{"3"}),
+			tuple.Of2(5, []string{"5"}),
+			tuple.Of2(6, []string{"6"}),
+		},
+		mp,
+	)
+}
+
+func TestOrderedTuple2SliceRemoveKey_(t *testing.T) {
+	var mp []tuple.Two[int, []string]
+	OrderedTuple2SliceRemoveKey(&mp, 0)
+	assert.Equal(t, ([]tuple.Two[int, []string])(nil), mp)
+
+	mp = []tuple.Two[int, []string]{}
+	OrderedTuple2SliceRemoveKey(&mp, 0)
+	assert.Equal(t, []tuple.Two[int, []string]{}, mp)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+	}
+	OrderedTuple2SliceRemoveKey(&mp, 0)
+	assert.Equal(t, []tuple.Two[int, []string]{}, mp)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+	}
+	OrderedTuple2SliceRemoveKey(&mp, 1)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+		tuple.Of2(1, []string{}),
+	}
+	OrderedTuple2SliceRemoveKey(&mp, 0)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(1, []string{}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+		tuple.Of2(1, []string{}),
+	}
+	OrderedTuple2SliceRemoveKey(&mp, 1)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+		tuple.Of2(1, []string{}),
+		tuple.Of2(2, []string{}),
+	}
+	OrderedTuple2SliceRemoveKey(&mp, 1)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{}),
+			tuple.Of2(2, []string{}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+		tuple.Of2(1, []string{}),
+		tuple.Of2(2, []string{}),
+	}
+	OrderedTuple2SliceRemoveKey(&mp, 2)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{}),
+			tuple.Of2(1, []string{}),
+		},
+		mp,
+	)
+}
+
+func TestOrderedTuple2SliceRemoveValue_(t *testing.T) {
+	var mp []tuple.Two[int, []string]
+	OrderedTuple2SliceRemoveValue(&mp, 0, "foo")
+	assert.Equal(t, ([]tuple.Two[int, []string])(nil), mp)
+
+	mp = []tuple.Two[int, []string]{}
+	OrderedTuple2SliceRemoveValue(&mp, 0, "foo")
+	assert.Equal(t, []tuple.Two[int, []string]{}, mp)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{}),
+	}
+	OrderedTuple2SliceRemoveValue(&mp, 0, "foo")
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{"foo", "bar", "foo"}),
+	}
+	OrderedTuple2SliceRemoveValue(&mp, 0, "foo")
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{"bar", "foo"}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{"foo", "bar", "foo"}),
+	}
+	OrderedTuple2SliceRemoveValue(&mp, 0, "bar")
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{"foo", "foo"}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []string]{
+		tuple.Of2(0, []string{"foo", "bar", "foo"}),
+	}
+	OrderedTuple2SliceRemoveValue(&mp, 0, "foo", ALL)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []string]{
+			tuple.Of2(0, []string{"bar"}),
+		},
+		mp,
+	)
+}
+
+func TestOrderedTuple2SliceRemoveUncomparable_(t *testing.T) {
+	fn1, fn2 := func() {}, func() {}
+
+	var mp []tuple.Two[int, []func()]
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1)
+	assert.Equal(t, ([]tuple.Two[int, []func()])(nil), mp)
+
+	mp = []tuple.Two[int, []func()]{}
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1)
+	assert.Equal(t, []tuple.Two[int, []func()]{}, mp)
+
+	mp = []tuple.Two[int, []func()]{
+		tuple.Of2(0, []func(){}),
+	}
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []func()]{
+			tuple.Of2(0, []func(){}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []func()]{
+		tuple.Of2(0, []func(){}),
+	}
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []func()]{
+			tuple.Of2(0, []func(){}),
+		},
+		mp,
+	)
+
+	mp = []tuple.Two[int, []func()]{
+		tuple.Of2(0, []func(){fn1}),
+	}
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1)
+	assert.Equal(
+		t,
+		[]tuple.Two[int, []func()]{
+			tuple.Of2(0, []func(){}),
+		},
+		mp,
+	)
+
+	// At this point, assert gets confused and prints out messages saying two equal structures are not equal
+	mp = []tuple.Two[int, []func()]{
+		tuple.Of2(0, []func(){fn1, fn2, fn1}),
+	}
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1)
+	assert.Equal(
+		t,
+		fmt.Sprintf(
+			"%#v",
+			[]tuple.Two[int, []func()]{
+				tuple.Of2(0, []func(){fn2, fn1}),
+			},
+		),
+		fmt.Sprintf("%#v", mp),
+	)
+
+	mp = []tuple.Two[int, []func()]{
+		tuple.Of2(0, []func(){fn1, fn2, fn1}),
+	}
+	OrderedTuple2SliceRemoveUncomparable(&mp, 0, fn1, ALL)
+	assert.Equal(
+		t,
+		fmt.Sprintf(
+			"%#v",
+			[]tuple.Two[int, []func()]{
+				tuple.Of2(0, []func(){fn2}),
+			},
+		),
+		fmt.Sprintf("%#v", mp),
+	)
 }
 
 func lessThan5(i int) bool {

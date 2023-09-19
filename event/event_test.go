@@ -5,8 +5,17 @@ package event
 import (
 	"testing"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/stretchr/testify/assert"
 )
+
+type addReceiver struct {
+	s string
+}
+
+func (nr addReceiver) Process(s string) string {
+	return s + nr.s
+}
 
 // Test Registry
 func TestRegistry(t *testing.T) {
@@ -27,7 +36,7 @@ func TestRegistry(t *testing.T) {
 	assert.Equal(t, "5555", r.Send("5"))
 
 	// Remove all copies of f - no receivers, but still have an entry for id 0
-	r.Remove(0, f, ALL)
+	r.Remove(0, f, funcs.ALL)
 	assert.Equal(t, "5", r.Send("5"))
 
 	// Use id 2
@@ -40,5 +49,19 @@ func TestRegistry(t *testing.T) {
 
 	// Remove id 1, leaving only id 2
 	r.RemoveId(1)
+	assert.Equal(t, "55", r.Send("5"))
+
+	rcvr1 := addReceiver{" blahdy"}
+	r.Register(3, rcvr1)
+	assert.Equal(t, "55 blahdy", r.Send("5"))
+
+	rcvr2 := addReceiver{" dude"}
+	r.Register(3, rcvr2)
+	assert.Equal(t, "55 blahdy dude", r.Send("5"))
+
+	r.Remove(3, rcvr2)
+	assert.Equal(t, "55 blahdy", r.Send("5"))
+
+	r.Remove(3, rcvr1)
 	assert.Equal(t, "55", r.Send("5"))
 }
