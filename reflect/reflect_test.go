@@ -201,6 +201,13 @@ func TestIsPrimitive_(t *testing.T) {
 	assert.False(t, IsPrimitive(goreflect.PtrTo(goreflect.TypeOf(0))))
 }
 
+func TestNumPointers_(t *testing.T) {
+	assert.Equal(t, 0, NumPointers(goreflect.TypeOf(0)))
+	assert.Equal(t, 1, NumPointers(goreflect.TypeOf((*int)(nil))))
+	assert.Equal(t, 2, NumPointers(goreflect.TypeOf((**int)(nil))))
+	assert.Equal(t, 3, NumPointers(goreflect.TypeOf((***int)(nil))))
+}
+
 func TestResolveValueType_(t *testing.T) {
 	// Test special case
 	slc := []any{"foo", 1}
@@ -213,50 +220,91 @@ func TestResolveValueType_(t *testing.T) {
 	assert.Equal(t, goreflect.Int, ResolveValueType(goreflect.ValueOf(1)).Kind())
 }
 
-func TestToBaseType_(t *testing.T) {
+func TestTypeToBaseType_(t *testing.T) {
+	{
+		// int
+		typ := goreflect.TypeOf(0)
+		rtyp := TypeToBaseType(typ)
+		assert.Equal(t, goreflect.TypeOf(0), rtyp)
+
+		// *int
+		var i int
+		typ = goreflect.TypeOf(&i)
+		rtyp = TypeToBaseType(typ)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(0)), rtyp)
+	}
+
+	{
+		// subString
+		typ := goreflect.TypeOf(subString("foo"))
+		rtyp := TypeToBaseType(typ)
+		assert.Equal(t, goreflect.TypeOf("foo"), rtyp)
+
+		// *subString
+		i := subString("foo")
+		typ = goreflect.TypeOf(&i)
+		rtyp = TypeToBaseType(typ)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf("foo")), rtyp)
+	}
+
+	{
+		// rune
+		typ := goreflect.TypeOf('0')
+		rtyp := TypeToBaseType(typ)
+		assert.Equal(t, goreflect.TypeOf(int32('0')), rtyp)
+
+		// *rune
+		i := '0'
+		typ = goreflect.TypeOf(&i)
+		rtyp = TypeToBaseType(typ)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(int32('0'))), rtyp)
+	}
+}
+
+func TestValueToBaseType_(t *testing.T) {
 	{
 		// int
 		val := goreflect.ValueOf(0)
-		ToBaseType(&val)
-		assert.Equal(t, goreflect.TypeOf(0), val.Type())
-		assert.Equal(t, 0, val.Interface())
+		rval := ValueToBaseType(val)
+		assert.Equal(t, goreflect.TypeOf(0), rval.Type())
+		assert.Equal(t, 0, rval.Interface())
 
 		// *int
 		var i int
 		val = goreflect.ValueOf(&i)
-		ToBaseType(&val)
-		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(0)), val.Type())
-		assert.Equal(t, &i, val.Interface())
+		rval = ValueToBaseType(val)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(0)), rval.Type())
+		assert.Equal(t, &i, rval.Interface())
 	}
 
 	{
 		// subString
 		val := goreflect.ValueOf(subString("foo"))
-		ToBaseType(&val)
-		assert.Equal(t, goreflect.TypeOf("foo"), val.Type())
-		assert.Equal(t, "foo", val.Interface())
+		rval := ValueToBaseType(val)
+		assert.Equal(t, goreflect.TypeOf("foo"), rval.Type())
+		assert.Equal(t, "foo", rval.Interface())
 
 		// *subString
 		i := subString("foo")
 		val = goreflect.ValueOf(&i)
-		ToBaseType(&val)
-		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf("foo")), val.Type())
-		assert.Equal(t, "foo", *(val.Interface().(*string)))
+		rval = ValueToBaseType(val)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf("foo")), rval.Type())
+		assert.Equal(t, "foo", *(rval.Interface().(*string)))
 	}
 
 	{
 		// rune
 		val := goreflect.ValueOf('0')
-		ToBaseType(&val)
-		assert.Equal(t, goreflect.TypeOf(int32('0')), val.Type())
-		assert.Equal(t, int32('0'), val.Interface())
+		rval := ValueToBaseType(val)
+		assert.Equal(t, goreflect.TypeOf(int32('0')), rval.Type())
+		assert.Equal(t, int32('0'), rval.Interface())
 
 		// *rune
 		i := '0'
 		val = goreflect.ValueOf(&i)
-		ToBaseType(&val)
-		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(int32('0'))), val.Type())
-		assert.Equal(t, int32('0'), *(val.Interface().(*int32)))
+		rval = ValueToBaseType(val)
+		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(int32('0'))), rval.Type())
+		assert.Equal(t, int32('0'), *(rval.Interface().(*int32)))
 	}
 }
 

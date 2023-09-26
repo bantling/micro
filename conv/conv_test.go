@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	goreflect "reflect"
 	"testing"
 
 	"github.com/bantling/micro/funcs"
@@ -1230,6 +1231,26 @@ func TestFloatStringToBigRat_(t *testing.T) {
 			assert.Equal(t, "The float string value of NaN cannot be converted to *big.Rat", e.(error).Error())
 		},
 	)
+}
+
+func TestLookupConversion_(t *testing.T) {
+	{
+		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
+		assert.NotNil(t, fn)
+		assert.Nil(t, err)
+		var out int
+		assert.Nil(t, fn(1, &out))
+		assert.Equal(t, 1, out)
+	}
+
+	{
+		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(""))
+		assert.NotNil(t, fn)
+		assert.Nil(t, err)
+		var out string
+		assert.Nil(t, fn(1, &out))
+		assert.Equal(t, "1", out)
+	}
 }
 
 func TestRegisterConversion_(t *testing.T) {

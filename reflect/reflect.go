@@ -85,6 +85,7 @@ func DerefValue(val goreflect.Value) goreflect.Value {
 // DerefValueMaxOnePtr returns zero or one pointers to a value.
 // If the value is more than one pointer, it is derefd to one pointer, otherwise it is returned as is.
 // If any pointer except the last one is nil, an invalid Value is returned.
+//
 // There are 3 cases of results:
 // - a valid Value for a non-pointer
 // - a valid Value for a nil pointer to a non-pointer
@@ -125,6 +126,8 @@ func DerefValueMaxOnePtr(val goreflect.Value) goreflect.Value {
 
 // FieldsByName collects the fields of a struct into a map.
 // Returns the zero value if the type provided does not represent a struct, or a struct that does not have any fields.
+// If a given struct field is a struct, then another call would have to made on that struct.
+// If a given struct field is a *struct, then it is possible it is a recursive struct (eg Customer{child *Customer}).
 func FieldsByName(typ goreflect.Type) map[string]goreflect.StructField {
 	var fields map[string]goreflect.StructField
 
@@ -172,6 +175,16 @@ func IsPrimitive[T KindElem[T]](val T) bool {
 	return hasIt
 }
 
+// NumPointers returns the number of pointers a type represents
+func NumPointers(val goreflect.Type) (res int) {
+	for val.Kind() == goreflect.Pointer {
+		val = val.Elem()
+		res++
+	}
+
+	return
+}
+
 // ResolveValueType resolves a value to the real type of value it contains.
 // The only case where the result is different from the argument is when the argument is typed as interface{}.
 // For example, if the interface{} value is actually an int, then the result will be typed as int.
@@ -187,22 +200,44 @@ func ResolveValueType(val goreflect.Value) goreflect.Value {
 	return val
 }
 
-// ToBaseType converts a reflect.Value that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
+// TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
+// If the type is a pointer to a primitive subtype, the type returned is pointer to the underlying type.
+func TypeToBaseType(typ goreflect.Type) goreflect.Type {
+	// Check if typ is a primitive subtype
+	k := typ.Kind()
+	pt := kindToType[k]
+	if (pt != nil) && (k.String() != typ.String()) {
+		// If so, then return the base type
+		return pt
+	} else if k == goreflect.Ptr {
+		k = typ.Elem().Kind()
+		pt = kindToType[k]
+		if (pt != nil) && (k.String() != typ.Elem().String()) {
+			return goreflect.PtrTo(pt)
+		}
+	}
+
+	return typ
+}
+
+// ValueToBaseType converts a reflect.Value that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
 // If the value is a pointer to a primitive subtype, the value is converted to a pointer to the underlying type.
-func ToBaseType(val *goreflect.Value) {
+func ValueToBaseType(val goreflect.Value) goreflect.Value {
 	// Check if val is a primitive subtype
 	k := val.Kind()
 	pt := kindToType[k]
 	if (pt != nil) && (k.String() != val.Type().String()) {
-		// If so, then convert the value to the base type so we can pass it to the conversion function
-		*val = val.Convert(pt)
+		// If so, then convert the value to the base type
+		return val.Convert(pt)
 	} else if k == goreflect.Ptr {
 		k = val.Elem().Kind()
 		pt = kindToType[k]
 		if (pt != nil) && (k.String() != val.Elem().Type().String()) {
-			*val = val.Convert(goreflect.PtrTo(pt))
+			return val.Convert(goreflect.PtrTo(pt))
 		}
 	}
+
+	return val
 }
 
 // ValueMaxOnePtrType returns the underlying type of zero or one pointers to a value.

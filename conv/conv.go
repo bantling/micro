@@ -15,9 +15,11 @@ import (
 )
 
 var (
-	errMsg                 = "The %T value of %s cannot be converted to %s"
-	errRegisterSameTypeMsg = "The conversion from %[1]s to %[2]s is not a conversion, the types are the same (use *%[1]s, *%[2]s if you really want to do this)"
-	errRegisterExistsMsg   = "The conversion from %s to %s has already been registered"
+	errLookupMsg                   = "%s cannot be converted to %s"
+	errMsg                         = "The %T value of %s cannot be converted to %s"
+	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
+	errRegisterSameTypeMsg         = "The conversion from %[1]s to %[2]s is not a conversion, the types are the same (use *%[1]s, *%[2]s if you really want to do this)"
+	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
 
 	log2Of10 = math.Log2(10)
 
@@ -1036,6 +1038,16 @@ var (
 			return nil
 		},
 	}
+
+	badConversionKinds = map[goreflect.Kind]bool{
+		goreflect.Uintptr:       true,
+		goreflect.Array:         true,
+		goreflect.Chan:          true,
+		goreflect.Func:          true,
+		goreflect.Map:           true,
+		goreflect.Slice:         true,
+		goreflect.UnsafePointer: true,
+	}
 )
 
 // ToString
@@ -1802,24 +1814,175 @@ func MustFloatStringToBigRat(ival string, oval **big.Rat) {
 	funcs.Must(FloatStringToBigRat(ival, oval))
 }
 
-// RegisterConversion registers a conversion from a value of type s to a value of type t.
+// ==== To and functions that support it
+
+// LookupConversion looks for a conversion from a source type to a target type.
+//
+// It is an error if either type is more than one pointer, or a uintptr, array, chan, func, map, slice, or unsafe pointer.
+//
+// If the source and target types are the same, a conversion function that just copies the source to the target is returned.
+// Technically, the copy function can copy any kind of source value into any type the source value can be assigned to.
+//
+// Up to four possible combinations are searched for to find the first matching conversion:
+//
+// 1. source -> target
+// 2. derefd source -> target
+// 3. source -> derefd target
+// 4. derefd source -> derefd target
+//
+// If the above all fail, and the source type is a subtype, try using source base type.
+// If that fails, and the target type is a subtype try using target base type.
+// If that fails, and the source and target are both subtypes, try using base source and base target types.
+//
+// This means that there exist 16 combinations of a conversion:
+// (source, derefd source) * (target, derefd target) * (source, source base type) * (target, target base type)
+//
+// The search will never try all 16 combinations, since a value cannot be a base type and a subtype, or a value and a pointer.
+//
+// Examples:
+//
+//	int     -> *big.Int : rule 1
+//
+// *int     -> *big.Int : rule 2
+// *big.Int -> int      : rule 1
+// *big.Int -> *int     : rule 3
+// *big.Int -> *big.Int : rule 1
+// *int     -> *int     : rule 4
+// *byte    -> *rune    : rule 4 with base source type uint8 and base target type int32
+func LookupConversion(src, tgt goreflect.Type) (fn func(any, any) error, err error) {
+	// If the types are the same, return a func that just copies the result
+	if src == tgt {
+		return func(in, out any) error {
+			// Out is a pointer to the same type as in
+			goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in))
+			return nil
+		}, nil
+	}
+
+	// Verify the types are not more than one pointer
+	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
+		err = fmt.Errorf(errLookupMsg, src, tgt)
+		return
+	}
+
+	// Verify the types are not uintptr, array, chan, func, map, slice, or unsafe pointer
+	for _, check := range []goreflect.Type{src, tgt} {
+		if badConversionKinds[check.Kind()] {
+			err = fmt.Errorf(errLookupMsg, src, tgt)
+			return
+		}
+	}
+
+	// Combine the string type names and see if the conversion exists
+	var (
+		maxOnePtrSrc = reflect.DerefTypeMaxOnePtr(src)
+		maxOnePtrTgt = reflect.DerefTypeMaxOnePtr(tgt)
+
+		srcIsPtr = maxOnePtrSrc.Kind() == goreflect.Pointer
+		tgtIsPtr = maxOnePtrTgt.Kind() == goreflect.Pointer
+
+		srcBaseType = reflect.TypeToBaseType(src)
+		tgtBaseType = reflect.TypeToBaseType(tgt)
+
+		srcTyp goreflect.Type
+		tgtTyp goreflect.Type
+
+		haveIt bool
+	)
+
+	for i := 'A'; i <= 'D'; i++ {
+		switch i {
+		case 'A': // A: Use types as given
+			srcTyp = src
+			tgtTyp = tgt
+
+		case 'B': // B: If src is a subtype, use base type
+			if src == srcBaseType {
+				// Skip if src is not a subtype
+				continue
+			}
+			srcTyp = srcBaseType
+			tgtTyp = tgt
+
+		case 'C': // C: If tgt is a subtype, use base type
+			if tgt == tgtBaseType {
+				// Skip if tgt is not a subtype
+				continue
+			}
+			srcTyp = src
+			tgtTyp = tgtBaseType
+
+		case 'D': // D: If both are subtypes, use base types
+			if (src == srcBaseType) || (tgt == tgtBaseType) {
+				// Skip if they are not both a subtype
+				continue
+			}
+			srcTyp = srcBaseType
+			tgtTyp = tgtBaseType
+		}
+
+		// 1. source -> target
+		if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; haveIt {
+			return
+		}
+
+		// 2. derefd source -> target
+
+		if srcIsPtr {
+			if fn, haveIt = convertFromTo[srcTyp.Elem().String()+tgtTyp.String()]; haveIt {
+				return
+			}
+		}
+
+		// 3. source -> derefd target
+		if tgtIsPtr {
+			if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.Elem().String()]; haveIt {
+				return
+			}
+		}
+
+		// 4. derefd source -> derefd target
+		if srcIsPtr && tgtIsPtr {
+			if fn, haveIt = convertFromTo[srcTyp.Elem().String()+tgtTyp.Elem().String()]; haveIt {
+				return
+			}
+		}
+	}
+
+	// Must be a type we can't convert
+	err = fmt.Errorf(errLookupMsg, src, tgt)
+	return
+}
+
+// RegisterConversion registers a conversion from a value of type S to a value of type T.
 // Note the function must accept a pointer type for the target.
-// If the taregt is already a pointer type, an additional level of pointer is required.
+// If the target is already a pointer type, an additional level of pointer is required.
 //
 // Examples:
 // RegisterConversion(0, Foo{}, func(int, *Foo) error {...})
 // RegisterConversion((*int)(nil), (*Foo)(nil), func(*int, **Foo) error {...})
 //
-// A conversion may be registered for pointers where the types are the same (eg, a *Foo to a **Foo)
-// It is assumed in such cases that some kind of copy is made.
+// A conversion may be registered for pointers where the types are the same (eg, S = T = *Foo)
 //
 // It is an error if:
-// - the source and target types are the same (other than above pointer exception)
+// - the source and target types are the same non-pointer type
+// - the source or target types are more than one pointer
+// - the source or target type is a uintptr, array, chan, func, map, slice, unsafe pointer, union.*, or tuple.*
 // - such a conversion already exists
 func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 	var (
 		sTyp, tTyp = goreflect.TypeOf(s), goreflect.TypeOf(t)
 	)
+
+	// Check if the source type has multiple pointers (since param type matches generic, two pointers is too many)
+	if (sTyp.Kind() == goreflect.Pointer) && (sTyp.Elem().Kind() == goreflect.Pointer) {
+		return fmt.Errorf(errRegisterMultiplePointersMsg, "source", sTyp.String())
+	}
+
+	// Check if the target type has multiple pointers (since param type is *generic type, three pointers is too many)
+	if (tTyp.Elem().Kind() == goreflect.Pointer) && (tTyp.Elem().Elem().Kind() == goreflect.Pointer) {
+		return fmt.Errorf(errRegisterMultiplePointersMsg, "target", tTyp.Elem().String())
+	}
 
 	// Check if the source and target types are the same, and it is NOT the edge case of converting *Foo to a **Foo
 	if (sTyp == tTyp.Elem()) && (sTyp.Kind() != goreflect.Pointer) {
@@ -1844,28 +2007,54 @@ func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 }
 
 // To converts any supported combination of source and target types.
-// The actual conversion is performed by the functions above, or by registered functions.
+//
+// The actual conversion is performed by:
+// - functions declared in this source file
+// - functions registered by other packages in this library
+// - functions registered by other packages outside this library
 //
 // The source is typed any for two reasons:
 // - to allow for cases where the caller accepts type any
 // - arbitrary new conversions can be registered (ideally via an init function)
 //
+// The target is a *T because Go can infer generic parameters, but not generic return types.
+// So instead of writing this:
+//   var str = conv.To[int, string](0)
+// We write this:
+//   var str string
+//   conv.To(0, &str)
+// It is a design choice to not make the user constantly repeat generic types for every conversion.
+//
+// If the source is a union.Maybe:
+// - If it is present, the type of value is used for source type
+// - Otherwise it is treated as a nil pointer
+//
+// If the source is a union.Result:
+// - If it has a value, the type of value is used for the source type
+// - Otherwise no conversion is performed, and the Result error is returned as the conversion error
+//
+// If the target is a union.Maybe:
+// - If the result of the conversion is a nil pointer, the target is an empty Maybe
+// - Otherwise, the target is a present Maybe
+
+// If the target is a union.Result:
+// - If the conversion results in an error, the target is set to an error Result, and conversion error is nil
+// - Otherwise, the target is a Result with the converted value (which may be a nil pointer)
+//
+// If the source is a nil pointer:
+// - If the target is a pointer, the target is set to nil without calling any conversion function
+// - If the target is a not a pointer, a conversion error is returned
+//
+// If the target is a pointer, the conversion function may set the target to a nil pointer.
+//
 // Subtype conversions are searched for first, then base type conversions.
-// Eg, byte is a subtype of uint8. So if souce and/or target is a byte, a conversion for byte is looked for first.
+// Eg, byte is a subtype of uint8. So if source and/or target is a byte, a conversion for byte is looked for first.
 // If no conversion exists, then a conversion for uint8 is used if it exists.
 // Base types do not apply to pointers.
-//
-// Only two combinations are checked for:
-// - souce and target types as is
-// - source and target base types
-//
-// The built in big types (*Int, *Float, and *Rat) are handled specially when the source and target are the same.
-// A copy is made, so that the source and target pointers refer to separate memory areas.
-//
-// Errors occur for two reasons:
-// - No conversion can be found
-// - The conversion returns an error
 func To[T any](src any, tgt *T) error {
+	// m, _ := reflect.TypeOf(union.Maybe[int]{}).MethodByName("Get")
+	// fmt.Printf("type = %s\n", m.Func.Type().Out(0)) -> int
+
 	var (
 		valsrc = goreflect.ValueOf(src)
 		valtgt = goreflect.ValueOf(tgt)
@@ -1902,8 +2091,8 @@ func To[T any](src any, tgt *T) error {
 	// ==== Search base types next, in case no subtype conversion exists
 
 	// Convert source and target to base types, so that we can find a conversion for subtypes
-	reflect.ToBaseType(&valsrc)
-	reflect.ToBaseType(&valtgt)
+	valsrc = reflect.ValueToBaseType(valsrc)
+	valtgt = reflect.ValueToBaseType(valtgt)
 
 	// No conversion function exists if src and *tgt are the same type
 	if valsrc.Type() == valtgt.Elem().Type() {
@@ -1933,7 +2122,7 @@ func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt
 	)
 
 	// Convert source to base type
-	reflect.ToBaseType(&valsrc)
+	valsrc = reflect.ValueToBaseType(valsrc)
 
 	// No conversion function exists if src and *tgt are the same type
 	if valsrc.Type() == valtgt.Elem().Type() {
