@@ -1238,11 +1238,8 @@ func TestLookupConversion_(t *testing.T) {
 	// copy
 	{
 		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
-		assert.NotNil(t, fn)
+		assert.Nil(t, fn)
 		assert.Nil(t, err)
-		var out int
-		assert.Nil(t, fn(1, &out))
-		assert.Equal(t, 1, out)
 	}
 
 	// source -> target
@@ -1396,20 +1393,32 @@ func TestRegisterConversion_(t *testing.T) {
 	{
 		// Working conversion
 		fn := func(src int, tgt *Foo) error { (*tgt).fld = src; return nil }
-		assert.Nil(t, RegisterConversion[int, Foo](0, nil, fn))
+		assert.Nil(t, RegisterConversion(fn))
 		var f Foo
 		assert.Nil(t, To(5, &f))
 		assert.Equal(t, Foo{5}, f)
+  }
 
+  {
 		// Working conversion
-		fn2 := func(src uint, tgt *Foo) error { (*tgt).fld = int(src); return nil }
-		MustRegisterConversion[uint, Foo](0, nil, fn2)
+		fn := func(src uint, tgt *Foo) error { (*tgt).fld = int(src); return nil }
+		MustRegisterConversion(fn)
+    var f Foo
 		assert.Nil(t, To(uint(6), &f))
 		assert.Equal(t, Foo{6}, f)
 
 		// Can't register same conversion twice
-		assert.Equal(t, fmt.Errorf("The conversion from int to conv.Foo has already been registered"), RegisterConversion[int, Foo](0, nil, fn))
+		assert.Equal(t, fmt.Errorf("The conversion from uint to conv.Foo has already been registered"), RegisterConversion(fn))
 	}
+
+  {
+    // Conversion for same type
+    fn := func(src Foo, tgt *Foo) error { (*tgt).fld = src.fld + 1; return nil }
+    MustRegisterConversion(fn)
+    var f Foo
+    assert.Nil(t, To(Foo{7}, &f))
+    assert.Equal(t, Foo{8}, f)
+  }
 }
 
 func TestTo_(t *testing.T) {
