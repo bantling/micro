@@ -16,6 +16,9 @@ import (
 
 var (
 	errLookupMsg                   = "%s cannot be converted to %s"
+	errCopyNilSourceMsg            = "A nil %s cannot be copied to a(n) %s"
+	errConvertNilSourceMsg         = "A nil %s cannot be converted to a(n) %s"
+	errCopyNilTargetMsg            = "A(n) %s cannot be copied to a nil %s"
 	errMsg                         = "The %T value of %s cannot be converted to %s"
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
@@ -47,10 +50,6 @@ var (
 	// no map entries are provided for from/to pairs where from and to are the same type.
 	convertFromTo = map[string]func(any, any) error{
 		// ==== To int
-		"intint": func(t any, u any) error {
-			*(u.(*int)) = t.(int)
-			return nil
-		},
 		"int8int": func(t any, u any) error {
 			*(u.(*int)) = int(t.(int8))
 			return nil
@@ -122,10 +121,6 @@ var (
 		"intint8": func(t any, u any) error {
 			return IntToInt(t.(int), u.(*int8))
 		},
-		"int8int8": func(t any, u any) error {
-			*(u.(*int8)) = t.(int8)
-			return nil
-		},
 		"int16int8": func(t any, u any) error {
 			return IntToInt(t.(int16), u.(*int8))
 		},
@@ -191,10 +186,6 @@ var (
 		},
 		"int8int16": func(t any, u any) error {
 			*(u.(*int16)) = int16(t.(int8))
-			return nil
-		},
-		"int16int16": func(t any, u any) error {
-			*(u.(*int16)) = t.(int16)
 			return nil
 		},
 		"int32int16": func(t any, u any) error {
@@ -264,10 +255,6 @@ var (
 		},
 		"int16int32": func(t any, u any) error {
 			*(u.(*int32)) = int32(t.(int16))
-			return nil
-		},
-		"int32int32": func(t any, u any) error {
-			*(u.(*int32)) = t.(int32)
 			return nil
 		},
 		"int64int32": func(t any, u any) error {
@@ -342,10 +329,6 @@ var (
 			*(u.(*int64)) = int64(t.(int32))
 			return nil
 		},
-		"int64int64": func(t any, u any) error {
-			*(u.(*int64)) = t.(int64)
-			return nil
-		},
 		"uintint64": func(t any, u any) error {
 			return UintToInt(t.(uint), u.(*int64))
 		},
@@ -398,10 +381,6 @@ var (
 		},
 		"int64uint": func(t any, u any) error {
 			return IntToUint(t.(int64), u.(*uint))
-		},
-		"uintuint": func(t any, u any) error {
-			*(u.(*uint)) = t.(uint)
-			return nil
 		},
 		"uint8uint": func(t any, u any) error {
 			*(u.(*uint)) = uint(t.(uint8))
@@ -472,10 +451,6 @@ var (
 		"uintuint8": func(t any, u any) error {
 			return UintToUint(t.(uint), u.(*uint8))
 		},
-		"uint8uint8": func(t any, u any) error {
-			*(u.(*uint8)) = t.(uint8)
-			return nil
-		},
 		"uint16uint8": func(t any, u any) error {
 			return UintToUint(t.(uint16), u.(*uint8))
 		},
@@ -541,10 +516,6 @@ var (
 		},
 		"uint8uint16": func(t any, u any) error {
 			*(u.(*uint16)) = uint16(t.(uint8))
-			return nil
-		},
-		"uint16uint16": func(t any, u any) error {
-			*(u.(*uint16)) = t.(uint16)
 			return nil
 		},
 		"uint32uint16": func(t any, u any) error {
@@ -613,10 +584,6 @@ var (
 		},
 		"uint16uint32": func(t any, u any) error {
 			*(u.(*uint32)) = uint32(t.(uint16))
-			return nil
-		},
-		"uint32uint32": func(t any, u any) error {
-			*(u.(*uint32)) = t.(uint32)
 			return nil
 		},
 		"uint64uint32": func(t any, u any) error {
@@ -689,10 +656,6 @@ var (
 			*(u.(*uint64)) = uint64(t.(uint32))
 			return nil
 		},
-		"uint64uint64": func(t any, u any) error {
-			*(u.(*uint64)) = t.(uint64)
-			return nil
-		},
 		"float32uint64": func(t any, u any) error {
 			return FloatToUint(t.(float32), u.(*uint64))
 		},
@@ -746,10 +709,6 @@ var (
 		},
 		"uint64float32": func(t any, u any) error {
 			return IntToFloat(t.(uint64), u.(*float32))
-		},
-		"float32float32": func(t any, u any) error {
-			*(u.(*float32)) = t.(float32)
-			return nil
 		},
 		"float64float32": func(t any, u any) error {
 			return FloatToFloat(t.(float64), u.(*float32))
@@ -818,10 +777,6 @@ var (
 		},
 		"float32float64": func(t any, u any) error {
 			*(u.(*float64)) = float64(t.(float32))
-			return nil
-		},
-		"float64float64": func(t any, u any) error {
-			*(u.(*float64)) = t.(float64)
 			return nil
 		},
 		"*big.Intfloat64": func(t any, u any) error {
@@ -1895,9 +1850,11 @@ func MustFloatStringToBigRat(ival string, oval **big.Rat) {
 // *byte    -> *rune    : rule 4 with base source type uint8 and base target type int32
 //
 // This function returns func, error:
-// If a conversion is     found: returns func, nil
-// If a conversion is not found: returns nil,  nil
-// Conversion is not possible:   returns nil,  err
+// If a conversion is     found : returns func, nil
+// If a conversion is not found : returns nil,  nil
+// Conversion is not possible   : returns nil,  err
+//
+// Effectively, the bool allows to distinguish between a registered conversion function and a generated copy function.
 func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 	// Verify the types are not more than one pointer
 	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
@@ -1959,15 +1916,45 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		}
 
 		// 1. source -> target
-		fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]
+		if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; (!haveIt) && (!srcIsPtr) && (!tgtIsPtr) && (srcTyp == tgtTyp) {
+			// Copy source -> target
+			fn = func(in, out any) error {
+				goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in).Convert(tgtTyp))
+
+				return nil
+			}
+			haveIt = true
+		}
 
 		// 2. derefd source -> target
 		if (!haveIt) && srcIsPtr && (!tgtIsPtr) {
 			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.String()]; luHaveIt {
 				// Have to use wrapper func that derefs source
 				fn = func(in, out any) error {
-					return lufn(goreflect.ValueOf(in).Elem().Interface(), out)
+					rin := goreflect.ValueOf(in)
+
+					if rin.IsNil() {
+						return fmt.Errorf(errConvertNilSourceMsg, srcTyp, tgtTyp)
+					}
+
+					return lufn(rin.Elem().Interface(), out)
 				}
+
+				haveIt = true
+			} else if srcTyp.Elem() == tgtTyp {
+				// Copy *source -> target
+				fn = func(in, out any) error {
+					rin := goreflect.ValueOf(in)
+
+					if rin.IsNil() {
+						return fmt.Errorf(errCopyNilSourceMsg, srcTyp, tgtTyp)
+					}
+
+					goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in).Elem().Convert(tgtTyp))
+
+					return nil
+				}
+
 				haveIt = true
 			}
 		}
@@ -1978,6 +1965,21 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 				// Have to use wrapper func that derefs target
 				fn = func(in, out any) error {
 					return lufn(in, goreflect.ValueOf(out).Elem().Interface())
+				}
+
+				haveIt = true
+			} else if srcTyp == tgtTyp.Elem() {
+				// Copy source -> *target
+				fn = func(in, out any) error {
+					rout := goreflect.ValueOf(out)
+
+					if rout.IsNil() || rout.Elem().IsNil() {
+						return fmt.Errorf(errCopyNilTargetMsg, srcTyp, tgtTyp)
+					}
+
+					rout.Elem().Elem().Set(goreflect.ValueOf(in).Convert(tgtTyp.Elem()))
+
+					return nil
 				}
 				haveIt = true
 			}
@@ -1990,6 +1992,26 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 				fn = func(in, out any) error {
 					return lufn(goreflect.ValueOf(in).Elem().Interface(), goreflect.ValueOf(out).Elem().Interface())
 				}
+
+				haveIt = true
+			} else if srcTyp.Elem() == tgtTyp.Elem() {
+				// Copy *source -> *target
+				fn = func(in, out any) error {
+					rin, rout := goreflect.ValueOf(in), goreflect.ValueOf(out)
+
+					if rout.IsNil() || ((!rin.IsNil()) && rout.Elem().IsNil()) {
+						return fmt.Errorf(errCopyNilTargetMsg, srcTyp, tgtTyp)
+					}
+
+					if rin.IsNil() {
+						rout.Elem().Set(rin)
+					} else {
+						rout.Elem().Elem().Set(rin.Elem().Convert(tgtTyp.Elem()))
+					}
+
+					return nil
+				}
+
 				haveIt = true
 			}
 		}
@@ -2045,11 +2067,11 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
 	// Ensure we have found a conversion (possibly wrapped for derefing)
 	if !haveIt {
-		// Indicate a conversion CAN be registered
+		// Conversion is not registered
 		return nil, nil
 	}
 
-	// Indicate a conversion CANNOT be registered
+	// Conversion is registered, or it is a copy
 	return fn, nil
 }
 
@@ -2104,102 +2126,55 @@ func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
 //
 // The target is a *T because Go can infer generic parameters, but not generic return types.
 // So instead of writing this:
-//   var str = conv.To[int, string](0)
+//
+//	var str = conv.To[int, string](0)
+//
 // We write this:
-//   var str string
-//   conv.To(0, &str)
+//
+//	var str string
+//	conv.To(0, &str)
+//
 // It is a design choice to not make the user constantly repeat generic types for every conversion.
 //
-// If the source is a union.Maybe:
-// - If it is present, the type of value is used for source type
-// - Otherwise it is treated as a nil pointer
+// See LookupConversion for the algorithm to find a registered conversion function.
+// There are 4 cases:
+// 1. LookupConversion does not find a conversion, the conversion is allowable, the types are the same
+//   - The source value is copied to the target
+//   - If the source is a pointer, the target gets a copy of the pointer, so source and target point to same address
 //
-// If the source is a union.Result:
-// - If it has a value, the type of value is used for the source type
-// - Otherwise no conversion is performed, and the Result error is returned as the conversion error
+// 2. LookupConversion does not find a conversion, the conversion is allowable, the types are different
+//   - Returns error that source cannot be converted to target
 //
-// If the target is a union.Maybe:
-// - If the result of the conversion is a nil pointer, the target is an empty Maybe
-// - Otherwise, the target is a present Maybe
-
-// If the target is a union.Result:
-// - If the conversion results in an error, the target is set to an error Result, and conversion error is nil
-// - Otherwise, the target is a Result with the converted value (which may be a nil pointer)
+// 3. LookupConversion returns an error
+//   - The error is returned as is
 //
-// If the source is a nil pointer:
-// - If the target is a pointer, the target is set to nil without calling any conversion function
-// - If the target is a not a pointer, a conversion error is returned
-//
-// If the target is a pointer, the conversion function may set the target to a nil pointer.
-//
-// Subtype conversions are searched for first, then base type conversions.
-// Eg, byte is a subtype of uint8. So if source and/or target is a byte, a conversion for byte is looked for first.
-// If no conversion exists, then a conversion for uint8 is used if it exists.
-// Base types do not apply to pointers.
+// 4. LookupConversion finds a conversion:
+//   - The conversion is applied
 func To[T any](src any, tgt *T) error {
-	// m, _ := reflect.TypeOf(union.Maybe[int]{}).MethodByName("Get")
-	// fmt.Printf("type = %s\n", m.Func.Type().Out(0)) -> int
-
 	var (
 		valsrc = goreflect.ValueOf(src)
 		valtgt = goreflect.ValueOf(tgt)
+		srcTyp = valsrc.Type()
+		tgtTyp = valtgt.Type().Elem()
 	)
+	// fmt.Printf("To: %s -> %s\n", srcTyp, tgtTyp)
 
-  // Use LookupConversion to find the conversion function, if it exists
-  fn, err := LookupConversion(valsrc.Type(), valtgt.Elem().Type())
-  if err != nil {
-    return err
-  }
+	// Use LookupConversion to find the conversion function, if it exists
+	fn, err := LookupConversion(srcTyp, tgtTyp)
+	// fmt.Printf("Lookup: %p, %s\n", fn, err)
+	switch {
+	case (fn == nil) && (err == nil):
+		// No conversion exists, but could be registered
+		return fmt.Errorf(errLookupMsg, srcTyp, tgtTyp)
 
-  return fn(src, tgt)
+	case err != nil:
+		// Conversion will never be possible
+		return err
 
-	// // ==== Search for subtypes as is first (eg, byte is a subtype of uint8)
-  //
-	// // No conversion function exists if src and *tgt are the same type, unless they are *big types
-	// copy := valsrc.Type() == valtgt.Elem().Type()
-	// if copy {
-	// 	if _, isa := any(src).(*big.Int); isa {
-	// 		copy = false
-	// 	}
-  //
-	// 	if _, isa := any(src).(*big.Float); isa {
-	// 		copy = false
-	// 	}
-  //
-	// 	if _, isa := any(src).(*big.Rat); isa {
-	// 		copy = false
-	// 	}
-	// }
-  //
-	// if copy {
-	// 	valtgt.Elem().Set(valsrc)
-	// 	return nil
-	// }
-  //
-	// // Types differ, lookup conversion using source And target types and execute it, returning result
-	// if fn, haveIt := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; haveIt {
-	// 	return fn(valsrc.Interface(), valtgt.Interface())
-	// }
-  //
-	// // ==== Search base types next, in case no subtype conversion exists
-  //
-	// // Convert source and target to base types, so that we can find a conversion for subtypes
-	// valsrc = reflect.ValueToBaseType(valsrc)
-	// valtgt = reflect.ValueToBaseType(valtgt)
-  //
-	// // No conversion function exists if src and *tgt are the same type
-	// if valsrc.Type() == valtgt.Elem().Type() {
-	// 	valtgt.Elem().Set(valsrc)
-	// 	return nil
-	// }
-  //
-	// // Types differ, lookup conversion using source and target types and execute it, returning result
-	// if fn, haveIt := convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()]; haveIt {
-	// 	return fn(valsrc.Interface(), valtgt.Interface())
-	// }
-  //
-	// // Must be a type we can't convert
-	// return fmt.Errorf(errMsg, src, src, goreflect.TypeOf(tgt))
+	default:
+		// Conversion exists
+		return fn(src, tgt)
+	}
 }
 
 // MustTo is a Must version of To

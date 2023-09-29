@@ -1238,8 +1238,11 @@ func TestLookupConversion_(t *testing.T) {
 	// copy
 	{
 		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
-		assert.Nil(t, fn)
+		assert.NotNil(t, fn)
 		assert.Nil(t, err)
+		var out int
+		assert.Nil(t, fn(1, &out))
+		assert.Equal(t, 1, out)
 	}
 
 	// source -> target
@@ -1388,37 +1391,37 @@ func TestLookupConversion_(t *testing.T) {
 }
 
 func TestRegisterConversion_(t *testing.T) {
-	type Foo struct{ fld int }
+	type Conv_Reg_Foo struct{ fld int }
 
 	{
 		// Working conversion
-		fn := func(src int, tgt *Foo) error { (*tgt).fld = src; return nil }
+		fn := func(src int, tgt *Conv_Reg_Foo) error { (*tgt).fld = src; return nil }
 		assert.Nil(t, RegisterConversion(fn))
-		var f Foo
+		var f Conv_Reg_Foo
 		assert.Nil(t, To(5, &f))
-		assert.Equal(t, Foo{5}, f)
-  }
-
-  {
-		// Working conversion
-		fn := func(src uint, tgt *Foo) error { (*tgt).fld = int(src); return nil }
-		MustRegisterConversion(fn)
-    var f Foo
-		assert.Nil(t, To(uint(6), &f))
-		assert.Equal(t, Foo{6}, f)
-
-		// Can't register same conversion twice
-		assert.Equal(t, fmt.Errorf("The conversion from uint to conv.Foo has already been registered"), RegisterConversion(fn))
+		assert.Equal(t, Conv_Reg_Foo{5}, f)
 	}
 
-  {
-    // Conversion for same type
-    fn := func(src Foo, tgt *Foo) error { (*tgt).fld = src.fld + 1; return nil }
-    MustRegisterConversion(fn)
-    var f Foo
-    assert.Nil(t, To(Foo{7}, &f))
-    assert.Equal(t, Foo{8}, f)
-  }
+	{
+		// Working conversion
+		fn := func(src uint, tgt *Conv_Reg_Foo) error { (*tgt).fld = int(src); return nil }
+		MustRegisterConversion(fn)
+		var f Conv_Reg_Foo
+		assert.Nil(t, To(uint(6), &f))
+		assert.Equal(t, Conv_Reg_Foo{6}, f)
+
+		// Can't register same conversion twice
+		assert.Equal(t, fmt.Errorf("The conversion from uint to conv.Conv_Reg_Foo has already been registered"), RegisterConversion(fn))
+	}
+
+	{
+		// Conversion for same type
+		fn := func(src Conv_Reg_Foo, tgt *Conv_Reg_Foo) error { (*tgt).fld = src.fld + 1; return nil }
+		MustRegisterConversion(fn)
+		var f Conv_Reg_Foo
+		assert.Nil(t, To(Conv_Reg_Foo{7}, &f))
+		assert.Equal(t, Conv_Reg_Foo{8}, f)
+	}
 }
 
 func TestTo_(t *testing.T) {
@@ -2475,9 +2478,93 @@ func TestTo_(t *testing.T) {
 		assert.Equal(t, "foo", s)
 	}
 
+	// source type = target type (int -> int)
+	{
+		var o int
+		assert.Nil(t, To(1, &o))
+		assert.Equal(t, 1, o)
+	}
+
+	// Derfd source type to other target type with a conversion (*int -> string)
+	{
+		var i int = 1
+		var o string
+
+		// source exists
+		assert.Nil(t, To(&i, &o))
+		assert.Equal(t, "1", o)
+
+		// source cannot be nil
+		assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) string"), To((*int)(nil), &o))
+		assert.Equal(t, "1", o)
+	}
+
+	// Derefd source type = target type (*int -> int)
+	{
+		var i int = 1
+		var o int
+		assert.Nil(t, To(&i, &o))
+		assert.Equal(t, 1, o)
+
+		// source cannot be nil
+		assert.Equal(t, fmt.Errorf("A nil *int cannot be copied to a(n) int"), To((*int)(nil), &o))
+		assert.Equal(t, 1, o)
+	}
+
+	// source type = derefd target type (int -> *int)
+	{
+		var o int
+		var po = &o
+		assert.Nil(t, To(1, &po))
+		assert.Equal(t, 1, o)
+
+		// target cannot be nil
+		po = nil
+		assert.Equal(t, fmt.Errorf("A(n) int cannot be copied to a nil *int"), To(2, &po))
+		assert.Equal(t, 1, o)
+
+		assert.Equal(t, fmt.Errorf("A(n) int cannot be copied to a nil *int"), To(2, (**int)(nil)))
+		assert.Equal(t, 1, o)
+	}
+
+	// derefd source type = derefd target type (*int -> *int)
+	{
+		var i int
+		var o int
+		var po *int
+
+		// source is nil, target is not nil
+		i = 1
+		po = &o
+		assert.Nil(t, To((*int)(nil), &po))
+		assert.Nil(t, po)
+		assert.Equal(t, 0, o)
+
+		// source is not nil, target is not nil
+		i = 2
+		po = &o
+		assert.Nil(t, To(&i, &po))
+		assert.Equal(t, &o, po)
+		assert.Equal(t, 2, i)
+
+		// source is nil, target is **nil
+		i = 3
+		po = &o
+		assert.Equal(t, fmt.Errorf("A(n) *int cannot be copied to a nil *int"), To((*int)(nil), (**int)(nil)))
+		assert.Equal(t, &o, po)
+		assert.Equal(t, 3, i)
+
+		// source is nil, target is *nil
+		i = 4
+		po = nil
+		assert.Nil(t, To((*int)(nil), &po))
+		assert.Nil(t, po)
+		assert.Equal(t, 4, i)
+	}
+
 	{
 		// byte to rune, which is really uint8 to int32
-		// verify subtypes are handled correctly
+		// it is not a subtype, reflection sees uint8 and int32
 		var r rune
 		assert.Nil(t, To(byte('A'), &r))
 		assert.Equal(t, 'A', r)
@@ -2485,7 +2572,31 @@ func TestTo_(t *testing.T) {
 
 	{
 		var c chan bool
-		assert.Equal(t, fmt.Errorf("The string value of str cannot be converted to *chan bool"), To("str", &c))
+		assert.Equal(t, fmt.Errorf("string cannot be converted to chan bool"), To("str", &c))
+	}
+
+	{
+		type Conv_To_Foo struct{ Bar int }
+		var f Conv_To_Foo
+		assert.Equal(t, fmt.Errorf("int cannot be converted to conv.Conv_To_Foo"), To(1, &f))
+	}
+
+	// Subtypes where no conversion exists, base types are the same
+	{
+		type foo int
+		type bar int
+		var b bar
+		assert.Nil(t, To(foo(1), &b))
+		assert.Equal(t, bar(1), b)
+	}
+
+	// Subtypes where no conversion exists, base types are different
+	{
+		type foo uint
+		type bar int
+		var b bar
+		assert.Nil(t, To(foo(1), &b))
+		assert.Equal(t, bar(1), b)
 	}
 }
 
@@ -2531,24 +2642,6 @@ func TestToBigOps_(t *testing.T) {
 
 		assert.Nil(t, ToBigOps(br, &br))
 		assert.Equal(t, big.NewRat(3, 1), br)
-	}
-
-	// Subtypes where no conversion exists, base types are the same
-	{
-		type foo int
-		type bar int
-		var b bar
-		assert.Nil(t, To(foo(1), &b))
-		assert.Equal(t, bar(1), b)
-	}
-
-	// Subtypes where no conversion exists, base types are different
-	{
-		type foo uint
-		type bar int
-		var b bar
-		assert.Nil(t, To(foo(1), &b))
-		assert.Equal(t, bar(1), b)
 	}
 
 	funcs.TryTo(

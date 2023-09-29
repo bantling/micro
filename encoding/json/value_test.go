@@ -111,10 +111,10 @@ func TestToValue_(t *testing.T) {
 
 	// Map failure
 	var c = make(chan bool)
-	assert.Equal(t, union.OfError[Value](fmt.Errorf("The chan bool value of %s cannot be converted to *string", any(c))), union.OfResultError(ToValue(map[string]any{"foo": c})))
+	assert.Equal(t, union.OfError[Value](fmt.Errorf("chan bool cannot be converted to string")), union.OfResultError(ToValue(map[string]any{"foo": c})))
 
 	// Slice failure
-	assert.Equal(t, union.OfError[Value](fmt.Errorf("The chan bool value of %s cannot be converted to *string", any(c))), union.OfResultError(ToValue([]any{c})))
+	assert.Equal(t, union.OfError[Value](fmt.Errorf("chan bool cannot be converted to string")), union.OfResultError(ToValue([]any{c})))
 }
 
 func TestMapToValue_(t *testing.T) {
