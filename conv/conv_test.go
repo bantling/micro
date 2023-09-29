@@ -1401,19 +1401,14 @@ func TestRegisterConversion_(t *testing.T) {
 		assert.Nil(t, To(5, &f))
 		assert.Equal(t, Foo{5}, f)
 
-    // Working conversion
-    fn2 := func(src uint, tgt *Foo) error { (*tgt).fld = int(src); return nil }
-    MustRegisterConversion[uint, Foo](0, nil, fn2)
-    assert.Nil(t, To(uint(6), &f))
-    assert.Equal(t, Foo{6}, f)
+		// Working conversion
+		fn2 := func(src uint, tgt *Foo) error { (*tgt).fld = int(src); return nil }
+		MustRegisterConversion[uint, Foo](0, nil, fn2)
+		assert.Nil(t, To(uint(6), &f))
+		assert.Equal(t, Foo{6}, f)
 
-		// Same type error
+		// Can't register same conversion twice
 		assert.Equal(t, fmt.Errorf("The conversion from int to conv.Foo has already been registered"), RegisterConversion[int, Foo](0, nil, fn))
-	}
-
-	{
-		fn := func(src Foo, tgt *Foo) error { return nil }
-		assert.Equal(t, fmt.Errorf("The conversion from conv.Foo to conv.Foo is not a conversion"), RegisterConversion[Foo, Foo](Foo{}, nil, fn))
 	}
 }
 

@@ -18,7 +18,6 @@ var (
 	errLookupMsg                   = "%s cannot be converted to %s"
 	errMsg                         = "The %T value of %s cannot be converted to %s"
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
-	errRegisterSameTypeMsg         = "The conversion from %[1]s to %[1]s is not a conversion"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
 
 	log2Of10 = math.Log2(10)
@@ -1866,7 +1865,8 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		}
 	}
 
-	// If the types are the same, return a func that just copies the result
+	// If the types are the same, return a func that just copies the result.
+	// If the types are a pointer, the pointer is copied, so that both pointers point to the same value.
 	if src == tgt {
 		// Indicate a conversion CANNOT be registered
 		return func(in, out any) error {
@@ -2029,28 +2029,20 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 	var (
 		sTyp, tTyp = goreflect.TypeOf(s), goreflect.TypeOf(t).Elem()
+		convKey    = sTyp.String() + tTyp.String()
 	)
 
-	// LookupConversion returns an copy function if the types are the same
-	// Check ourselves for same types, and return an error
-	if sTyp == tTyp {
-		return fmt.Errorf(errRegisterSameTypeMsg, sTyp)
-	}
+	// See if a conversion exists for the exact types given.
+	// If not, register it without bothering to use LookupConversion.
+	// This allows registering functions when the types or the same, or a similar conversion exists for convertible type(s).
 
-	// func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
-	fn, err := LookupConversion(sTyp, tTyp)
-	if fn != nil {
-		// Conversion already exists
+	if _, haveIt := convertFromTo[convKey]; haveIt {
+		// Return error that the conversion already exists
 		return fmt.Errorf(errRegisterExistsMsg, sTyp, tTyp)
 	}
 
-	if err != nil {
-		// Some other error occurred
-		return err
-	}
-
 	// Store the conversion in the map - we have to store a func(any, any), so generate one
-	convertFromTo[sTyp.String()+tTyp.String()] = func(src, tgt any) error {
+	convertFromTo[convKey] = func(src, tgt any) error {
 		return convFn(src.(S), tgt.(*T))
 	}
 
@@ -2059,7 +2051,7 @@ func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 
 // MustRegisterConversion is a must version of RegisterConversion
 func MustRegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) {
-  funcs.Must(RegisterConversion(s, t, convFn))
+	funcs.Must(RegisterConversion(s, t, convFn))
 }
 
 // To converts any supported combination of source and target types.
