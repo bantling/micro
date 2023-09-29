@@ -18,7 +18,7 @@ var (
 	errLookupMsg                   = "%s cannot be converted to %s"
 	errMsg                         = "The %T value of %s cannot be converted to %s"
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
-	errRegisterSameTypeMsg         = "The conversion from %[1]s to %[2]s is not a conversion, the types are the same (use *%[1]s, *%[2]s if you really want to do this)"
+	errRegisterSameTypeMsg         = "The conversion from %[1]s to %[1]s is not a conversion"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
 
 	log2Of10 = math.Log2(10)
@@ -1041,11 +1041,8 @@ var (
 
 	badConversionKinds = map[goreflect.Kind]bool{
 		goreflect.Uintptr:       true,
-		goreflect.Array:         true,
 		goreflect.Chan:          true,
 		goreflect.Func:          true,
-		goreflect.Map:           true,
-		goreflect.Slice:         true,
 		goreflect.UnsafePointer: true,
 	}
 )
@@ -1849,28 +1846,35 @@ func MustFloatStringToBigRat(ival string, oval **big.Rat) {
 // *big.Int -> *big.Int : rule 1
 // *int     -> *int     : rule 4
 // *byte    -> *rune    : rule 4 with base source type uint8 and base target type int32
-func LookupConversion(src, tgt goreflect.Type) (fn func(any, any) error, err error) {
-	// If the types are the same, return a func that just copies the result
-	if src == tgt {
-		return func(in, out any) error {
-			// Out is a pointer to the same type as in
-			goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in))
-			return nil
-		}, nil
-	}
-
+//
+// This function returns func, error:
+// If a conversion is     found: returns func, nil
+// If a conversion is not found: returns nil,  nil
+// Conversion is not possible:   returns nil,  err
+func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 	// Verify the types are not more than one pointer
 	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
-		err = fmt.Errorf(errLookupMsg, src, tgt)
-		return
+		// Indicate a conversion CANNOT be registered
+		return nil, fmt.Errorf(errLookupMsg, src, tgt)
 	}
 
-	// Verify the types are not uintptr, array, chan, func, map, slice, or unsafe pointer
+	// Verify the types are not uintptr, chan, func, or unsafe pointer
 	for _, check := range []goreflect.Type{src, tgt} {
 		if badConversionKinds[check.Kind()] {
-			err = fmt.Errorf(errLookupMsg, src, tgt)
-			return
+			// Indicate a conversion CANNOT be registered
+			return nil, fmt.Errorf(errLookupMsg, src, tgt)
 		}
+	}
+
+	// If the types are the same, return a func that just copies the result
+	if src == tgt {
+		// Indicate a conversion CANNOT be registered
+		return func(in, out any) error {
+				// Out is a pointer to the same type as in
+				goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in))
+				return nil
+			},
+			nil
 	}
 
 	// Combine the string type names and see if the conversion exists
@@ -1887,6 +1891,7 @@ func LookupConversion(src, tgt goreflect.Type) (fn func(any, any) error, err err
 		srcTyp goreflect.Type
 		tgtTyp goreflect.Type
 
+		fn     func(any, any) error
 		haveIt bool
 	)
 
@@ -1897,7 +1902,7 @@ func LookupConversion(src, tgt goreflect.Type) (fn func(any, any) error, err err
 			tgtTyp = tgt
 
 		case 'B': // B: If src is a subtype, use base type
-			if src == srcBaseType {
+			if (src == srcBaseType) || (tgt != tgtBaseType) {
 				// Skip if src is not a subtype
 				continue
 			}
@@ -1905,105 +1910,156 @@ func LookupConversion(src, tgt goreflect.Type) (fn func(any, any) error, err err
 			tgtTyp = tgt
 
 		case 'C': // C: If tgt is a subtype, use base type
-			if tgt == tgtBaseType {
+			if (src != srcBaseType) || (tgt == tgtBaseType) {
 				// Skip if tgt is not a subtype
 				continue
 			}
 			srcTyp = src
 			tgtTyp = tgtBaseType
 
-		case 'D': // D: If both are subtypes, use base types
-			if (src == srcBaseType) || (tgt == tgtBaseType) {
-				// Skip if they are not both a subtype
-				continue
-			}
+		default: // D: If both are subtypes, use base types
 			srcTyp = srcBaseType
 			tgtTyp = tgtBaseType
 		}
 
 		// 1. source -> target
-		if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; haveIt {
-			return
-		}
+		fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]
 
 		// 2. derefd source -> target
-
-		if srcIsPtr {
-			if fn, haveIt = convertFromTo[srcTyp.Elem().String()+tgtTyp.String()]; haveIt {
-				return
+		if (!haveIt) && srcIsPtr && (!tgtIsPtr) {
+			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.String()]; luHaveIt {
+				// Have to use wrapper func that derefs source
+				fn = func(in, out any) error {
+					return lufn(goreflect.ValueOf(in).Elem().Interface(), out)
+				}
+				haveIt = true
 			}
 		}
 
 		// 3. source -> derefd target
-		if tgtIsPtr {
-			if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.Elem().String()]; haveIt {
-				return
+		if (!haveIt) && (!srcIsPtr) && tgtIsPtr {
+			if lufn, luHaveIt := convertFromTo[srcTyp.String()+tgtTyp.Elem().String()]; luHaveIt {
+				// Have to use wrapper func that derefs target
+				fn = func(in, out any) error {
+					return lufn(in, goreflect.ValueOf(out).Elem().Interface())
+				}
+				haveIt = true
 			}
 		}
 
 		// 4. derefd source -> derefd target
-		if srcIsPtr && tgtIsPtr {
-			if fn, haveIt = convertFromTo[srcTyp.Elem().String()+tgtTyp.Elem().String()]; haveIt {
-				return
+		if (!haveIt) && srcIsPtr && tgtIsPtr {
+			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.Elem().String()]; luHaveIt {
+				// Have to use wrapper func that derefs source and target
+				fn = func(in, out any) error {
+					return lufn(goreflect.ValueOf(in).Elem().Interface(), goreflect.ValueOf(out).Elem().Interface())
+				}
+				haveIt = true
 			}
+		}
+
+		if haveIt {
+			// Recheck i, and further wrap if subtypes are used
+			switch i {
+			case 'A': // Use types as given
+
+			case 'B':
+				{ // src is subtype
+					// Have to use a wrapper func that converts src subtype to src basetype
+					lufn := fn
+					sbfn := func(in, out any) error {
+						// in = subtype, tgt = *type
+						// lufn = func(basetype, tgt)
+						return lufn(reflect.ValueToBaseType(goreflect.ValueOf(in)).Interface(), out)
+					}
+					fn = sbfn
+				}
+
+			case 'C':
+				{ // tgt is subtype
+					// Have to use a wrapper func that converts tgt subtype to tgt basetype
+					lufn := fn
+					tbfn := func(in, out any) error {
+						// in = src, tgt = *subtype
+						// lufn = func(src, *basetype)
+						return lufn(in, reflect.ValueToBaseType(goreflect.ValueOf(out)).Interface())
+					}
+					fn = tbfn
+				}
+
+			default:
+				{ // src and tgt are subtypes
+					// Have to use a wrapper func that converts src subtype to src basetype and tgt subtype to tgt basetype
+					lufn := fn
+					tbfn := func(in, out any) error {
+						// in = subtype, tgt = *subtype
+						// lufn = func(basetype, *basetype)
+						return lufn(
+							reflect.ValueToBaseType(goreflect.ValueOf(in)).Interface(),
+							reflect.ValueToBaseType(goreflect.ValueOf(out)).Interface(),
+						)
+					}
+					fn = tbfn
+				}
+			}
+
+			break
 		}
 	}
 
-	// Must be a type we can't convert
-	err = fmt.Errorf(errLookupMsg, src, tgt)
-	return
+	// Ensure we have found a conversion (possibly wrapped for derefing)
+	if !haveIt {
+		// Indicate a conversion CAN be registered
+		return nil, nil
+	}
+
+	// Indicate a conversion CANNOT be registered
+	return fn, nil
 }
 
 // RegisterConversion registers a conversion from a value of type S to a value of type T.
-// Note the function must accept a pointer type for the target.
+// Note the conversion function must accept a pointer type for the target.
 // If the target is already a pointer type, an additional level of pointer is required.
 //
 // Examples:
 // RegisterConversion(0, Foo{}, func(int, *Foo) error {...})
 // RegisterConversion((*int)(nil), (*Foo)(nil), func(*int, **Foo) error {...})
 //
-// A conversion may be registered for pointers where the types are the same (eg, S = T = *Foo)
-//
-// It is an error if:
-// - the source and target types are the same non-pointer type
-// - the source or target types are more than one pointer
-// - the source or target type is a uintptr, array, chan, func, map, slice, unsafe pointer, union.*, or tuple.*
-// - such a conversion already exists
+// See LookupConversion for details
 func RegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) error {
 	var (
-		sTyp, tTyp = goreflect.TypeOf(s), goreflect.TypeOf(t)
+		sTyp, tTyp = goreflect.TypeOf(s), goreflect.TypeOf(t).Elem()
 	)
 
-	// Check if the source type has multiple pointers (since param type matches generic, two pointers is too many)
-	if (sTyp.Kind() == goreflect.Pointer) && (sTyp.Elem().Kind() == goreflect.Pointer) {
-		return fmt.Errorf(errRegisterMultiplePointersMsg, "source", sTyp.String())
+	// LookupConversion returns an copy function if the types are the same
+	// Check ourselves for same types, and return an error
+	if sTyp == tTyp {
+		return fmt.Errorf(errRegisterSameTypeMsg, sTyp)
 	}
 
-	// Check if the target type has multiple pointers (since param type is *generic type, three pointers is too many)
-	if (tTyp.Elem().Kind() == goreflect.Pointer) && (tTyp.Elem().Elem().Kind() == goreflect.Pointer) {
-		return fmt.Errorf(errRegisterMultiplePointersMsg, "target", tTyp.Elem().String())
-	}
-
-	// Check if the source and target types are the same, and it is NOT the edge case of converting *Foo to a **Foo
-	if (sTyp == tTyp.Elem()) && (sTyp.Kind() != goreflect.Pointer) {
-		return fmt.Errorf(errRegisterSameTypeMsg, sTyp, tTyp)
-	}
-
-	// The conversion map key is just the source type name followed by target type name, with no separator,
-	// and the level of indirection indicated in the types as passed.
-	// So RegisterConversion(0, Foo{}, func(int, *Foo) error) results in a key of intFoo.
-	convKey := sTyp.String() + tTyp.Elem().String()
-	if _, haveIt := convertFromTo[convKey]; haveIt {
-		// Already have this combination registered
+	// func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
+	fn, err := LookupConversion(sTyp, tTyp)
+	if fn != nil {
+		// Conversion already exists
 		return fmt.Errorf(errRegisterExistsMsg, sTyp, tTyp)
 	}
 
+	if err != nil {
+		// Some other error occurred
+		return err
+	}
+
 	// Store the conversion in the map - we have to store a func(any, any), so generate one
-	convertFromTo[convKey] = func(src, tgt any) error {
+	convertFromTo[sTyp.String()+tTyp.String()] = func(src, tgt any) error {
 		return convFn(src.(S), tgt.(*T))
 	}
 
 	return nil
+}
+
+// MustRegisterConversion is a must version of RegisterConversion
+func MustRegisterConversion[S, T any](s S, t *T, convFn func(S, *T) error) {
+  funcs.Must(RegisterConversion(s, t, convFn))
 }
 
 // To converts any supported combination of source and target types.

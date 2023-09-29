@@ -64,9 +64,7 @@ func parsePath(p string) (lookups []tuple.Two[string, union.Two[string, int]], e
 			lookups = append(lookups, tuple.Of2(fullPath, union.Of2T[string, int](key)))
 		} else {
 			// Array index
-			fmt.Printf("Array index %s\n", part[2])
 			if err = conv.To(part[2], &index); err != nil {
-				fmt.Printf("conv error\n")
 				// Must be an index so large it can't be converted to an int
 				err = fmt.Errorf(errIllegalPathMsg, path)
 				return

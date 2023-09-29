@@ -220,6 +220,29 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 ** map tables to structs, using reflect package map struct, translating column name <-> field name using any available case conversion
 ** query structs, where each field is a func with a spring data like name (no child fields), or field has a struct tag with query
 ** query structs fields can be select, insert, update, upsert, or delete
+* Tasks
+** Task[Id comparable, Res any] is a struct{id Id, func(ctx context.Context) (Res, error)}
+** Task is constructed from (Id, func(ctx context.Context) (Res, error))
+** Task.Perform() (map[Id]union.Result[Res]) calls func passed to constructor
+*** If it panics, Task maps id to error Result of fmt.Errorf("Task id %v panicked with %#v", Task.id, recovered value)
+*** If it returns an error, Task maps id to Result of returned error
+*** Else Task returns nil map
+*** A map is used so that Tasks can be composed in various ways, and get results of each Task
+** Schedule[Id, Res](Duration | Time, sched, done, errTask Task[Id, Res]) Task[Id, sync.WaitGroup]
+*** Returns a Task that executes the given sched Task arg after specified duration / at specified time,
+    and then executes the done Task if it completed successfully, errTask if it did not.
+*** When executed, the scheduled task is immediately executed in a separate go routine, and the WaitGroup is returned.
+*** If Task is a duration, the duration is applied when the task is run, no matter how long of a delay occurs between
+    constructing the Task and executing it
+*** If Task is at a specified time, it returns immediately if that time has already passed when it is executed
+** Join[Id, Res](JoinMode, Task[Id, Res]...) Task[Id, Res]
+*** Returns as Task that executes a series of tasks in given JoinMode (STOP_ON_FIRST_ERROR, IGNORE_ERRORS)
+*** Task.Perform() maps each Id to a tuple.Result to allow determination of which Tasks succeeded, which failed, and the errors
+** RepeatTask(JoinMode, Task[Id, Res], uint count) Task[Id, Res] executes the same Task count times sequentially
+*** Perform() maps Id to a Result same as Join
+** ParallelTask[Id, Res](ParallelMode, Task[Id, Res]...)
+*** Returns a Task that executes a series of tasks in separate in multiple go routines
+*** ParallelMode functions same as streaming api
 * ETL
 ** Mainly operating on streams, with 3 basic operation types:
 *** Combine streams
