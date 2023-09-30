@@ -44,14 +44,6 @@ func BigIntToBigFloat(ival *big.Int, oval **big.Float) {
 	StringToBigFloat(ival.String(), oval)
 }
 
-// BigFloatToBigFloat makes a copy of a *big.Float such that ival and *oval are different pointers
-func BigFloatToBigFloat(ival *big.Float, oval **big.Float) {
-	*oval = big.NewFloat(0)
-	(*oval).SetMode(ival.Mode())
-	(*oval).SetPrec(ival.Prec())
-	(*oval).Set(ival)
-}
-
 // BigRatToBigFloat converts a *big.Rat to a *big.Float
 func BigRatToBigFloat(ival *big.Rat, oval **big.Float) {
 	// Use numerator to calculate the precision, shd be accurate since denominator is basically the exponent

@@ -44,12 +44,6 @@ func MustFloatToBigInt[T constraint.Float](ival T, oval **big.Int) {
 	funcs.Must(FloatToBigInt(ival, oval))
 }
 
-// BigIntToBigInt makes a copy of a *big.Int such that ival and *oval are different pointers
-func BigIntToBigInt(ival *big.Int, oval **big.Int) {
-	*oval = big.NewInt(0)
-	(*oval).Set(ival)
-}
-
 // BigFloatToBigInt converts a *big.Float to a *big.Int.
 // Returns an error if the *big.Float has any fractional digits.
 func BigFloatToBigInt(ival *big.Float, oval **big.Int) error {

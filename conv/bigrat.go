@@ -58,12 +58,6 @@ func MustBigFloatToBigRat(ival *big.Float, oval **big.Rat) {
 	funcs.Must(BigFloatToBigRat(ival, oval))
 }
 
-// BigRatToBigRat makes a copy of a *big.Rat such that ival and *oval are different pointers
-func BigRatToBigRat(ival *big.Rat, oval **big.Rat) {
-	*oval = big.NewRat(0, 1)
-	(*oval).Set(ival)
-}
-
 // StringToBigRat converts a string into a *big.Rat
 func StringToBigRat(ival string, oval **big.Rat) error {
 	var ok bool

@@ -80,18 +80,6 @@ func TestBigIntToBigFloat_(t *testing.T) {
 	assert.Equal(t, str, fmt.Sprintf("%.f", o))
 }
 
-func TestBigFloatToBigFloat_(t *testing.T) {
-	var i, o *big.Float
-	i = big.NewFloat(5)
-	i.SetMode(big.ToZero)
-	i.SetPrec(100)
-	BigFloatToBigFloat(i, &o)
-	assert.False(t, i == o)
-	assert.Equal(t, big.ToZero, o.Mode())
-	assert.Equal(t, uint(100), o.Prec())
-	assert.Equal(t, 0, i.Cmp(o))
-}
-
 func TestBigRatToBigFloat_(t *testing.T) {
 	var o *big.Float
 	BigRatToBigFloat(big.NewRat(125, 100), &o)

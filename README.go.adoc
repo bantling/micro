@@ -209,6 +209,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
+* conv handle union.maybe
+** Useful to convert untyped nulls like json.NullValue into a struct field that is a Maybe[string]
 * add capability in reflect package to populate a struct from a map, or map from a struct
 ** use conv.To to convert map elements to struct fields, to correctly handle subtypes
 ** field kind must be bool, ints, floats, complex, array, map, slice, string, or struct/*struct

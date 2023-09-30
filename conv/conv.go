@@ -817,10 +817,6 @@ var (
 		"float64*big.Int": func(t any, u any) error {
 			return FloatToBigInt(t.(float64), u.(**big.Int))
 		},
-		"*big.Int*big.Int": func(t any, u any) error {
-			BigIntToBigInt(t.(*big.Int), u.(**big.Int))
-			return nil
-		},
 		"*big.Float*big.Int": func(t any, u any) error {
 			return BigFloatToBigInt(t.(*big.Float), u.(**big.Int))
 		},
@@ -880,10 +876,6 @@ var (
 		},
 		"*big.Int*big.Float": func(t any, u any) error {
 			BigIntToBigFloat(t.(*big.Int), u.(**big.Float))
-			return nil
-		},
-		"*big.Float*big.Float": func(t any, u any) error {
-			BigFloatToBigFloat(t.(*big.Float), u.(**big.Float))
 			return nil
 		},
 		"*big.Rat*big.Float": func(t any, u any) error {
@@ -947,10 +939,6 @@ var (
 		},
 		"*big.Float*big.Rat": func(t any, u any) error {
 			return BigFloatToBigRat(t.(*big.Float), u.(**big.Rat))
-		},
-		"*big.Rat*big.Rat": func(t any, u any) error {
-			BigRatToBigRat(t.(*big.Rat), u.(**big.Rat))
-			return nil
 		},
 		"string*big.Rat": func(t any, u any) error {
 			return StringToBigRat(t.(string), u.(**big.Rat))
@@ -1042,6 +1030,8 @@ var (
 // 2. derefd source -> target
 // 3. source -> derefd target
 // 4. derefd source -> derefd target
+//
+// There are two kinds of derefing - derefing pointers and accessing a union.Maybe.
 //
 // If the above all fail, and the source type is a subtype, try using source base type.
 // If that fails, and the target type is a subtype try using target base type.

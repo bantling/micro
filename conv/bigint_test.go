@@ -53,14 +53,6 @@ func TestFloatToBigInt_(t *testing.T) {
 	)
 }
 
-func TestBigIntToBigInt_(t *testing.T) {
-	var i, o *big.Int
-	i = big.NewInt(5)
-	BigIntToBigInt(i, &o)
-	assert.False(t, i == o)
-	assert.Equal(t, 0, i.Cmp(o))
-}
-
 func TestBigFloatToBigInt_(t *testing.T) {
 	var o *big.Int
 	assert.Nil(t, BigFloatToBigInt(big.NewFloat(1), &o))

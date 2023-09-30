@@ -91,14 +91,6 @@ func TestBigFloatToBigRat_(t *testing.T) {
 	)
 }
 
-func TestBigRatToBigRat_(t *testing.T) {
-	var i, o *big.Rat
-	i = big.NewRat(100, 99)
-	BigRatToBigRat(i, &o)
-	assert.False(t, i == o)
-	assert.Equal(t, 0, i.Cmp(o))
-}
-
 func TestStringToBigRat_(t *testing.T) {
 	var o *big.Rat
 	assert.Nil(t, StringToBigRat("1/1", &o))
