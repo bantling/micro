@@ -195,6 +195,12 @@ have-asciidoc:
 .readme.go.html: README.go.adoc | have-asciidoc
 	asciidoc -b html -o $@ $<
 
+.PHONY: push
+push:
+	git add -A
+	git commit -m Changes
+	git push
+
 # Display all vars (host, docker, podman)
 .PHONY: vars
 .SILENT: vars

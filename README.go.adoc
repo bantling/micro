@@ -218,6 +218,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 ** if a field may or may not have a value of type T, use union.Maybe, which is handled specially
 ** support case conversions, with built-in converters for UpperCamel/lowerCamel, Upper_Snake/lower_snake, Upper-Kebab, lower-kebab
 ** each case conversion is a pair of func(string) string, with each func the converse of the other
+* alter Makefile to drop docker support
 * simple ORM
 ** map tables to structs, using reflect package map struct, translating column name <-> field name using any available case conversion
 ** query structs, where each field is a func with a spring data like name (no child fields), or field has a struct tag with query
