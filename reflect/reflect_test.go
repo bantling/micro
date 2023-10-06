@@ -7,6 +7,7 @@ import (
 	goreflect "reflect"
 	"testing"
 
+	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -143,6 +144,12 @@ func TestFieldsByName_(t *testing.T) {
 
 		assert.Equal(t, map[string]goreflect.StructField{"Foo": fooFld, "Bar": barFld}, FieldsByName(typ))
 	}
+}
+
+func TestGetMaybeType_(t *testing.T) {
+	assert.Equal(t, goreflect.TypeOf(0), GetMaybeType(goreflect.TypeOf(union.Maybe[int]{})))
+	assert.Equal(t, goreflect.TypeOf((*big.Int)(nil)), GetMaybeType(goreflect.TypeOf(union.Maybe[*big.Int]{})))
+	assert.Nil(t, GetMaybeType(goreflect.TypeOf(0)))
 }
 
 func TestIsBigPtr_(t *testing.T) {

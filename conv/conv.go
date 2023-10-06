@@ -1032,6 +1032,7 @@ var (
 // 4. derefd source -> derefd target
 //
 // There are two kinds of derefing - derefing pointers and accessing a union.Maybe.
+// A Maybe is like a Java Optional, it can effectively represent a null int.
 //
 // If the above all fail, and the source type is a subtype, try using source base type.
 // If that fails, and the target type is a subtype try using target base type.
@@ -1049,7 +1050,7 @@ var (
 // *int     -> *big.Int : rule 2
 // *big.Int -> int      : rule 1
 // *big.Int -> *int     : rule 3
-// *big.Int -> *big.Int : rule 1
+// *big.Int -> *big.Int : rule 4
 // *int     -> *int     : rule 4
 // *byte    -> *rune    : rule 4 with base source type uint8 and base target type int32
 //
@@ -1072,7 +1073,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		}
 	}
 
-	// Get max one ptr defred types, are they pointers, base types
+	// Get max one ptr derefd types, are they pointers, are they maybes, base types
 	var (
 		maxOnePtrSrc = reflect.DerefTypeMaxOnePtr(src)
 		maxOnePtrTgt = reflect.DerefTypeMaxOnePtr(tgt)
@@ -1080,8 +1081,14 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		srcIsPtr = maxOnePtrSrc.Kind() == goreflect.Pointer
 		tgtIsPtr = maxOnePtrTgt.Kind() == goreflect.Pointer
 
-		srcBaseType = reflect.TypeToBaseType(src)
-		tgtBaseType = reflect.TypeToBaseType(tgt)
+		srcMaybeTyp = reflect.GetMaybeType(reflect.DerefType(maxOnePtrSrc))
+		tgtMaybeTyp = reflect.GetMaybeType(reflect.DerefType(maxOnePtrTgt))
+
+		srcActTyp = funcs.Ternary(srcMaybeTyp == nil, src, srcMaybeTyp)
+		tgtActTyp = funcs.Ternary(tgtMaybeTyp == nil, tgt, tgtMaybeTyp)
+
+		srcBaseType = reflect.TypeToBaseType(srcActTyp)
+		tgtBaseType = reflect.TypeToBaseType(tgtActTyp)
 
 		srcTyp goreflect.Type
 		tgtTyp goreflect.Type
@@ -1093,8 +1100,8 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 	for i := 'A'; i <= 'D'; i++ {
 		switch i {
 		case 'A': // A: Use types as given
-			srcTyp = src
-			tgtTyp = tgt
+			srcTyp = srcActTyp
+			tgtTyp = tgtActTyp
 
 		case 'B': // B: If src is a subtype, use base type
 			if (src == srcBaseType) || (tgt != tgtBaseType) {

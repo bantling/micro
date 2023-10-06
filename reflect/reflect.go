@@ -5,6 +5,9 @@ package reflect
 import (
 	"math/big"
 	goreflect "reflect"
+	"strings"
+
+	"github.com/bantling/micro/union"
 )
 
 var (
@@ -34,6 +37,8 @@ var (
 		goreflect.TypeOf((*big.Float)(nil)): true,
 		goreflect.TypeOf((*big.Rat)(nil)):   true,
 	}
+
+	unionPkgPath = goreflect.TypeOf(union.Maybe[int]{}).PkgPath()
 )
 
 // KindElem describes the Kind and Elem methods common to both Value and Type objects
@@ -141,6 +146,18 @@ func FieldsByName(typ goreflect.Type) map[string]goreflect.StructField {
 	}
 
 	return fields
+}
+
+// GetMaybeType gets the generic type of the value wrapped in a union.Maybe.
+// If the type is not a union.Maybe, then it returns a nil Type.
+func GetMaybeType(typ goreflect.Type) goreflect.Type {
+	if (typ.PkgPath() == unionPkgPath) && strings.HasPrefix(typ.Name(), "Maybe") {
+		if get, hasIt := typ.MethodByName("Get"); hasIt {
+			return get.Type.Out(0)
+		}
+	}
+
+	return nil
 }
 
 // IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
