@@ -125,9 +125,10 @@ func Of4W[TT, UU, VV, WW any](w WW) Four[TT, UU, VV, WW] {
 	return Four[TT, UU, VV, WW]{w: w, which: W}
 }
 
-// Of constructs a Maybe that holds a T
+// Of constructs a Maybe that holds a T.
+// If t is nil, the Maybe is Empty, otherwise it is Present.
 func Of[TT any](t TT) Maybe[TT] {
-	return Maybe[TT]{v: t, present: true}
+	return Maybe[TT]{v: t, present: !funcs.IsNilValue(t)}
 }
 
 // Empty constructs an empty Maybe
@@ -338,6 +339,22 @@ func (m Maybe[T]) OrError(e error) (res T, err error) {
 	}
 
 	return
+}
+
+// Set overwrites the current value with newVal, and sets m as present
+func (m *Maybe[T]) Set(newVal T) {
+  // Store new value, which may be nil if T is a pointer type
+	m.v = newVal
+
+  // Set present to true unless T is a pointer type and newVal is nil
+	m.present = !funcs.IsNilValue(newVal)
+}
+
+// SetEmpty overwrites the current value with the zero value, and sets m as empty
+func (m *Maybe[T]) SetEmpty() {
+  var zv T
+	m.v = zv
+	m.present = false
 }
 
 // ==== Result

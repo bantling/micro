@@ -11,164 +11,247 @@ import (
 	"unsafe"
 
 	"github.com/bantling/micro/funcs"
+	// "github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLookupConversion_(t *testing.T) {
-	// copy
-	{
-		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var out int
-		assert.Nil(t, fn(1, &out))
-		assert.Equal(t, 1, out)
-	}
+func TestLookupConversionErrNumPtrs_(t *testing.T) {
+  // Too many src ptrs
+  fn, err := LookupConversion(goreflect.TypeOf((**int)(nil)), goreflect.TypeOf(0))
+  assert.Nil(t, fn)
+  assert.Equal(t, fmt.Errorf("**int cannot be converted to int"), err)
 
-	// source -> target
-	{
-		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(""))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var out string
-		assert.Nil(t, fn(1, &out))
-		assert.Equal(t, "1", out)
-	}
+  // Too many tgt ptrs
+  fn, err = LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf((**int)(nil)))
+  assert.Nil(t, fn)
+  assert.Equal(t, fmt.Errorf("int cannot be converted to **int"), err)
 
-	// derefd source -> target
-	{
-		fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf(""))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var in = 2
-		var out string
-		assert.Nil(t, fn(&in, &out))
-		assert.Equal(t, "2", out)
-	}
-
-	// source -> derefd target
-	{
-		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf((*string)(nil)))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var in = 3
-		var out string
-		var outp = &out
-		assert.Nil(t, fn(in, &outp))
-		assert.Equal(t, "3", out)
-	}
-
-	// derefd source -> derefd target
-	{
-		fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf((*string)(nil)))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var in = 4
-		var out string
-		var outp = &out
-		assert.Nil(t, fn(&in, &outp))
-		assert.Equal(t, "4", out)
-	}
-
-	// source subtype -> target
-	{
-		type subint int
-
-		fn, err := LookupConversion(goreflect.TypeOf(subint(0)), goreflect.TypeOf(""))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var out string
-		assert.Nil(t, fn(subint(5), &out))
-		assert.Equal(t, "5", out)
-	}
-
-	// source -> target subtype
-	{
-		type substring string
-
-		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(substring("")))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var out substring
-		assert.Nil(t, fn(6, &out))
-		assert.Equal(t, "6", string(out))
-	}
-
-	// source subtype -> target subtype
-	{
-		type subint int
-		type substring string
-
-		fn, err := LookupConversion(goreflect.TypeOf(subint(0)), goreflect.TypeOf(substring("")))
-		assert.NotNil(t, fn)
-		assert.Nil(t, err)
-		var out substring
-		assert.Nil(t, fn(subint(7), &out))
-		assert.Equal(t, "7", string(out))
-	}
-
-	// error: more than one src pointer
-	{
-		fn, err := LookupConversion(goreflect.TypeOf((**int)(nil)), goreflect.TypeOf(0))
-		assert.Nil(t, fn)
-		assert.Equal(t, fmt.Errorf("**int cannot be converted to int"), err)
-	}
-
-	// error: more than one tgt pointer
-	{
-		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf((**int)(nil)))
-		assert.Nil(t, fn)
-		assert.Equal(t, fmt.Errorf("int cannot be converted to **int"), err)
-	}
-
-	// error: more than one src pointer and more than one tgt pointer
-	{
-		fn, err := LookupConversion(goreflect.TypeOf((**int)(nil)), goreflect.TypeOf((**int)(nil)))
-		assert.Nil(t, fn)
-		assert.Equal(t, fmt.Errorf("**int cannot be converted to **int"), err)
-	}
-
-	badTypes := []goreflect.Type{
-		goreflect.TypeOf((uintptr)(0)),
-		goreflect.TypeOf((chan int)(nil)),
-		goreflect.TypeOf((func())(nil)),
-		goreflect.TypeOf(unsafe.Pointer((*int)(nil))),
-	}
-
-	// error: src cannot be uintptr, array, chan, func, map, slice, or unsafe pointer
-	{
-		for _, styp := range badTypes {
-			fn, err := LookupConversion(styp, goreflect.TypeOf(0))
-			assert.Nil(t, fn)
-			assert.Equal(t, fmt.Errorf("%s cannot be converted to int", styp), err)
-		}
-	}
-
-	// error: tgt cannot be uintptr, array, chan, func, map, slice, or unsafe pointer
-	{
-		for _, ttyp := range badTypes {
-			fn, err := LookupConversion(goreflect.TypeOf(0), ttyp)
-			assert.Nil(t, fn)
-			assert.Equal(t, fmt.Errorf("int cannot be converted to %s", ttyp), err)
-		}
-	}
-
-	// error: src and tgt cannot be uintptr, array, chan, func, map, slice, or unsafe pointer
-	{
-		for _, typ := range badTypes {
-			fn, err := LookupConversion(typ, typ)
-			assert.Nil(t, fn)
-			assert.Equal(t, fmt.Errorf("%s cannot be converted to %s", typ, typ), err)
-		}
-	}
-
-	// conversion cannot be found
-	{
-		fn, err := LookupConversion(goreflect.TypeOf(struct{ f int }{}), goreflect.TypeOf(struct{ f string }{}))
-		assert.Nil(t, fn)
-		assert.Nil(t, err)
-	}
+  // Too many src and tgt ptrs
+  fn, err = LookupConversion(goreflect.TypeOf((**int)(nil)), goreflect.TypeOf((**int)(nil)))
+  assert.Nil(t, fn)
+  assert.Equal(t, fmt.Errorf("**int cannot be converted to **int"), err)
 }
+
+func TestLookupConversionErrBadTypes_(t *testing.T) {
+  badTypes := []goreflect.Type{
+    goreflect.TypeOf((uintptr)(0)),
+    goreflect.TypeOf((chan int)(nil)),
+    goreflect.TypeOf((func())(nil)),
+    goreflect.TypeOf(unsafe.Pointer((*int)(nil))),
+  }
+
+  // error: src cannot be uintptr, chan, func, or unsafe pointer
+  {
+    for _, styp := range badTypes {
+      fn, err := LookupConversion(styp, goreflect.TypeOf(0))
+      assert.Nil(t, fn)
+      assert.Equal(t, fmt.Errorf("%s cannot be converted to int", styp), err)
+    }
+  }
+
+  // error: tgt cannot be uintptr, chan, func, or unsafe pointer
+  {
+    for _, ttyp := range badTypes {
+      fn, err := LookupConversion(goreflect.TypeOf(0), ttyp)
+      assert.Nil(t, fn)
+      assert.Equal(t, fmt.Errorf("int cannot be converted to %s", ttyp), err)
+    }
+  }
+
+  // error: src and tgt cannot be uintptr, chan, func, or unsafe pointer
+  {
+    for _, typ := range badTypes {
+      fn, err := LookupConversion(typ, typ)
+      assert.Nil(t, fn)
+      assert.Equal(t, fmt.Errorf("%s cannot be converted to %s", typ, typ), err)
+    }
+  }
+}
+
+func TestLookupConversion_SVB_TVB_(t *testing.T) {
+	// convert src -> tgt
+  {
+  	fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(""))
+  	assert.NotNil(t, fn)
+  	assert.Nil(t, err)
+  	var out string
+  	assert.Nil(t, fn(1, &out))
+  	assert.Equal(t, "1", out)
+  }
+
+  // copy src -> tgt
+  {
+    fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
+  	assert.NotNil(t, fn)
+  	assert.Nil(t, err)
+  	var out int
+  	assert.Nil(t, fn(1, &out))
+  	assert.Equal(t, 1, out)
+  }
+
+  // no conversion from int to struct {}
+  {
+
+    fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(struct{}{}))
+  	assert.Nil(t, fn)
+  	assert.Equal(t, fmt.Errorf("int cannot be converted to struct {}"), err)
+  }
+}
+
+// func TestLookupConversionA1Copy_(t *testing.T) {
+// 	// copy src -> target
+// 	fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
+// 	assert.NotNil(t, fn)
+// 	assert.Nil(t, err)
+// 	var out int
+// 	assert.Nil(t, fn(1, &out))
+// 	assert.Equal(t, 1, out)
+// }
+//
+// func TestLookupConversionA1CopyEMS_(t *testing.T) {
+// 	// copy maybe src -> target
+// 	fn, err := LookupConversion(goreflect.TypeOf(union.Maybe[int]{}), goreflect.TypeOf(0))
+// 	assert.NotNil(t, fn)
+// 	assert.Nil(t, err)
+// 	var out int
+// 	assert.Equal(t, fmt.Errorf("An empty int cannot be converted to a(n) int"), fn(union.Empty[int](), &out))
+// 	assert.Equal(t, 0, out)
+// }
+//
+// func TestLookupConversionA1CopyPMS_(t *testing.T) {
+// 	// copy maybe src -> target
+// 	fn, err := LookupConversion(goreflect.TypeOf(union.Maybe[int]{}), goreflect.TypeOf(0))
+// 	assert.NotNil(t, fn)
+// 	assert.Nil(t, err)
+// 	var out int
+// 	assert.Nil(t, fn(union.Of(1), &out))
+// 	assert.Equal(t, 1, out)
+// }
+//
+// func TestLookupConversionA1CopyMT_(t *testing.T) {
+// 	// copy src -> empty maybe target
+// 	fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(union.Maybe[int]{}))
+// 	assert.NotNil(t, fn)
+// 	assert.Nil(t, err)
+// 	var out union.Maybe[int]
+// 	assert.Nil(t, fn(1, &out))
+// 	assert.Equal(t, 1, out.Get())
+//
+//   // copy src -> present maybe target
+//   assert.Nil(t, fn(2, &out))
+//   assert.Equal(t, 2, out.Get())
+// }
+//
+// func TestLookupConversionA2Copy_(t *testing.T) {
+// 	// copy src -> target
+// 	fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
+// 	assert.NotNil(t, fn)
+// 	assert.Nil(t, err)
+// 	var out int
+// 	assert.Nil(t, fn(1, &out))
+// 	assert.Equal(t, 1, out)
+// }
+
+// func TestLookupConversion_(t *testing.T) {
+//
+// 	// source -> target
+// 	{
+// 		// No Maybe
+// 		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(""))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var outs string
+// 		assert.Nil(t, fn(1, &outs))
+// 		assert.Equal(t, "1", outs)
+//
+// 		// Source Maybe (same types)
+// 		fn, err = LookupConversion(goreflect.TypeOf(union.Empty[int]()), goreflect.TypeOf(0))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var outi int
+// 		assert.Nil(t, fn(union.Of(2), &outi))
+// 		assert.Equal(t, 2, outi)
+// 	}
+//
+// 	// derefd source -> target
+// 	{
+// 		fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf(""))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var in = 2
+// 		var out string
+// 		assert.Nil(t, fn(&in, &out))
+// 		assert.Equal(t, "2", out)
+// 	}
+//
+// 	// source -> derefd target
+// 	{
+// 		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf((*string)(nil)))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var in = 3
+// 		var out string
+// 		var outp = &out
+// 		assert.Nil(t, fn(in, &outp))
+// 		assert.Equal(t, "3", out)
+// 	}
+//
+// 	// derefd source -> derefd target
+// 	{
+// 		fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf((*string)(nil)))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var in = 4
+// 		var out string
+// 		var outp = &out
+// 		assert.Nil(t, fn(&in, &outp))
+// 		assert.Equal(t, "4", out)
+// 	}
+//
+// 	// source subtype -> target
+// 	{
+// 		type subint int
+//
+// 		fn, err := LookupConversion(goreflect.TypeOf(subint(0)), goreflect.TypeOf(""))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var out string
+// 		assert.Nil(t, fn(subint(5), &out))
+// 		assert.Equal(t, "5", out)
+// 	}
+//
+// 	// source -> target subtype
+// 	{
+// 		type substring string
+//
+// 		fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(substring("")))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var out substring
+// 		assert.Nil(t, fn(6, &out))
+// 		assert.Equal(t, "6", string(out))
+// 	}
+//
+// 	// source subtype -> target subtype
+// 	{
+// 		type subint int
+// 		type substring string
+//
+// 		fn, err := LookupConversion(goreflect.TypeOf(subint(0)), goreflect.TypeOf(substring("")))
+// 		assert.NotNil(t, fn)
+// 		assert.Nil(t, err)
+// 		var out substring
+// 		assert.Nil(t, fn(subint(7), &out))
+// 		assert.Equal(t, "7", string(out))
+// 	}
+//
+// 	// conversion cannot be found
+// 	{
+// 		fn, err := LookupConversion(goreflect.TypeOf(struct{ f int }{}), goreflect.TypeOf(struct{ f string }{}))
+// 		assert.Nil(t, fn)
+// 		assert.Nil(t, err)
+// 	}
+// }
 
 func TestRegisterConversion_(t *testing.T) {
 	type Conv_Reg_Foo struct{ fld int }

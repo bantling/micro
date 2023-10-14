@@ -160,6 +160,37 @@ func GetMaybeType(typ goreflect.Type) goreflect.Type {
 	return nil
 }
 
+// GetMaybeValue gets the value of a Maybe
+// returns Invalid Value if the Maybe is empty
+// returns Valid Value   if the Maybe is present
+// panics if val is not a Maybe
+func GetMaybeValue(val goreflect.Value) goreflect.Value {
+	if val.MethodByName("Present").Call(nil)[0].Bool() {
+		return val.MethodByName("Get").Call(nil)[0]
+	}
+
+	return goreflect.Value{}
+}
+
+// SetMaybeValue copies the value of val into dst
+// Dst must be a Maybe[T], and val must be a T, otherwise a panic will occur
+func SetMaybeValue(dst, val goreflect.Value) {
+	dst.MethodByName("Set").Call([]goreflect.Value{val})
+}
+
+// SetMaybeValueEmpty sets a Maybe to empty
+// Dst must be a Maybe[T], otherwise a panic will occur
+func SetMaybeValueEmpty(dst goreflect.Value) {
+	dst.MethodByName("SetEmpty").Call(nil)
+}
+
+// SetPointerValue copies the value of val into dst after dereffing all pointers
+// Dst must be at least one pointer that derefs to some type T, and val must be convertible to T, otherwise a panic will occur
+func SetPointerValue(dst, val goreflect.Value) {
+  deref := DerefValue(dst)
+  deref.Set(val.Convert(deref.Type()))
+}
+
 // IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
 func IsBigPtr(typ goreflect.Type) bool {
 	_, isBig := bigPtrTypes[typ]
@@ -218,23 +249,16 @@ func ResolveValueType(val goreflect.Value) goreflect.Value {
 }
 
 // TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
-// If the type is a pointer to a primitive subtype, the type returned is pointer to the underlying type.
+// If the given type is not a subtype, nil is returned.
 func TypeToBaseType(typ goreflect.Type) goreflect.Type {
 	// Check if typ is a primitive subtype
 	k := typ.Kind()
-	pt := kindToType[k]
-	if (pt != nil) && (k.String() != typ.String()) {
+	if pt := kindToType[k]; (pt != nil) && (k.String() != typ.String()) {
 		// If so, then return the base type
 		return pt
-	} else if k == goreflect.Ptr {
-		k = typ.Elem().Kind()
-		pt = kindToType[k]
-		if (pt != nil) && (k.String() != typ.Elem().String()) {
-			return goreflect.PtrTo(pt)
-		}
 	}
 
-	return typ
+	return nil
 }
 
 // ValueToBaseType converts a reflect.Value that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).

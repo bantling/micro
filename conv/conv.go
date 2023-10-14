@@ -18,6 +18,7 @@ var (
 	errCopyNilSourceMsg            = "A nil %s cannot be copied to a(n) %s"
 	errConvertNilSourceMsg         = "A nil %s cannot be converted to a(n) %s"
 	errCopyNilTargetMsg            = "A(n) %s cannot be copied to a nil %s"
+	errEmptyMaybeMsg               = "An empty %s cannot be converted to a(n) %s"
 	errMsg                         = "The %T value of %s cannot be converted to %s"
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
@@ -1019,45 +1020,31 @@ var (
 
 // LookupConversion looks for a conversion from a source type to a target type.
 //
-// It is an error if either type is more than one pointer, or a uintptr, array, chan, func, map, slice, or unsafe pointer.
-//
+// It is an error if either type is more than one pointer, or a uintptr, chan, func, or unsafe pointer.
 // If the source and target types are the same, a conversion function that just copies the source to the target is returned.
-// Technically, the copy function can copy any kind of source value into any type the source value can be assigned to.
+// The source type may be of the following forms, where T represents any accepted value type:
+// - T
+// - *T
+// - Maybe[T]
+// - Maybe[*T]
 //
-// Up to four possible combinations are searched for to find the first matching conversion:
+// The target types are the same as the source types.
+// For any of the above forms, T may be a primitive subtype (eg, type subint int).
+// In such cases, up to two lookups are performed (first match is used):
+// - A conversion using the subtype
+// - A conversion using the base type
 //
-// 1. source -> target
-// 2. derefd source -> target
-// 3. source -> derefd target
-// 4. derefd source -> derefd target
-//
-// There are two kinds of derefing - derefing pointers and accessing a union.Maybe.
-// A Maybe is like a Java Optional, it can effectively represent a null int.
-//
-// If the above all fail, and the source type is a subtype, try using source base type.
-// If that fails, and the target type is a subtype try using target base type.
-// If that fails, and the source and target are both subtypes, try using base source and base target types.
-//
-// This means that there exist 16 combinations of a conversion:
-// (source, derefd source) * (target, derefd target) * (source, source base type) * (target, target base type)
-//
-// The search will never try all 16 combinations, since a value cannot be a base type and a subtype, or a value and a pointer.
-//
-// Examples:
-//
-//	int     -> *big.Int : rule 1
-//
-// *int     -> *big.Int : rule 2
-// *big.Int -> int      : rule 1
-// *big.Int -> *int     : rule 3
-// *big.Int -> *big.Int : rule 4
-// *int     -> *int     : rule 4
-// *byte    -> *rune    : rule 4 with base source type uint8 and base target type int32
+// Example lookups, listing possible conversions in search order (shown with the extra * the target type has to have):
+// - int to string -> int to string
+// - subint to *string -> subint to string, int to string
+// - Maybe[int] to string -> int to string
+// - int to int -> copy
+// - subint to Maybe[*int] -> subint to *int, subint to int, copy
 //
 // This function returns func, error:
 // If a conversion is found (or it is a copy) : returns func, nil
 // If a conversion is not found               : returns nil,  nil
-// Conversion is not possible                 : returns nil,  err
+// Conversion is not allowed                  : returns nil,  err
 func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 	// Verify the types are not more than one pointer
 	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
@@ -1073,216 +1060,641 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		}
 	}
 
-	// Get max one ptr derefd types, are they pointers, are they maybes, base types
-	var (
-		maxOnePtrSrc = reflect.DerefTypeMaxOnePtr(src)
-		maxOnePtrTgt = reflect.DerefTypeMaxOnePtr(tgt)
+  // Check for conversion from src to tgt as is, most common case
+  if conv, haveIt := convertFromTo[src.String()+tgt.String()]; haveIt {
+    return conv, nil
+  }
 
-		srcIsPtr = maxOnePtrSrc.Kind() == goreflect.Pointer
-		tgtIsPtr = maxOnePtrTgt.Kind() == goreflect.Pointer
+  // Search every combination of src, tgt = val/subtype, *val/subtype, maybe val/subtype, maybe *val/subtype
+  // If a conversion is found:
+  // - create a wrapper func that deals with conversions, *, maybe for both src and tgt
+  // - register it so future calls don't have to do same search
+  // - return it to caller
+  // If no converison found, return nil, error
 
-		srcMaybeTyp = reflect.GetMaybeType(reflect.DerefType(maxOnePtrSrc))
-		tgtMaybeTyp = reflect.GetMaybeType(reflect.DerefType(maxOnePtrTgt))
+  var (
+    srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase goreflect.Type
+    tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase goreflect.Type
+    convFn func(any, any) error
+    haveIt bool
+  )
 
-		srcActTyp = funcs.Ternary(srcMaybeTyp == nil, src, srcMaybeTyp)
-		tgtActTyp = funcs.Ternary(tgtMaybeTyp == nil, tgt, tgtMaybeTyp)
+  srcBase = reflect.TypeToBaseType(src)
+  srcPtr = funcs.TernaryResult(src.Kind() == goreflect.Pointer, src.Elem, nil)
+  if srcPtr != nil {
+    if reflect.GetMaybeType(srcPtr) != nil {
+      // Cannot have a *Maybe, that makes no sense
+      return nil, fmt.Errorf(errLookupMsg, src, tgt)
+    }
+    srcPtrBase = reflect.TypeToBaseType(srcPtr)
+  }
+  srcMaybe = reflect.GetMaybeType(src)
+  if srcMaybe != nil {
+    srcMaybeBase = reflect.TypeToBaseType(srcMaybe)
+    srcMaybePtr = funcs.TernaryResult(srcMaybe.Kind() == goreflect.Pointer, srcMaybe.Elem, nil)
+    if srcMaybePtr != nil {
+      srcMaybePtrBase = reflect.TypeToBaseType(srcMaybePtr)
+    }
+  }
 
-		srcBaseType = reflect.TypeToBaseType(srcActTyp)
-		tgtBaseType = reflect.TypeToBaseType(tgtActTyp)
+  tgtBase = reflect.TypeToBaseType(tgt)
+  tgtPtr = funcs.TernaryResult(tgt.Kind() == goreflect.Pointer, tgt.Elem, nil)
+  if tgtPtr != nil {
+    if reflect.GetMaybeType(tgtPtr) != nil {
+      // Cannot have a *Maybe, that makes no sense
+      return nil, fmt.Errorf(errLookupMsg, src, tgt)
+    }
+    tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
+  }
+  tgtMaybe = reflect.GetMaybeType(tgt)
+  if tgtMaybe != nil {
+    tgtMaybeBase = reflect.TypeToBaseType(tgtMaybe)
+    tgtMaybePtr = funcs.TernaryResult(tgtMaybe.Kind() == goreflect.Pointer, tgtMaybe.Elem, nil)
+    if tgtMaybePtr != nil {
+      tgtMaybePtrBase = reflect.TypeToBaseType(tgtMaybePtr)
+    }
+  }
 
-		srcTyp goreflect.Type
-		tgtTyp goreflect.Type
+  for _, srcTyp := range []goreflect.Type{
+    src, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase,
+  } {
+    for _, tgtTyp := range []goreflect.Type{
+      tgt, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase,
+    } {
+      // Cannot lookup conversions for types that don't exist
+      if (srcTyp != nil) && (tgtTyp != nil) {
+        if convFn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; haveIt {
+          // Generate a function to unwrap the src type
+          var srcFn func(any) any
+          switch srcTyp {
+          case src:
+            srcFn = func(s any) any { return s }
+          case srcBase:
+            srcFn = func(s any) any { return goreflect.ValueOf(s).Convert(srcBase).Interface() }
+          case srcPtr:
+            srcFn = func(s any) any { return goreflect.ValueOf(s).Elem().Interface() }
+          case srcPtrBase:
+            srcFn = func(s any) any { return goreflect.ValueOf(s).Elem().Convert(srcPtrBase).Interface() }
+          case srcMaybe:
+            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Interface() }
+          case srcMaybeBase:
+            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Convert(srcMaybeBase).Interface() }
+          case srcMaybePtr:
+            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Elem().Interface() }
+          case srcMaybePtrBase:
+            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Elem().Convert(srcMaybePtrBase).Interface() }
+          }
 
-		fn     func(any, any) error
-		haveIt bool
-	)
+          // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
+          return func(s, t any) error {
+            return convFn(srcFn(s), t)
+          }, nil
+        }
+      }
+    }
+  }
 
-	for i := 'A'; i <= 'D'; i++ {
-		switch i {
-		case 'A': // A: Use types as given
-			srcTyp = srcActTyp
-			tgtTyp = tgtActTyp
+  return convFn, nil
 
-		case 'B': // B: If src is a subtype, use base type
-			if (src == srcBaseType) || (tgt != tgtBaseType) {
-				// Skip if src is not a subtype
-				continue
-			}
-			srcTyp = srcBaseType
-			tgtTyp = tgt
+  // switch {
+  // // Is the src convertible to tgt?
+  // if src.CanConvert(tgt) {
+  //   if convFn, haveIt = convertFromTo[srcBase.String()+tgt.String()]; haveIt {
+  //     return convFn
+  //   }
+  //   if convFn, haveIt = convertFromTo[src.String()+tgtBase.String()]; haveIt {
+  //     return convFn
+  //   }
+  //   if convFn, haveIt = convertFromTo[srcBase.String()+tgtBase.String()]; haveIt {
+  //     return convFn
+  //   }
+  //
+  //   return func(s, t any) error {
+  //     // Copy src base -> tgt
+  //     goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s).Convert(tgt))
+  //   }, nil
+  // }
+  //
+  // // Is the source a pointer?
+  // if srcIsPtr {
+  //   // Check for conversion from *src to tgt
+  //   if convFn, haveIt := convertFromTo[src.Elem().String()+tgt.String()]; haveIt {
+  //     return func(s, t any) error {
+  //       return convFn(goreflect.ValueOf(s).Elem().Interface(), t)
+  //     }, nil
+  //   }
+  //
+  //   // Are *src and tgt same types?
+  //   if src.Elem() == tgt {
+  //     // Copy *src -> tgt
+  //     return func(s, t any) error {
+  //       goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s).Elem())
+  //       return nil
+  //     }
+  //   }
+  //
+  //   // Is the target a pointer?
+  //   if tgtIsPtr {
+  //     // Check for conversion from *src to *tgt
+  //     if convFn, haveIt = convertFromTo[src.Elem().String()+tgt.Elem().String()]; haveIt {
+  //       return func(s, t any) error {
+  //         return convFn(goreflect.ValueOf(s).Elem().Interface(), goreflect.ValueOf(t).Elem().Interface())
+  //       }, nil
+  //     }
+  //   }
+  //
+  //   // Is the target a maybe?
+  //   if tgtMaybe != nil {
+  //     // Check for conversion from src to Maybe[tgt]
+  //     if convFn, haveIt = convertFromTo[src.String()+tgtMaybe.String()]; haveIt {
+  //       return func(s, t any) error {
+  //         tval := goreflect.New(tgtMaybe)
+  //
+  //         err := convFn(s, tval.Interface())
+  //         if err != nil {
+  //           reflect.SetMaybeValue(goreflect.ValueOf(t).Elem(), tval.Elem())
+  //         }
+  //
+  //         return err
+  //       }, nil
+  //     }
+  //   }
+  // }
 
-		case 'C': // C: If tgt is a subtype, use base type
-			if (src != srcBaseType) || (tgt == tgtBaseType) {
-				// Skip if tgt is not a subtype
-				continue
-			}
-			srcTyp = src
-			tgtTyp = tgtBaseType
+  // // Is the target a pointer?
+  // tgtIsPtr := tgt.Kind() == goreflect.Pointer
+  // if tgtIsPtr {
+  //   // Check for conversion from src to *tgt
+  //   if convFn, haveIt := convertFromTo[src.String()+tgt.Elem().String()]; haveIt {
+  //     return func(s, t any) error {
+  //       return convFn(s, goreflect.ValueOf(t).Elem().Interface())
+  //     }, nil
+  //   }
+  //
+  //   // Is the source a Maybe?
+  //   if srcMaybe != nil {
+  //     // Check for conversion from Maybe[src] to *tgt
+  //     if convFn, haveIt := convertFromTo[srcMaybe.String()+tgt.Elem().String()]; haveIt {
+  //       return func(s, t any) error {
+  //         sval := reflect.GetMaybeValue(goreflect.ValueOf(s))
+  //         // If Maybe[src] empty?
+  //         if !sval.IsValid() {
+  //           // Set target pointer to nil
+  //           goreflect.ValueOf(t).Elem().SetZero()
+  //           return nil
+  //         }
+  //
+  //         return convFn(sval.Interface(), goreflect.ValueOf(t).Elem().Interface())
+  //       }, nil
+  //     }
+  //   }
+  // }
+  //
+  // // Is the source a Maybe?
+  // if srcMaybe {
+  //   // Check for conversion from Maybe[src] to tgt
+  //   if convFn, haveIt := convertFromTo[srcMaybe.String()+tgt.String()]; haveIt {
+  //     return func(s, t any) error {
+  //       maybeVal := reflect.GetMaybeValue(goreflect.ValueOf(s))
+  //
+  //       if !maybeVal.IsValid() {
+  //         // If tgt is a pointer, set it to nil
+  //         if tgtIsPtr {
+  //           goreflect.ValueOf(t).Elem().SetZero()
+  //           return nil
+  //
+  //         // If tgt is a Maybe, set it to empty
+  //         } else if tgtMaybe != nil {
+  //           reflect.SetMaybeValueEmpty(goreflect.ValueOf(t))
+  //           return nil
+  //
+  //         // If tgt is not a pointer or maybe, it is an error to convert an empty Maybe to target
+  //         } else {
+  //           return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
+  //         }
+  //       }
+  //
+  //       // Convert present Maybe[S] -> T
+  //       return convFn(maybeVal.Interface(), t)
+  //     }, nil
+  //   }
+  // }
+  //
+  // if tgtMaybe {
+  //   // Check for conversion from src to Maybe[tgt]
+  //   if convFn, haveIt := convertFromTo[src.String()+tgtMaybe.String()]; haveIt {
+  //     return func(s, t any) error {
+  //       // If src is a pointer
+  //     }, nil
+  //   }
+  // }
 
-		default: // D: If both are subtypes, use base types
-			srcTyp = srcBaseType
-			tgtTyp = tgtBaseType
-		}
-
-		// 1. source -> target
-		if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; (!haveIt) && (!srcIsPtr) && (!tgtIsPtr) && (srcTyp == tgtTyp) {
-			// Copy source -> target
-			fn = func(in, out any) error {
-				goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in).Convert(tgtTyp))
-
-				return nil
-			}
-			haveIt = true
-		}
-
-		// 2. derefd source -> target
-		if (!haveIt) && srcIsPtr && (!tgtIsPtr) {
-			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.String()]; luHaveIt {
-				// Have to use wrapper func that derefs source
-				fn = func(in, out any) error {
-					rin := goreflect.ValueOf(in)
-
-					if rin.IsNil() {
-						return fmt.Errorf(errConvertNilSourceMsg, srcTyp, tgtTyp)
-					}
-
-					return lufn(rin.Elem().Interface(), out)
-				}
-
-				haveIt = true
-			} else if srcTyp.Elem() == tgtTyp {
-				// Copy *source -> target
-				fn = func(in, out any) error {
-					rin := goreflect.ValueOf(in)
-
-					if rin.IsNil() {
-						return fmt.Errorf(errCopyNilSourceMsg, srcTyp, tgtTyp)
-					}
-
-					goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in).Elem().Convert(tgtTyp))
-
-					return nil
-				}
-
-				haveIt = true
-			}
-		}
-
-		// 3. source -> derefd target
-		if (!haveIt) && (!srcIsPtr) && tgtIsPtr {
-			if lufn, luHaveIt := convertFromTo[srcTyp.String()+tgtTyp.Elem().String()]; luHaveIt {
-				// Have to use wrapper func that derefs target
-				fn = func(in, out any) error {
-					return lufn(in, goreflect.ValueOf(out).Elem().Interface())
-				}
-
-				haveIt = true
-			} else if srcTyp == tgtTyp.Elem() {
-				// Copy source -> *target
-				fn = func(in, out any) error {
-					rout := goreflect.ValueOf(out)
-
-					if rout.IsNil() || rout.Elem().IsNil() {
-						return fmt.Errorf(errCopyNilTargetMsg, srcTyp, tgtTyp)
-					}
-
-					rout.Elem().Elem().Set(goreflect.ValueOf(in).Convert(tgtTyp.Elem()))
-
-					return nil
-				}
-				haveIt = true
-			}
-		}
-
-		// 4. derefd source -> derefd target
-		if (!haveIt) && srcIsPtr && tgtIsPtr {
-			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.Elem().String()]; luHaveIt {
-				// Have to use wrapper func that derefs source and target
-				fn = func(in, out any) error {
-					return lufn(goreflect.ValueOf(in).Elem().Interface(), goreflect.ValueOf(out).Elem().Interface())
-				}
-
-				haveIt = true
-			} else if srcTyp.Elem() == tgtTyp.Elem() {
-				// Copy *source -> *target
-				fn = func(in, out any) error {
-					rin, rout := goreflect.ValueOf(in), goreflect.ValueOf(out)
-
-					if rout.IsNil() || ((!rin.IsNil()) && rout.Elem().IsNil()) {
-						return fmt.Errorf(errCopyNilTargetMsg, srcTyp, tgtTyp)
-					}
-
-					if rin.IsNil() {
-						rout.Elem().Set(rin)
-					} else {
-						rout.Elem().Elem().Set(rin.Elem().Convert(tgtTyp.Elem()))
-					}
-
-					return nil
-				}
-
-				haveIt = true
-			}
-		}
-
-		if haveIt {
-			// Recheck i, and further wrap if subtypes are used
-			switch i {
-			case 'A': // Use types as given
-
-			case 'B':
-				{ // src is subtype
-					// Have to use a wrapper func that converts src subtype to src basetype
-					lufn := fn
-					sbfn := func(in, out any) error {
-						// in = subtype, tgt = *type
-						// lufn = func(basetype, tgt)
-						return lufn(reflect.ValueToBaseType(goreflect.ValueOf(in)).Interface(), out)
-					}
-					fn = sbfn
-				}
-
-			case 'C':
-				{ // tgt is subtype
-					// Have to use a wrapper func that converts tgt subtype to tgt basetype
-					lufn := fn
-					tbfn := func(in, out any) error {
-						// in = src, tgt = *subtype
-						// lufn = func(src, *basetype)
-						return lufn(in, reflect.ValueToBaseType(goreflect.ValueOf(out)).Interface())
-					}
-					fn = tbfn
-				}
-
-			default:
-				{ // src and tgt are subtypes
-					// Have to use a wrapper func that converts src subtype to src basetype and tgt subtype to tgt basetype
-					lufn := fn
-					tbfn := func(in, out any) error {
-						// in = subtype, tgt = *subtype
-						// lufn = func(basetype, *basetype)
-						return lufn(
-							reflect.ValueToBaseType(goreflect.ValueOf(in)).Interface(),
-							reflect.ValueToBaseType(goreflect.ValueOf(out)).Interface(),
-						)
-					}
-					fn = tbfn
-				}
-			}
-
-			break
-		}
-	}
-
-	// Ensure we have found a conversion (possibly wrapped for derefing)
-	if !haveIt {
-		// Conversion is not registered
-		return nil, nil
-	}
-
-	// Conversion is registered (or it is a copy)
-	return fn, nil
+	// var (
+	// 	// // Max one ptrs
+  //   srcStr = src.String()
+  //   tgtStr = tgt.String()
+  //
+	// 	// Are they ptrs?
+	// 	srcIsPtr = src.Kind() == goreflect.Pointer
+  //   srcDeref = funcs.TernaryResult(srcIsPtr, src.Elem, nil)
+  //   srcDerefStr = funcs.TernaryResult(srcIsPtr, srcDeref.String, nil)
+  //
+	// 	tgtIsPtr = tgt.Kind() == goreflect.Pointer
+  //   tgtDeref = funcs.TernaryResult(tgtIsPtr, src.Elem, nil)
+  //   tgtDerefStr = funcs.TernaryResult(tgtIsPtr, tgtDeref.String, nil)
+  //
+  //   // Are they Maybes?
+	// 	srcMaybe = reflect.GetMaybeType(src)
+  //   srcMaybeStr = funcs.TernaryResult(srcMaybe != nil, srcMaybe.String, nil)
+  //
+	// 	tgtMaybe = reflect.GetMaybeType(tgt)
+  //   tgtMaybeStr = funcs.TernaryResult(tgtMaybe != nil, tgtMaybe.String, nil)
+  //
+  //   // Are they subtypes?
+	// 	srcBase = reflect.TypeToBaseType(src)
+  //   srcBaseStr = srcBase.String()
+  //
+	// 	tgtBase = reflect.TypeToBaseType(tgt)
+  //   tgtBaseStr = tgtBase.String()
+  //
+  //   // Error message
+  //   errMsg = fmt.Errorf(errLookupMsg, src, tgt)
+  //
+  //   // Scenarios to handle, described by 3 bits for src, and 3 bits for tgt.
+  //   // Bits are PMS, where 1 values mean P = pointer, M = Maybe, S = subtype.
+  //   // 6 bits have 2^6 = 64 combinations.
+  //   // The 4 patterns * (is/not a subtype) = 8 combinations that cover all 3 bit patterns.
+  //   // - T         = 000/001
+  //   // - *T        = 100/101
+  //   // - Maybe[T]  = 010/011
+  //   // - Maybe[*T] = 110/111
+  //   // 8 combinations of src * 8 combinations of tgt = 64 combinations that cover all 6 bit patterns.
+  //   srcScenario = funcs.Ternary(srcIsPtr, 0b100, 0) | funcs.Ternary(srcMaybe != nil, 0b010, 0) | funcs.Ternary(src != srcBase, 0b001, 0)
+  //   tgtScenario = funcs.Ternary(tgtIsPtr, 0b100, 0) | funcs.Ternary(tgtMaybe != nil, 0b010, 0) | funcs.Ternary(tgt != tgtBase, 0b001, 0)
+	// )
+  //
+  // // Notation used for each combination listed below:
+  // // (V|*|M|M*)(B|U), where:
+  // //
+  // // V  = value
+  // // *  = pointer
+  // // M  = Maybe
+  // // M* = Maybe[pointer]
+  // //
+  // // B  = base type
+  // // U  = sub  type
+  // switch (srcScenario << 3) | tgtScenario {
+  // case 0b000_000: { // VB -> VB
+  //
+  //     // Try S = T
+  //     if src == tgt {
+  //       // Copy S -> *T
+  //       return func(s, t any) error {
+  //         goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s))
+  //         return nil
+  //       }, nil
+  //     }
+  //   }
+  //
+  // case 0b001_000: { // VU -> VB
+  //     // Try S -> T
+  //     if conv, haveIt := convertFromTo[srcStr+tgtStr]; haveIt {
+  //       return conv, nil
+  //     }
+  //
+  //     // Try SB -> T
+  //     if conv, haveIt := convertFromTo[srcBaseStr+tgtStr]; haveIt {
+  //       return func(s, t any) error {
+  //         return conv(goreflect.ValueOf(s).Convert(srcBase).Interface(), t)
+  //       }, nil
+  //     }
+  //
+  //     // Try SB = TB
+  //     if srcBase == tgt {
+  //       // Copy SB -> *T
+  //       return func(s, t any) error {
+  //         goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s).Convert(tgt))
+  //         return nil
+  //       }, nil
+  //     }
+  //   }
+  //
+  // case 0b010_000: { // MB -> VB
+  //     // Try S -> T
+  //     if conv, haveIt := convertFromTo[srcStr+tgtStr]; haveIt {
+  //       return conv, nil
+  //     }
+  //
+  //     // Try SM -> T
+  //     if conv, haveIt := convertFromTo[srcMay+tgtStr]; haveIt {
+  //       return func(s, t any) error {
+  //         return conv(goreflect.ValueOf(s).Elem().Interface(), t)
+  //       }, nil
+  //     }
+  //
+  //     if srcDeref == tgt {
+  //       // Copy *S -> *T
+  //       return func(s, t any) error {
+  //         goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s).Elem())
+  //         return nil
+  //       }, nil
+  //     }
+  //   }
+  //
+  // case 0b100_000: { // PB -> VB
+  //     if conv, haveIt := convertFromTo[srcStr+tgtStr]; haveIt {
+  //       return conv, nil
+  //     }
+  //
+  //     if conv, haveIt := convertFromTo[srcDerefStr+tgtStr]; haveIt {
+  //       return func(s, t any) error {
+  //         return conv(goreflect.ValueOf(s).Elem().Interface(), t)
+  //       }, nil
+  //     }
+  //
+  //     if srcDeref == tgt {
+  //       // Copy *S -> *T
+  //       return func(s, t any) error {
+  //         goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s).Elem())
+  //         return nil
+  //       }, nil
+  //     }
+  //   }
+  // }
+  //
+  // return nil, errMsg
 }
+
+// func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
+// 	// Verify the types are not more than one pointer
+// 	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
+// 		// A conversion CANNOT be registered for multiple pointers
+// 		return nil, fmt.Errorf(errLookupMsg, src, tgt)
+// 	}
+//
+// 	// Verify the types are not uintptr, chan, func, or unsafe pointer
+// 	for _, check := range []goreflect.Type{src, tgt} {
+// 		if badConversionKinds[check.Kind()] {
+// 			// A conversion CANNOT be registered for these kinds
+// 			return nil, fmt.Errorf(errLookupMsg, src, tgt)
+// 		}
+// 	}
+//
+// 	// Get max one ptr derefd types, are they pointers, are they maybes, base types
+// 	var (
+// 		// Max one ptrs
+// 		maxOnePtrSrc = reflect.DerefTypeMaxOnePtr(src)
+// 		maxOnePtrTgt = reflect.DerefTypeMaxOnePtr(tgt)
+//
+// 		// Are the max ones ptrs?
+// 		srcIsPtr = maxOnePtrSrc.Kind() == goreflect.Pointer
+// 		tgtIsPtr = maxOnePtrTgt.Kind() == goreflect.Pointer
+// 	)
+//
+// 	// Vsrs that change in each loop iteration below
+// 	var (
+// 		// Check original src and tgt types to see if they are a Maybe[T] - a *Maybe[T] makes no sense
+// 		// If not, then they will be nil
+// 		srcMaybeTyp, tgtMaybeTyp goreflect.Type
+//
+// 		// Actual types are generic type of Maybe or the original type
+// 		// srcActTyp, tgtActTyp goreflect.Type
+//
+// 		// Base types, which may be different
+// 		srcBaseType, tgtBaseType goreflect.Type
+//
+// 		// Types that we actually work with after possibly converting to a base type
+// 		srcTyp, tgtTyp goreflect.Type
+//
+// 		// Func to return to caller, and do we have a func
+// 		fn     func(any, any) error
+// 		haveIt bool
+// 	)
+//
+// 	for i := 'A'; i <= 'D'; i++ {
+//
+// 		switch i {
+// 		case 'A': // A: Use types as given
+//   		// Are src or tgt Maybe?
+//   		srcMaybeTyp = reflect.GetMaybeType(src)
+//   		tgtMaybeTyp = reflect.GetMaybeType(tgt)
+//
+//   		// Actual types are generic type of Maybe or the original type
+//   		srcTyp = funcs.Ternary(srcMaybeTyp == nil, src, srcMaybeTyp)
+//   		tgtTyp = funcs.Ternary(tgtMaybeTyp == nil, tgt, tgtMaybeTyp)
+//
+// 		case 'B': // B: If src is a subtype, use base type
+//   		// Are src or tgt Maybe?
+//   		srcMaybeTyp = reflect.GetMaybeType(src)
+//   		tgtMaybeTyp = reflect.GetMaybeType(tgt)
+//
+//   		// Actual types are generic type of Maybe or the original type
+//   		srcTyp = funcs.Ternary(srcMaybeTyp == nil, src, srcMaybeTyp)
+//   		tgtTyp = funcs.Ternary(tgtMaybeTyp == nil, tgt, tgtMaybeTyp)
+//
+//   		// Base types
+//   		srcBaseType = reflect.TypeToBaseType(srcTyp)
+//   		tgtBaseType = reflect.TypeToBaseType(tgtTyp)
+//
+// 			if (srcTyp == srcBaseType) || (tgt != tgtBaseType) {
+// 				// Skip if src is not a subtype
+// 				continue
+// 			}
+//
+// 		case 'C': // C: If tgt is a subtype, use base type
+// 			if (src != srcBaseType) || (tgt == tgtBaseType) {
+// 				// Skip if tgt is not a subtype
+// 				continue
+// 			}
+// 			srcTyp = src
+// 			tgtTyp = tgtBaseType
+//
+// 		default: // D: If both are subtypes, use base types
+// 			srcTyp = srcBaseType
+// 			tgtTyp = tgtBaseType
+// 		}
+//
+// 		// 1. source -> target
+// 		if fn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; (!haveIt) && (!srcIsPtr) && (!tgtIsPtr) && (srcTyp == tgtTyp) {
+// 			// Copy source -> target
+// 			fn = func(in, out any) error {
+// 				inVal, outVal := goreflect.ValueOf(in), goreflect.ValueOf(out)
+//
+// 				if srcMaybeTyp != nil {
+// 					if mVal := reflect.GetMaybeValue(inVal); !mVal.IsValid() {
+// 						// Can't set target to a value that doesn't exist
+// 						return fmt.Errorf(errEmptyMaybeMsg, srcTyp.String(), tgtTyp.String())
+// 					} else {
+// 						// Replace inVal with present Maybe value
+// 						inVal = mVal
+// 					}
+// 				}
+//
+// 				// // Convert inVal
+// 				// inVal = inVal.Convert(tgtTyp)
+//
+// 				if tgtMaybeTyp != nil {
+// 					// conv.To Target *Maybe[T] cannot be derefd, as Maybe.Set requires a pointer receiver
+// 					reflect.SetMaybeValue(outVal, inVal)
+// 				} else {
+// 					// Target is not a *Maybe[T], so deref to set it
+// 					outVal.Elem().Set(inVal)
+// 				}
+//
+// 				return nil
+// 			}
+//
+// 			haveIt = true
+// 		}
+//
+// 		// 2. derefd source -> target
+// 		if (!haveIt) && srcIsPtr && (!tgtIsPtr) {
+// 			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.String()]; luHaveIt {
+// 				// Have to use wrapper func that derefs source
+// 				fn = func(in, out any) error {
+// 					inVal, outVal := goreflect.ValueOf(in), goreflect.ValueOf(out)
+//
+// 					if inVal.IsNil() {
+// 						return fmt.Errorf(errConvertNilSourceMsg, srcTyp, tgtTyp)
+// 					}
+//
+// 					return lufn(inVal.Elem().Interface(), outVal)
+// 				}
+//
+// 				haveIt = true
+// 			} else if srcTyp.Elem() == tgtTyp {
+// 				// Copy *source -> target
+// 				fn = func(in, out any) error {
+// 					rin := goreflect.ValueOf(in)
+//
+// 					if rin.IsNil() {
+// 						return fmt.Errorf(errCopyNilSourceMsg, srcTyp, tgtTyp)
+// 					}
+//
+// 					goreflect.ValueOf(out).Elem().Set(goreflect.ValueOf(in).Elem().Convert(tgtTyp))
+//
+// 					return nil
+// 				}
+//
+// 				haveIt = true
+// 			}
+// 		}
+//
+// 		// 3. source -> derefd target
+// 		if (!haveIt) && (!srcIsPtr) && tgtIsPtr {
+// 			if lufn, luHaveIt := convertFromTo[srcTyp.String()+tgtTyp.Elem().String()]; luHaveIt {
+// 				// Have to use wrapper func that derefs target
+// 				fn = func(in, out any) error {
+// 					return lufn(in, goreflect.ValueOf(out).Elem().Interface())
+// 				}
+//
+// 				haveIt = true
+// 			} else if srcTyp == tgtTyp.Elem() {
+// 				// Copy source -> *target
+// 				fn = func(in, out any) error {
+// 					rout := goreflect.ValueOf(out)
+//
+// 					if rout.IsNil() || rout.Elem().IsNil() {
+// 						return fmt.Errorf(errCopyNilTargetMsg, srcTyp, tgtTyp)
+// 					}
+//
+// 					rout.Elem().Elem().Set(goreflect.ValueOf(in).Convert(tgtTyp.Elem()))
+//
+// 					return nil
+// 				}
+// 				haveIt = true
+// 			}
+// 		}
+//
+// 		// 4. derefd source -> derefd target
+// 		if (!haveIt) && srcIsPtr && tgtIsPtr {
+// 			if lufn, luHaveIt := convertFromTo[srcTyp.Elem().String()+tgtTyp.Elem().String()]; luHaveIt {
+// 				// Have to use wrapper func that derefs source and target
+// 				fn = func(in, out any) error {
+// 					return lufn(goreflect.ValueOf(in).Elem().Interface(), goreflect.ValueOf(out).Elem().Interface())
+// 				}
+//
+// 				haveIt = true
+// 			} else if srcTyp.Elem() == tgtTyp.Elem() {
+// 				// Copy *source -> *target
+// 				fn = func(in, out any) error {
+// 					rin, rout := goreflect.ValueOf(in), goreflect.ValueOf(out)
+//
+// 					if rout.IsNil() || ((!rin.IsNil()) && rout.Elem().IsNil()) {
+// 						return fmt.Errorf(errCopyNilTargetMsg, srcTyp, tgtTyp)
+// 					}
+//
+// 					if rin.IsNil() {
+// 						rout.Elem().Set(rin)
+// 					} else {
+// 						rout.Elem().Elem().Set(rin.Elem().Convert(tgtTyp.Elem()))
+// 					}
+//
+// 					return nil
+// 				}
+//
+// 				haveIt = true
+// 			}
+// 		}
+//
+// 		if haveIt {
+// 			// Recheck i, and further wrap if subtypes are used
+// 			switch i {
+// 			case 'A': // Use types as given
+//
+// 			case 'B':
+// 				{ // src is subtype
+// 					// Have to use a wrapper func that converts src subtype to src basetype
+// 					lufn := fn
+// 					sbfn := func(in, out any) error {
+// 						// in = subtype, tgt = *type
+// 						// lufn = func(basetype, tgt)
+// 						return lufn(reflect.ValueToBaseType(goreflect.ValueOf(in)).Interface(), out)
+// 					}
+// 					fn = sbfn
+// 				}
+//
+// 			case 'C':
+// 				{ // tgt is subtype
+// 					// Have to use a wrapper func that converts tgt subtype to tgt basetype
+// 					lufn := fn
+// 					tbfn := func(in, out any) error {
+// 						// in = src, tgt = *subtype
+// 						// lufn = func(src, *basetype)
+// 						return lufn(in, reflect.ValueToBaseType(goreflect.ValueOf(out)).Interface())
+// 					}
+// 					fn = tbfn
+// 				}
+//
+// 			default:
+// 				{ // src and tgt are subtypes
+// 					// Have to use a wrapper func that converts src subtype to src basetype and tgt subtype to tgt basetype
+// 					lufn := fn
+// 					tbfn := func(in, out any) error {
+// 						// in = subtype, tgt = *subtype
+// 						// lufn = func(basetype, *basetype)
+// 						return lufn(
+// 							reflect.ValueToBaseType(goreflect.ValueOf(in)).Interface(),
+// 							reflect.ValueToBaseType(goreflect.ValueOf(out)).Interface(),
+// 						)
+// 					}
+// 					fn = tbfn
+// 				}
+// 			}
+//
+// 			break
+// 		}
+// 	}
+//
+// 	// Ensure we have found a conversion (possibly wrapped for derefing)
+// 	if !haveIt {
+// 		// Conversion is not registered
+// 		return nil, nil
+// 	}
+//
+// 	// Conversion is registered (or it is a copy)
+// 	return fn, nil
+// }
 
 // RegisterConversion registers a conversion from a value of type S to a value of type T.
 // Note the conversion function must accept a pointer type for the target.

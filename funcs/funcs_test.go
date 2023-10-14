@@ -950,9 +950,11 @@ func TestCompose10_(t *testing.T) {
 func TestTernary_(t *testing.T) {
 	assert.Equal(t, 1, Ternary(1 < 2, 1, 2))
 	assert.Equal(t, 1, TernaryResult(1 < 2, func() int { return 1 }, func() int { return 2 }))
+  assert.Equal(t, 1, TernaryResult(1 < 2, func() int { return 1}, nil))
 
 	assert.Equal(t, 2, Ternary(1 > 2, 1, 2))
 	assert.Equal(t, 2, TernaryResult(1 > 2, func() int { return 1 }, func() int { return 2 }))
+	assert.Equal(t, 2, TernaryResult(1 > 2, nil, func() int { return 2 }))
 }
 
 func TestNillable_(t *testing.T) {

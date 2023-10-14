@@ -967,12 +967,21 @@ func Ternary[T any](expr bool, trueVal T, falseVal T) T {
 }
 
 // TernaryResult returns trueVal() if expr is true, else it returns falseVal()
+// Either function can be nil if it is not relevant, in which case the zero value of T is returned
 func TernaryResult[T any](expr bool, trueVal func() T, falseVal func() T) T {
+  var zv T
+
 	if expr {
-		return trueVal()
+    if trueVal != nil {
+      return trueVal()
+    }
+    return zv
 	}
 
-	return falseVal()
+  if falseVal != nil {
+    return falseVal()
+  }
+  return zv
 }
 
 // ==== Nil

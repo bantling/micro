@@ -152,6 +152,37 @@ func TestGetMaybeType_(t *testing.T) {
 	assert.Nil(t, GetMaybeType(goreflect.TypeOf(0)))
 }
 
+func TestGetMaybeValue_(t *testing.T) {
+	val := GetMaybeValue(goreflect.ValueOf(union.Of(1)))
+	assert.Equal(t, 1, GetMaybeValue(goreflect.ValueOf(union.Of(1))).Interface())
+
+	val = GetMaybeValue(goreflect.ValueOf(union.Empty[int]()))
+	assert.False(t, val.IsValid())
+}
+
+func TestSetMaybeValue_(t *testing.T) {
+	m := union.Empty[int]()
+	SetMaybeValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
+	assert.True(t, m.Present())
+	assert.Equal(t, 1, m.Get())
+}
+
+func TestSetMaybeValueEmpty_(t *testing.T) {
+	m := union.Of(1)
+	SetMaybeValueEmpty(goreflect.ValueOf(&m))
+	assert.False(t, m.Present())
+}
+
+func TestSetPointerValue_(t *testing.T) {
+  m := 0
+  SetPointerValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
+  assert.Equal(t, 1, m)
+
+  p := &m
+  SetPointerValue(goreflect.ValueOf(&p), goreflect.ValueOf(2))
+  assert.Equal(t, 2, m)
+}
+
 func TestIsBigPtr_(t *testing.T) {
 	assert.True(t, IsBigPtr(goreflect.TypeOf((*big.Int)(nil))))
 	assert.True(t, IsBigPtr(goreflect.TypeOf((*big.Float)(nil))))
@@ -231,40 +262,19 @@ func TestTypeToBaseType_(t *testing.T) {
 	{
 		// int
 		typ := goreflect.TypeOf(0)
-		rtyp := TypeToBaseType(typ)
-		assert.Equal(t, goreflect.TypeOf(0), rtyp)
-
-		// *int
-		var i int
-		typ = goreflect.TypeOf(&i)
-		rtyp = TypeToBaseType(typ)
-		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(0)), rtyp)
+		assert.Nil(t, TypeToBaseType(typ))
 	}
 
 	{
 		// subString
 		typ := goreflect.TypeOf(subString("foo"))
-		rtyp := TypeToBaseType(typ)
-		assert.Equal(t, goreflect.TypeOf("foo"), rtyp)
-
-		// *subString
-		i := subString("foo")
-		typ = goreflect.TypeOf(&i)
-		rtyp = TypeToBaseType(typ)
-		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf("foo")), rtyp)
+		assert.Equal(t, goreflect.TypeOf("foo"), TypeToBaseType(typ))
 	}
 
 	{
-		// rune
+		// rune is an alias for int32, which cannot be distinguished from int32 by reflection
 		typ := goreflect.TypeOf('0')
-		rtyp := TypeToBaseType(typ)
-		assert.Equal(t, goreflect.TypeOf(int32('0')), rtyp)
-
-		// *rune
-		i := '0'
-		typ = goreflect.TypeOf(&i)
-		rtyp = TypeToBaseType(typ)
-		assert.Equal(t, goreflect.PtrTo(goreflect.TypeOf(int32('0'))), rtyp)
+		assert.Nil(t, TypeToBaseType(typ))
 	}
 }
 

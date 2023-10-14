@@ -406,7 +406,21 @@ func TestMaybe_(t *testing.T) {
 		assert.Equal(t, 1, res.Get())
 		assert.Equal(t, 1, res.OrElse(2))
 		assert.Equal(t, OfResult(1), OfResultError(res.OrError(altError)))
+
+		res.Set(2)
+		assert.True(t, res.Present())
+		assert.Equal(t, 2, res.Get())
 	}
+
+  {
+    res := Of[any](nil)
+    assert.True(t,res.Empty())
+  }
+
+  {
+    res := Of[*int](nil)
+    assert.True(t,res.Empty())
+  }
 
 	// Empty
 	{
@@ -427,5 +441,30 @@ func TestMaybe_(t *testing.T) {
 		assert.Equal(t, errEmptyMaybe, e)
 		assert.Equal(t, 2, res.OrElse(2))
 		assert.Equal(t, OfError[int](altError), OfResultError(res.OrError(altError)))
+
+		res.Set(3)
+		assert.True(t, res.Present())
+		assert.Equal(t, 3, res.Get())
+
+    res.SetEmpty()
+		assert.True(t, res.Empty())
+    assert.Equal(t, 0, res.v)
+
+    var i int
+    resp := Of(&i)
+		assert.True(t, resp.Present())
+    assert.Equal(t, &i, resp.Get())
+
+    resp.Set(nil)
+		assert.True(t, resp.Empty())
+    assert.Nil(t, resp.v)
+
+    resp.Set(&i)
+		assert.True(t, resp.Present())
+    assert.Equal(t, &i, resp.Get())
+
+    resp.SetEmpty()
+		assert.True(t, resp.Empty())
+    assert.Nil(t, resp.v)
 	}
 }
