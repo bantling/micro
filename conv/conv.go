@@ -1124,30 +1124,72 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
       // Cannot lookup conversions for types that don't exist
       if (srcTyp != nil) && (tgtTyp != nil) {
         if convFn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]; haveIt {
-          // Generate a function to unwrap the src type
-          var srcFn func(any) any
+          // Generate a function to unwrap the src type and read it
+          var srcFn func(goreflect.Value) goreflect.Value
           switch srcTyp {
           case src:
-            srcFn = func(s any) any { return s }
+            srcFn = func(s goreflect.Value) goreflect.Value { return s }
           case srcBase:
-            srcFn = func(s any) any { return goreflect.ValueOf(s).Convert(srcBase).Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value { return s.Convert(srcBase) }
           case srcPtr:
-            srcFn = func(s any) any { return goreflect.ValueOf(s).Elem().Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value { return s.Elem() }
           case srcPtrBase:
-            srcFn = func(s any) any { return goreflect.ValueOf(s).Elem().Convert(srcPtrBase).Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value { return s.Elem().Convert(srcPtrBase) }
           case srcMaybe:
-            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
           case srcMaybeBase:
-            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Convert(srcMaybeBase).Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value {
+              if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+                return temp.Convert(srcMaybeBase)
+              } else {
+                return temp
+              }
+           }
           case srcMaybePtr:
-            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Elem().Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value {
+              if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+                return temp.Elem()
+              } else {
+                return temp
+              }
+            }
           case srcMaybePtrBase:
-            srcFn = func(s any) any { return reflect.GetMaybeValue(goreflect.ValueOf(s)).Elem().Convert(srcMaybePtrBase).Interface() }
+            srcFn = func(s goreflect.Value) goreflect.Value {
+              if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+                return temp.Elem().Convert(srcMaybePtrBase)
+              } else {
+                return temp
+              }
+            }
+          }
+
+          // Generate a function to wrap the tgt type
+          var tgtFn func(temp, t goreflect.Value)
+          switch tgtTyp {
+          case tgt:
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
+          case tgtBase:
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgtBase)) }
+          case tgtPtr:
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Elem()) }
+          case tgtPtrBase:
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Elem().Convert(tgtPtrBase)) }
+          case tgtMaybe:
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem(), temp.Elem()) }
+          case tgtMaybeBase:
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem(), temp.Elem().Convert(tgtMaybeBase)) }
+          case tgtMaybePtr:
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem().Elem(), temp.Elem()) }
+          case tgtMaybePtrBase:
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem().Elem(), temp.Elem().Convert(tgtMaybePtrBase)) }
           }
 
           // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
           return func(s, t any) error {
-            return convFn(srcFn(s), t)
+            temp := goreflect.New(tgt)
+            err := convFn(srcFn(goreflect.ValueOf(s)).Interface(), temp.Interface())
+            tgtFn(temp, goreflect.ValueOf(t))
+            return err
           }, nil
         }
       }
