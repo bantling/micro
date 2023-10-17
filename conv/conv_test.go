@@ -86,6 +86,26 @@ func TestLookupConversionVal2Val_(t *testing.T) {
   assert.Equal(t, 1, tgt)
 }
 
+func TestLookupConversionBase2Val_(t *testing.T) {
+  type subint int
+  var tgt int
+  fn, err := LookupConversion(goreflect.TypeOf(subint(0)), goreflect.TypeOf(0))
+  assert.NotNil(t, fn)
+  assert.Nil(t, err)
+  fn(subint(1), &tgt)
+  assert.Equal(t, 1, tgt)
+}
+
+func TestLookupConversionVal2Base_(t *testing.T) {
+  type subint int
+  var tgt subint
+  fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(subint(0)))
+  assert.NotNil(t, fn)
+  assert.Nil(t, err)
+  fn(1, &tgt)
+  assert.Equal(t, subint(1), tgt)
+}
+
 func TestRegisterConversion_(t *testing.T) {
 	type Conv_Reg_Foo struct{ fld int }
 

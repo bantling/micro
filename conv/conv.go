@@ -1142,7 +1142,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case src:
             srcFn = func(s goreflect.Value) goreflect.Value { return s }
           case srcBase:
-            srcFn = func(s goreflect.Value) goreflect.Value { return s.Convert(srcBase) }
+            srcFn = func(s goreflect.Value) goreflect.Value {return s.Convert(srcBase) }
           case srcPtr:
             srcFn = func(s goreflect.Value) goreflect.Value { return s.Elem() }
           case srcPtrBase:
@@ -1181,7 +1181,8 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case tgt:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
           case tgtBase:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgtBase)) }
+            fmt.Printf("4.1: %s, %s, %s\n", srcTyp, tgtTyp, tgt)
+            tgtFn = func(temp, t goreflect.Value) {t.Elem().Set(temp.Elem().Convert(t.Type().Elem())) }
           case tgtPtr:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Elem()) }
           case tgtPtrBase:
@@ -1196,10 +1197,9 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
             tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem().Elem(), temp.Elem().Convert(tgtMaybePtrBase)) }
           }
 
-          // If convFn is nil, the types are the same, generate a copy function
-          if convFn == nil {
+          // If convFn is nil and the types are the same, generate a copy function
+          if (convFn == nil) && (srcTyp == tgtTyp) {
             convFn = func(s, t any) error {
-              fmt.Printf("5. Copy %s, %s\n", srcTyp, tgtTyp)
               goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s))
               return nil
             }
@@ -1207,9 +1207,11 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
           // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
           return func(s, t any) error {
-            fmt.Printf("6. %s, %s\n", srcTyp, tgtTyp)
-            temp := goreflect.New(tgt)
-            err := convFn(srcFn(goreflect.ValueOf(s)).Interface(), temp.Interface())
+            fmt.Printf("6. %s, %s, %s, %s\n", srcTyp, tgtTyp, goreflect.TypeOf(s), goreflect.TypeOf(t).Elem())
+            temp := goreflect.New(tgtTyp)
+            srcVal := srcFn(goreflect.ValueOf(s))
+            fmt.Printf("6.1 %s\n", srcVal.Type())
+            err := convFn(srcVal.Interface(), temp.Interface())
             tgtFn(temp, goreflect.ValueOf(t))
             return err
           }, nil
