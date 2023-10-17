@@ -54,6 +54,13 @@ func TestLookupConversionErrBadTypes_(t *testing.T) {
     assert.Equal(t, fmt.Errorf("int cannot be converted to <nil>"), err)
   }
 
+  // error: src and tgt cannot be nil
+  {
+    fn, err := LookupConversion(nil, nil)
+    assert.Nil(t, fn)
+    assert.Equal(t, fmt.Errorf("<nil> cannot be converted to <nil>"), err)
+  }
+
   // error: src cannot be uintptr, chan, func, or unsafe pointer
   {
     for _, styp := range badTypes {
