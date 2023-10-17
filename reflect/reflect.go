@@ -248,12 +248,12 @@ func ResolveValueType(val goreflect.Value) goreflect.Value {
 	return val
 }
 
-// TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type byte uint8) to the underlying type (eg uint8).
-// If the given type is not a subtype, nil is returned.
+// TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type foo uint8) to the underlying type (eg uint8).
+// If the given type is not a primitive subtype, nil is returned.
 func TypeToBaseType(typ goreflect.Type) goreflect.Type {
 	// Check if typ is a primitive subtype
 	k := typ.Kind()
-	if pt := kindToType[k]; (pt != nil) && (k.String() != typ.String()) {
+	if pt, isa := kindToType[k]; isa && (k.String() != typ.String()) {
 		// If so, then return the base type
 		return pt
 	}

@@ -40,6 +40,20 @@ func TestLookupConversionErrBadTypes_(t *testing.T) {
     goreflect.TypeOf(unsafe.Pointer((*int)(nil))),
   }
 
+  // error: src cannot be nil
+  {
+    fn, err := LookupConversion(nil, goreflect.TypeOf(0))
+    assert.Nil(t, fn)
+    assert.Equal(t, fmt.Errorf("<nil> cannot be converted to int"), err)
+  }
+
+  // error: tgt cannot be nil
+  {
+    fn, err := LookupConversion(goreflect.TypeOf(0), nil)
+    assert.Nil(t, fn)
+    assert.Equal(t, fmt.Errorf("int cannot be converted to <nil>"), err)
+  }
+
   // error: src cannot be uintptr, chan, func, or unsafe pointer
   {
     for _, styp := range badTypes {
@@ -78,32 +92,47 @@ func TestLookupConversionExists_(t *testing.T) {
 }
 
 func TestLookupConversionVal2Val_(t *testing.T) {
-  var tgt int
-  fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(0))
+  var src = 1
+  var tgt string
+  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
   assert.NotNil(t, fn)
   assert.Nil(t, err)
-  fn(1, &tgt)
-  assert.Equal(t, 1, tgt)
+  fn(src, &tgt)
+  assert.Equal(t, "1", tgt)
 }
 
 func TestLookupConversionBase2Val_(t *testing.T) {
   type subint int
-  var tgt int
-  fn, err := LookupConversion(goreflect.TypeOf(subint(0)), goreflect.TypeOf(0))
+  var src = subint(1)
+  var tgt string
+  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
   assert.NotNil(t, fn)
   assert.Nil(t, err)
-  fn(subint(1), &tgt)
-  assert.Equal(t, 1, tgt)
+  fn(src, &tgt)
+  assert.Equal(t, "1", tgt)
 }
 
 func TestLookupConversionVal2Base_(t *testing.T) {
-  type subint int
-  var tgt subint
-  fn, err := LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf(subint(0)))
+  type substring string
+  var src = 1
+  var tgt substring
+  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
   assert.NotNil(t, fn)
   assert.Nil(t, err)
-  fn(1, &tgt)
-  assert.Equal(t, subint(1), tgt)
+  fn(src, &tgt)
+  assert.Equal(t, substring("1"), tgt)
+}
+
+func TestLookupConversionBase2Base_(t *testing.T) {
+  type subint int
+  type substring string
+  var src = subint(1)
+  var tgt substring
+  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
+  assert.NotNil(t, fn)
+  assert.Nil(t, err)
+  fn(src, &tgt)
+  assert.Equal(t, substring("1"), tgt)
 }
 
 func TestRegisterConversion_(t *testing.T) {

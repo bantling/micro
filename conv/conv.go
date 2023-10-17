@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	errLookupMsg                   = "%s cannot be converted to %s"
+	errLookupMsg                   = "%v cannot be converted to %v"
 	errCopyNilSourceMsg            = "A nil %s cannot be copied to a(n) %s"
 	errConvertNilSourceMsg         = "A nil %s cannot be converted to a(n) %s"
 	errCopyNilTargetMsg            = "A(n) %s cannot be copied to a nil %s"
@@ -1029,10 +1029,12 @@ var (
 // - Maybe[*T]
 //
 // The target types are the same as the source types.
-// For any of the above forms, T may be a primitive subtype (eg, type subint int).
-// In such cases, up to two lookups are performed (first match is used):
-// - A conversion using the subtype
-// - A conversion using the base type
+// For any of the above forms, T may be a primitive sub type (eg, type subint int).
+// In such cases, up to four lookups are performed (first match is used):
+// - A conversion using the src sub  type and tgt sub  type
+// - A conversion using the src base type and tgt sub  type
+// - A conversion using the src sub  type and tgt base type
+// - A conversion using the src base type and tgt base type
 //
 // Example lookups, listing possible conversions in search order (shown with the extra * the target type has to have):
 // - int to string -> int to string
@@ -1046,7 +1048,11 @@ var (
 // If a conversion is not found               : returns nil,  nil
 // Conversion is not allowed                  : returns nil,  err
 func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
-  fmt.Printf("1. %s, %s\n", src, tgt)
+  // Verify src and tgt are not nil
+  if (src == nil) || (tgt == nil) {
+    return nil, fmt.Errorf(errLookupMsg, src, tgt)
+  }
+
 	// Verify the types are not more than one pointer
 	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
 		// A conversion CANNOT be registered for multiple pointers
@@ -1063,11 +1069,11 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
   // Check for conversion from src to tgt as is, most common case
   if conv, haveIt := convertFromTo[src.String()+tgt.String()]; haveIt {
-    fmt.Printf("1. %s, %s exists\n", src, tgt)
     return conv, nil
   }
 
-  // Search every combination of src, tgt = val/subtype, *val/subtype, maybe val/subtype, maybe *val/subtype
+  // Search every valid combination of src, tgt = val/subtype, *val/subtype, maybe val/subtype, maybe *val/subtype.
+  // Ensure we do not allow invalid combinations, such as *Maybe.
   // If a conversion is found:
   // - create a wrapper func that deals with conversions, *, maybe for both src and tgt
   // - register it so future calls don't have to do same search
@@ -1082,43 +1088,42 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
   )
 
   srcBase = reflect.TypeToBaseType(src)
-  srcPtr = funcs.TernaryResult(src.Kind() == goreflect.Pointer, src.Elem, nil)
-  if srcPtr != nil {
+
+  if srcPtr = funcs.TernaryResult(src.Kind() == goreflect.Pointer, src.Elem, nil); srcPtr != nil {
+    srcPtrBase = reflect.TypeToBaseType(srcPtr)
+
     if reflect.GetMaybeType(srcPtr) != nil {
       // Cannot have a *Maybe, that makes no sense
       return nil, fmt.Errorf(errLookupMsg, src, tgt)
     }
-    srcPtrBase = reflect.TypeToBaseType(srcPtr)
   }
-  srcMaybe = reflect.GetMaybeType(src)
-  if srcMaybe != nil {
+
+  if srcMaybe = reflect.GetMaybeType(src); srcMaybe != nil {
     srcMaybeBase = reflect.TypeToBaseType(srcMaybe)
-    srcMaybePtr = funcs.TernaryResult(srcMaybe.Kind() == goreflect.Pointer, srcMaybe.Elem, nil)
-    if srcMaybePtr != nil {
+
+    if srcMaybePtr = funcs.TernaryResult(srcMaybe.Kind() == goreflect.Pointer, srcMaybe.Elem, nil); srcMaybePtr != nil {
       srcMaybePtrBase = reflect.TypeToBaseType(srcMaybePtr)
     }
   }
 
   tgtBase = reflect.TypeToBaseType(tgt)
-  tgtPtr = funcs.TernaryResult(tgt.Kind() == goreflect.Pointer, tgt.Elem, nil)
-  if tgtPtr != nil {
+
+  if tgtPtr = funcs.TernaryResult(tgt.Kind() == goreflect.Pointer, tgt.Elem, nil); tgtPtr != nil {
+    tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
+
     if reflect.GetMaybeType(tgtPtr) != nil {
       // Cannot have a *Maybe, that makes no sense
       return nil, fmt.Errorf(errLookupMsg, src, tgt)
     }
-    tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
   }
-  tgtMaybe = reflect.GetMaybeType(tgt)
-  if tgtMaybe != nil {
+
+  if tgtMaybe = reflect.GetMaybeType(tgt); tgtMaybe != nil {
     tgtMaybeBase = reflect.TypeToBaseType(tgtMaybe)
-    tgtMaybePtr = funcs.TernaryResult(tgtMaybe.Kind() == goreflect.Pointer, tgtMaybe.Elem, nil)
-    if tgtMaybePtr != nil {
+
+    if tgtMaybePtr = funcs.TernaryResult(tgtMaybe.Kind() == goreflect.Pointer, tgtMaybe.Elem, nil); tgtMaybePtr != nil {
       tgtMaybePtrBase = reflect.TypeToBaseType(tgtMaybePtr)
     }
   }
-
-  fmt.Printf("2. %s, %s, %s, %s, %s, %s, %s, %s\n", src, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase)
-  fmt.Printf("2. %s, %s, %s, %s, %s, %s, %s, %s\n", tgt, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase)
 
   for _, srcTyp := range []goreflect.Type{
     src, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase,
@@ -1128,12 +1133,10 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
     } {
       // Cannot lookup conversions for types that don't exist
       if (srcTyp != nil) && (tgtTyp != nil) {
-        fmt.Printf("3. %s, %s\n", srcTyp, tgtTyp)
         convFn, haveIt = nil, srcTyp == tgtTyp
         if (!haveIt) {
           convFn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]
         }
-        fmt.Printf("4. %t, %t\n", convFn != nil, haveIt)
 
         if haveIt {
           // Generate a function to unwrap the src type and read it
@@ -1181,8 +1184,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case tgt:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
           case tgtBase:
-            fmt.Printf("4.1: %s, %s, %s\n", srcTyp, tgtTyp, tgt)
-            tgtFn = func(temp, t goreflect.Value) {t.Elem().Set(temp.Elem().Convert(t.Type().Elem())) }
+            tgtFn = func(temp, t goreflect.Value) {t.Elem().Set(temp.Elem().Convert(tgt)) }
           case tgtPtr:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Elem()) }
           case tgtPtrBase:
@@ -1207,10 +1209,8 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
           // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
           return func(s, t any) error {
-            fmt.Printf("6. %s, %s, %s, %s\n", srcTyp, tgtTyp, goreflect.TypeOf(s), goreflect.TypeOf(t).Elem())
             temp := goreflect.New(tgtTyp)
             srcVal := srcFn(goreflect.ValueOf(s))
-            fmt.Printf("6.1 %s\n", srcVal.Type())
             err := convFn(srcVal.Interface(), temp.Interface())
             tgtFn(temp, goreflect.ValueOf(t))
             return err
