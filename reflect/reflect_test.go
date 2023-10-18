@@ -161,7 +161,7 @@ func TestGetMaybeValue_(t *testing.T) {
 }
 
 func TestSetMaybeValue_(t *testing.T) {
-	m := union.Empty[int]()
+	var m union.Maybe[int]
 	SetMaybeValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
 	assert.True(t, m.Present())
 	assert.Equal(t, 1, m.Get())

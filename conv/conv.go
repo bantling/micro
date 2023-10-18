@@ -1186,17 +1186,17 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case tgtBase:
             tgtFn = func(temp, t goreflect.Value) {t.Elem().Set(temp.Elem().Convert(tgt)) }
           case tgtPtr:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Elem()) }
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
           case tgtPtrBase:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Elem().Convert(tgtPtrBase)) }
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt.Elem())) }
           case tgtMaybe:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem(), temp.Elem()) }
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
           case tgtMaybeBase:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem(), temp.Elem().Convert(tgtMaybeBase)) }
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
           case tgtMaybePtr:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem().Elem(), temp.Elem()) }
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
           case tgtMaybePtrBase:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t.Elem().Elem(), temp.Elem().Convert(tgtMaybePtrBase)) }
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybePtr)) }
           }
 
           // If convFn is nil and the types are the same, generate a copy function
