@@ -1194,9 +1194,9 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case tgtMaybeBase:
             tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
           case tgtMaybePtr:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp) }
           case tgtMaybePtrBase:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybePtr)) }
+            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr))) }
           }
 
           // If convFn is nil and the types are the same, generate a copy function
