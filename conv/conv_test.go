@@ -91,6 +91,16 @@ func TestLookupConversionErrBadTypes_(t *testing.T) {
   }
 }
 
+func TestLookupConversionErrPtrMaybe_(t *testing.T) {
+  fn, err := LookupConversion(goreflect.TypeOf((*union.Maybe[int])(nil)), goreflect.TypeOf(0))
+  assert.Nil(t, fn)
+  assert.Equal(t, fmt.Errorf("*union.Maybe[int] cannot be converted to int"), err)
+
+  fn, err = LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf((*union.Maybe[int])(nil)))
+  assert.Nil(t, fn)
+  assert.Equal(t, fmt.Errorf("int cannot be converted to *union.Maybe[int]"), err)
+}
+
 // ==== LookupConversion exists
 
 func TestLookupConversionExists_(t *testing.T) {
