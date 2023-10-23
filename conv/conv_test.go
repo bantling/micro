@@ -99,6 +99,10 @@ func TestLookupConversionErrPtrMaybe_(t *testing.T) {
   fn, err = LookupConversion(goreflect.TypeOf(0), goreflect.TypeOf((*union.Maybe[int])(nil)))
   assert.Nil(t, fn)
   assert.Equal(t, fmt.Errorf("int cannot be converted to *union.Maybe[int]"), err)
+
+  fn, err = LookupConversion(goreflect.TypeOf((*union.Maybe[int])(nil)), goreflect.TypeOf((*union.Maybe[int])(nil)))
+  assert.Nil(t, fn)
+  assert.Equal(t, fmt.Errorf("*union.Maybe[int] cannot be converted to *union.Maybe[int]"), err)
 }
 
 // ==== LookupConversion exists
@@ -747,7 +751,12 @@ func TestLookupConversionMaybeBase2Val_(t *testing.T) {
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
+  assert.Equal(t, "1", tgt)
+
+  // Empty maybe source
+  src = union.Empty[subint]()
+  assert.Equal(t, fmt.Errorf("An empty %s cannot be converted to a(n) string", goreflect.TypeOf(src)), fn(src, &tgt))
   assert.Equal(t, "1", tgt)
 }
 
@@ -764,6 +773,11 @@ func TestLookupConversionMaybeBase2Base_(t *testing.T) {
 
   fn(src, &tgt)
   assert.Equal(t, substring("1"), tgt)
+
+  // Empty maybe source
+  src = union.Empty[subint]()
+  assert.Equal(t, fmt.Errorf("An empty %s cannot be converted to a(n) %s", goreflect.TypeOf(src), goreflect.TypeOf(tgt)), fn(src, &tgt))
+  assert.Equal(t, substring("1"), tgt)
 }
 
 func TestLookupConversionMaybeBase2Ptr_(t *testing.T) {
@@ -772,13 +786,19 @@ func TestLookupConversionMaybeBase2Ptr_(t *testing.T) {
   var tgt string
   var tgtp = &tgt
 
-  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgtp))
+  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(&tgtp))
 
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, tgtp)
+  fn(src, &tgtp)
   assert.Equal(t, "1", tgt)
+
+  // Empty maybe source
+  src = union.Empty[subint]()
+  assert.Nil(t, fn(src, &tgtp))
+  assert.Equal(t, "1", tgt)
+  assert.Nil(t, tgtp)
 }
 
 func TestLookupConversionMaybeBase2PtrBase_(t *testing.T) {
@@ -873,6 +893,11 @@ func TestLookupConversionMaybePtr2Val_(t *testing.T) {
 
   fn(srcmp, &tgt)
   assert.Equal(t, "1", tgt)
+
+  // Empty maybe source
+  // srcmp = union.Empty[*int]()
+  // assert.Equal(t, fmt.Errorf("An empty %s cannot be converted to a(n) string", goreflect.TypeOf(srcmp)), fn(srcmp, &tgt))
+  // assert.Equal(t, "1", tgt)
 }
 
 func TestLookupConversionMaybePtr2Base_(t *testing.T) {

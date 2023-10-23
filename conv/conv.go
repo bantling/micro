@@ -1154,9 +1154,12 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
             srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
           case srcMaybeBase:
             srcFn = func(s goreflect.Value) goreflect.Value {
+              fmt.Printf("a\n")
               if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+                fmt.Printf("b\n")
                 return temp.Convert(srcMaybeBase)
               } else {
+                fmt.Printf("c\n")
                 return temp
               }
            }
@@ -1184,7 +1187,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case tgt:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
           case tgtBase:
-            tgtFn = func(temp, t goreflect.Value) {t.Elem().Set(temp.Elem().Convert(tgt)) }
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt)) }
           case tgtPtr:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
           case tgtPtrBase:
@@ -1209,10 +1212,29 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
           // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
           return func(s, t any) error {
+            srcVal, tgtVal := srcFn(goreflect.ValueOf(s)), goreflect.ValueOf(t)
+            fmt.Printf("0. %t\n", srcVal.IsValid())
+
+            if !srcVal.IsValid() {
+              fmt.Printf("1. %s\n", tgtVal.Type())
+              // Src must be a nil ptr or empty maybe, tgt must be nillable or maybe
+              if reflect.IsNillable(tgt) {
+                fmt.Printf("2.\n")
+                tgtVal.Elem().SetZero()
+              } else if tgtMaybe != nil {
+                reflect.SetMaybeValueEmpty(tgtVal)
+              } else if srcMaybe != nil {
+                return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
+              } else {
+                return fmt.Errorf(errConvertNilSourceMsg, src, tgt)
+              }
+
+              return nil
+            }
+
             temp := goreflect.New(tgtTyp)
-            srcVal := srcFn(goreflect.ValueOf(s))
-            err := convFn(srcVal.Interface(), temp.Interface())
-            tgtFn(temp, goreflect.ValueOf(t))
+            err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
+            tgtFn(temp, tgtVal)
             return err
           }, nil
         }

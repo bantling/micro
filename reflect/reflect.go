@@ -3,11 +3,17 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	"math/big"
 	goreflect "reflect"
 	"strings"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/union"
+)
+
+const (
+  errTypeAssertMsg = "%s is %s, not %s"
 )
 
 var (
@@ -246,6 +252,22 @@ func ResolveValueType(val goreflect.Value) goreflect.Value {
 	}
 
 	return val
+}
+
+// TypeAssert asserts that the value given has the same type as the type given.
+// If not, the error returned contains a message that is similiar to the one Go provides when the type assertion syntax fails.
+// Unlike Go's type assertion syntax, this function can be called with any kind of value and any type.
+func TypeAssert(val goreflect.Value, typ goreflect.Type) error {
+  if rt := ResolveValueType(val).Type(); rt != typ {
+    return fmt.Errorf(errTypeAssertMsg, val.Type(), rt, typ)
+  }
+
+  return nil
+}
+
+// MustTypeAssert is a must version of TypeAssert
+func MustTypeAssert(val goreflect.Value, typ goreflect.Type) {
+  funcs.Must(TypeAssert(val, typ))
 }
 
 // TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type foo uint8) to the underlying type (eg uint8).

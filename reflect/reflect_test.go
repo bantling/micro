@@ -3,6 +3,7 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	"math/big"
 	goreflect "reflect"
 	"testing"
@@ -256,6 +257,32 @@ func TestResolveValueType_(t *testing.T) {
 	// Test normal case
 	assert.Equal(t, goreflect.String, ResolveValueType(goreflect.ValueOf("foo")).Kind())
 	assert.Equal(t, goreflect.Int, ResolveValueType(goreflect.ValueOf(1)).Kind())
+}
+
+func TestTypeAssert_(t *testing.T) {
+  {
+    // any containing an int is not a string
+    var i = []any{0}
+    assert.Equal(t, fmt.Errorf("interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf("")))
+  }
+
+  {
+    // any containing an int is an int
+    var i = []any{0}
+    assert.Nil(t, TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(0)))
+  }
+
+  {
+    // int is not a string
+    var i = 0
+    assert.Equal(t, fmt.Errorf("int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf("")))
+  }
+
+  {
+    // int is an int
+    var i = 0
+    assert.Nil(t, TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf(0)))
+  }
 }
 
 func TestTypeToBaseType_(t *testing.T) {
