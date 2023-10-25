@@ -1212,29 +1212,54 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
           // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
           return func(s, t any) error {
-            srcVal, tgtVal := srcFn(goreflect.ValueOf(s)), goreflect.ValueOf(t)
+            // Use reflection to do runtime type assertion exactly like a provided conversion function would
+            // This ensure two things:
+            // - A copy conversion does not inadvertently allow copying any random types that happen to be the same
+            // - Registered conversions have errors that indicate if the source or target type is the problem
+            srcVal, tgtVal := goreflect.ValueOf(s), goreflect.ValueOf(t)
+            reflect.MustTypeAssert(srcVal, src, "source")
+            reflect.MustTypeAssert(tgtVal, goreflect.PtrTo(tgt), "target")
+
+            // Unwrap src value, which will be invalid for nil ptr or empty maybe
+            srcVal = srcFn(srcVal)
             fmt.Printf("0. %t\n", srcVal.IsValid())
 
             if !srcVal.IsValid() {
               fmt.Printf("1. %s\n", tgtVal.Type())
-              // Src must be a nil ptr or empty maybe, tgt must be nillable or maybe
+              // Tgt must be nillable or maybe
               if reflect.IsNillable(tgt) {
+                // Tgt is nillable
                 fmt.Printf("2.\n")
                 tgtVal.Elem().SetZero()
               } else if tgtMaybe != nil {
+                // Tgt is a Maybe
                 reflect.SetMaybeValueEmpty(tgtVal)
-              } else if srcMaybe != nil {
-                return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
-              } else {
+              } else if srcMaybe == nil {
+                // Tgt cannot be nil, src is a nil Ptr
                 return fmt.Errorf(errConvertNilSourceMsg, src, tgt)
+              } else {
+                // Tgt cannot be nil, src is an empty Maybe
+                return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
               }
 
               return nil
             }
 
+            // Create a pointer to the target unwrapped type for the conversion to write to
             temp := goreflect.New(tgtTyp)
+            fmt.Printf("2. %s\n", temp.Type())
+
+            // Convert source -> unwrapped target
             err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
-            tgtFn(temp, tgtVal)
+            fmt.Printf("3. %s\n", err)
+
+            // Wrap target value only if no error occurred - the target is unmodified if the conversion fails
+            if err == nil {
+              fmt.Printf("4. %s\n", err)
+              tgtFn(temp, tgtVal)
+            }
+
+            // Return any error
             return err
           }, nil
         }

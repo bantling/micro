@@ -13,7 +13,7 @@ import (
 )
 
 const (
-  errTypeAssertMsg = "%s is %s, not %s"
+  errTypeAssertMsg = "%s%s is %s, not %s"
 )
 
 var (
@@ -257,17 +257,19 @@ func ResolveValueType(val goreflect.Value) goreflect.Value {
 // TypeAssert asserts that the value given has the same type as the type given.
 // If not, the error returned contains a message that is similiar to the one Go provides when the type assertion syntax fails.
 // Unlike Go's type assertion syntax, this function can be called with any kind of value and any type.
-func TypeAssert(val goreflect.Value, typ goreflect.Type) error {
+// If desired, an optional message can be provided that is placed at the beginning of the error message, followed by a colon and space.
+func TypeAssert(val goreflect.Value, typ goreflect.Type, msg ...string) error {
   if rt := ResolveValueType(val).Type(); rt != typ {
-    return fmt.Errorf(errTypeAssertMsg, val.Type(), rt, typ)
+    prefix := funcs.SliceIndex(msg, 0)
+    return fmt.Errorf(errTypeAssertMsg, funcs.Ternary(prefix == "", prefix, prefix+": "), val.Type(), rt, typ)
   }
 
   return nil
 }
 
 // MustTypeAssert is a must version of TypeAssert
-func MustTypeAssert(val goreflect.Value, typ goreflect.Type) {
-  funcs.Must(TypeAssert(val, typ))
+func MustTypeAssert(val goreflect.Value, typ goreflect.Type, msg ...string) {
+  funcs.Must(TypeAssert(val, typ, msg...))
 }
 
 // TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type foo uint8) to the underlying type (eg uint8).

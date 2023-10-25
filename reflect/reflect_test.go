@@ -8,6 +8,7 @@ import (
 	goreflect "reflect"
 	"testing"
 
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
@@ -264,18 +265,46 @@ func TestTypeAssert_(t *testing.T) {
     // any containing an int is not a string
     var i = []any{0}
     assert.Equal(t, fmt.Errorf("interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf("")))
+    assert.Equal(t, fmt.Errorf("foo: interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""), "foo"))
+
+    var failed bool
+    funcs.TryTo(
+      func() {
+        MustTypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""))
+        assert.Fail(t, "Must die")
+      },
+      func(e any) {
+        assert.Equal(t, fmt.Errorf("interface {} is int, not string"), e)
+        failed = true
+      },
+    )
+    assert.True(t, failed)
   }
 
   {
     // any containing an int is an int
     var i = []any{0}
     assert.Nil(t, TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(0)))
+
+    var failed bool
+    funcs.TryTo(
+      func() {
+        MustTypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""), "bar")
+        assert.Fail(t, "Must die")
+      },
+      func(e any) {
+        assert.Equal(t, fmt.Errorf("bar: interface {} is int, not string"), e)
+        failed = true
+      },
+    )
+    assert.True(t, failed)
   }
 
   {
     // int is not a string
     var i = 0
     assert.Equal(t, fmt.Errorf("int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf("")))
+    assert.Equal(t, fmt.Errorf("bar: int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf(""), "bar"))
   }
 
   {

@@ -116,30 +116,62 @@ func TestLookupConversionExists_(t *testing.T) {
   assert.Equal(t, "1", tgt)
 }
 
-// ==== LookupConversion copy
-
-func TestLookupConversionCopy_(t *testing.T) {
-  var tgt string
-  fn, err := LookupConversion(goreflect.TypeOf(""), goreflect.TypeOf(""))
-  assert.NotNil(t, fn)
-  assert.Nil(t, err)
-  fn("1", &tgt)
-  assert.Equal(t, "1", tgt)
-}
-
 // ==== LookupConversion from Val
 
 func TestLookupConversionVal2Val_(t *testing.T) {
-  var src = 1
-  var tgt string
+  // Copy
+  {
+    var src string
+    var tgt string
 
-  fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
+    fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
+    assert.NotNil(t, fn)
+    assert.Nil(t, err)
 
-  assert.NotNil(t, fn)
-  assert.Nil(t, err)
+    assert.Nil(t, fn("1", &tgt))
+    assert.Equal(t, "1", tgt)
 
-  fn(src, &tgt)
-  assert.Equal(t, "1", tgt)
+    var failed bool
+    funcs.TryTo(
+      func() {
+        fn(2, &tgt)
+        assert.Fail(t, "Must die")
+      },
+      func (e any) {
+        assert.Equal(t, fmt.Errorf("source: int is int, not string"), e)
+        failed = true
+      },
+    )
+    assert.True(t, failed)
+    assert.Equal(t, "1", tgt)
+
+    failed = false
+    funcs.TryTo(
+      func() {
+        var wtgt int
+        fn("3", &wtgt)
+        assert.Fail(t, "Must die")
+      },
+      func (e any) {
+        assert.Equal(t, fmt.Errorf("target: *int is *int, not *string"), e)
+        failed = true
+      },
+    )
+    assert.True(t, failed)
+    assert.Equal(t, "1", tgt)
+  }
+
+  {
+    var src = 1
+    var tgt string
+
+    fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
+    assert.NotNil(t, fn)
+    assert.Nil(t, err)
+
+    assert.Nil(t, fn(src, &tgt))
+    assert.Equal(t, "1", tgt)
+  }
 }
 
 func TestLookupConversionVal2Base_(t *testing.T) {
