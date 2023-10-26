@@ -1147,9 +1147,9 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case srcBase:
             srcFn = func(s goreflect.Value) goreflect.Value {return s.Convert(srcBase) }
           case srcPtr:
-            srcFn = func(s goreflect.Value) goreflect.Value { return s.Elem() }
+            srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() { return s.Elem() }; return s }
           case srcPtrBase:
-            srcFn = func(s goreflect.Value) goreflect.Value { return s.Elem().Convert(srcPtrBase) }
+            srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() { return s.Elem().Convert(srcPtrBase) }; return s }
           case srcMaybe:
             srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
           case srcMaybeBase:
@@ -1189,9 +1189,9 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case tgtBase:
             tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt)) }
           case tgtPtr:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Elem().Set(temp.Elem()) }
           case tgtPtrBase:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt.Elem())) }
+            tgtFn = func(temp, t goreflect.Value) { t.Elem().Elem().Set(temp.Elem().Convert(tgt.Elem())) }
           case tgtMaybe:
             tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
           case tgtMaybeBase:
@@ -1215,9 +1215,11 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
             // Use reflection to do runtime type assertion exactly like a provided conversion function would
             // This ensure two things:
             // - A copy conversion does not inadvertently allow copying any random types that happen to be the same
-            // - Registered conversions have errors that indicate if the source or target type is the problem
+            // - Registered conversions panic with errors that indicate if the source or target type is the problem
             srcVal, tgtVal := goreflect.ValueOf(s), goreflect.ValueOf(t)
-            reflect.MustTypeAssert(srcVal, src, "source")
+            if srcVal.IsValid() {
+              reflect.MustTypeAssert(srcVal, src, "source")
+            }
             reflect.MustTypeAssert(tgtVal, goreflect.PtrTo(tgt), "target")
 
             // Unwrap src value, which will be invalid for nil ptr or empty maybe
@@ -1251,11 +1253,11 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
             // Convert source -> unwrapped target
             err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
-            fmt.Printf("3. %s\n", err)
+            fmt.Printf("3. %#v, %s\n", temp.Interface(), err)
 
             // Wrap target value only if no error occurred - the target is unmodified if the conversion fails
             if err == nil {
-              fmt.Printf("4. %s\n", err)
+              fmt.Printf("4.\n")
               tgtFn(temp, tgtVal)
             }
 

@@ -128,9 +128,11 @@ func TestLookupConversionVal2Val_(t *testing.T) {
     assert.NotNil(t, fn)
     assert.Nil(t, err)
 
+    // Call string -> string with string -> *string
     assert.Nil(t, fn("1", &tgt))
     assert.Equal(t, "1", tgt)
 
+    // Attempt to call string -> string with int -> *string
     var failed bool
     funcs.TryTo(
       func() {
@@ -145,6 +147,7 @@ func TestLookupConversionVal2Val_(t *testing.T) {
     assert.True(t, failed)
     assert.Equal(t, "1", tgt)
 
+    // Attempt to call string -> string with string -> *int
     failed = false
     funcs.TryTo(
       func() {
@@ -161,6 +164,7 @@ func TestLookupConversionVal2Val_(t *testing.T) {
     assert.Equal(t, "1", tgt)
   }
 
+  // Call int -> string with int -> *string
   {
     var src = 1
     var tgt string
@@ -180,11 +184,10 @@ func TestLookupConversionVal2Base_(t *testing.T) {
   var tgt substring
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.Equal(t, substring("1"), tgt)
 }
 
@@ -194,11 +197,10 @@ func TestLookupConversionVal2Ptr_(t *testing.T) {
   var tgtp = &tgt
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgtp))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgtp))
   assert.Equal(t, "1", tgt)
 }
 
@@ -209,11 +211,10 @@ func TestLookupConversionVal2PtrBase_(t *testing.T) {
   var tgtp = &tgt
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgtp))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, tgtp)
+  assert.Nil(t, fn(src, &tgtp))
   assert.Equal(t, substring("1"), tgt)
 }
 
@@ -222,11 +223,10 @@ func TestLookupConversionVal2Maybe_(t *testing.T) {
   var tgt union.Maybe[string]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", tgt.Get())
 }
@@ -237,11 +237,10 @@ func TestLookupConversionVal2MaybeBase_(t *testing.T) {
   var tgt union.Maybe[substring]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), tgt.Get())
 }
@@ -251,11 +250,10 @@ func TestLookupConversionVal2MaybePtr_(t *testing.T) {
   var tgt union.Maybe[*string]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", *tgt.Get())
 }
@@ -266,11 +264,10 @@ func TestLookupConversionVal2MaybePtrBase_(t *testing.T) {
   var tgt union.Maybe[*substring]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), *tgt.Get())
 }
@@ -283,11 +280,10 @@ func TestLookupConversionBase2Val_(t *testing.T) {
   var tgt string
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.Equal(t, "1", tgt)
 }
 
@@ -298,11 +294,10 @@ func TestLookupConversionBase2Base_(t *testing.T) {
   var tgt substring
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.Equal(t, substring("1"), tgt)
 }
 
@@ -313,11 +308,10 @@ func TestLookupConversionBase2Ptr_(t *testing.T) {
   var tgtp = &tgt
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgtp))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, tgtp)
+  assert.Nil(t, fn(src, &tgtp))
   assert.Equal(t, "1", tgt)
 }
 
@@ -329,11 +323,10 @@ func TestLookupConversionBase2PtrBase_(t *testing.T) {
   var tgtp = &tgt
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgtp))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, tgtp)
+  assert.Nil(t, fn(src, &tgtp))
   assert.Equal(t, substring("1"), tgt)
 }
 
@@ -343,11 +336,10 @@ func TestLookupConversionBase2Maybe_(t *testing.T) {
   var tgt union.Maybe[string]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", tgt.Get())
 }
@@ -359,11 +351,10 @@ func TestLookupConversionBase2MaybeBase_(t *testing.T) {
   var tgt union.Maybe[substring]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), tgt.Get())
 }
@@ -374,11 +365,10 @@ func TestLookupConversionBase2MaybePtr_(t *testing.T) {
   var tgt union.Maybe[*string]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", *tgt.Get())
 }
@@ -390,11 +380,10 @@ func TestLookupConversionBase2MaybePtrBase_(t *testing.T) {
   var tgt union.Maybe[*substring]
 
   fn, err := LookupConversion(goreflect.TypeOf(src), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(src, &tgt)
+  assert.Nil(t, fn(src, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), *tgt.Get())
 }
@@ -407,11 +396,15 @@ func TestLookupConversionPtr2Val_(t *testing.T) {
   var tgt string
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *int -> string
+  assert.Nil(t, fn(srcp, &tgt))
+  assert.Equal(t, "1", tgt)
+
+  // nil *int -> string
+  assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) string"), fn(nil, &tgt))
   assert.Equal(t, "1", tgt)
 }
 
@@ -422,11 +415,15 @@ func TestLookupConversionPtr2Base_(t *testing.T) {
   var tgt substring
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *int -> substring
+  assert.Nil(t, fn(srcp, &tgt))
+  assert.Equal(t, substring("1"), tgt)
+
+  // nil *int -> substring
+  assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) %s", goreflect.TypeOf(tgt)), fn(nil, &tgt))
   assert.Equal(t, substring("1"), tgt)
 }
 
@@ -437,12 +434,18 @@ func TestLookupConversionPtr2Ptr_(t *testing.T) {
   var tgtp = &tgt
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, tgtp)
+  // *int -> *string
+  assert.Nil(t, fn(srcp, &tgtp))
   assert.Equal(t, "1", tgt)
+  assert.Equal(t, &tgt, tgtp)
+
+  // nil *int -> *string
+  assert.Nil(t, fn(nil, &tgtp))
+  assert.Equal(t, "1", tgt)
+  assert.Nil(t, tgtp)
 }
 
 func TestLookupConversionPtr2PtrBase_(t *testing.T) {
@@ -453,12 +456,18 @@ func TestLookupConversionPtr2PtrBase_(t *testing.T) {
   var tgtp = &tgt
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, tgtp)
+  // *int -> *substring
+  assert.Nil(t, fn(srcp, &tgtp))
   assert.Equal(t, substring("1"), tgt)
+  assert.Equal(t, &tgt, tgtp)
+
+  // nil *int -> *substring
+  assert.Nil(t, fn(nil, &tgtp))
+  assert.Equal(t, substring("1"), tgt)
+  assert.Nil(t, tgtp)
 }
 
 func TestLookupConversionPtr2Maybe_(t *testing.T) {
@@ -467,13 +476,17 @@ func TestLookupConversionPtr2Maybe_(t *testing.T) {
   var tgt union.Maybe[string]
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *int -> Maybe[string]
+  assert.Nil(t, fn(srcp, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", tgt.Get())
+
+  // nil *int -> Maybe[string]
+  assert.Nil(t, fn(nil, &tgt))
+  assert.False(t, tgt.Present())
 }
 
 func TestLookupConversionPtr2MaybeBase_(t *testing.T) {
@@ -483,13 +496,17 @@ func TestLookupConversionPtr2MaybeBase_(t *testing.T) {
   var tgt union.Maybe[substring]
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *int -> Maybe[substring]
+  assert.Nil(t, fn(srcp, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), tgt.Get())
+
+  // nil *int -> Maybe[substring]
+  assert.Nil(t, fn(nil, &tgt))
+  assert.False(t, tgt.Present())
 }
 
 func TestLookupConversionPtr2MaybePtr_(t *testing.T) {
@@ -498,10 +515,10 @@ func TestLookupConversionPtr2MaybePtr_(t *testing.T) {
   var tgt union.Maybe[*string]
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
+  // 
   fn(srcp, &tgt)
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", *tgt.Get())
