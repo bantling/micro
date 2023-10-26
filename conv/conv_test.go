@@ -403,8 +403,12 @@ func TestLookupConversionPtr2Val_(t *testing.T) {
   assert.Nil(t, fn(srcp, &tgt))
   assert.Equal(t, "1", tgt)
 
-  // nil *int -> string
+  // nil -> string
   assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) string"), fn(nil, &tgt))
+  assert.Equal(t, "1", tgt)
+
+  // nil *int -> string
+  assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) string"), fn((*int)(nil), &tgt))
   assert.Equal(t, "1", tgt)
 }
 
@@ -422,8 +426,12 @@ func TestLookupConversionPtr2Base_(t *testing.T) {
   assert.Nil(t, fn(srcp, &tgt))
   assert.Equal(t, substring("1"), tgt)
 
-  // nil *int -> substring
+  // nil -> substring
   assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) %s", goreflect.TypeOf(tgt)), fn(nil, &tgt))
+  assert.Equal(t, substring("1"), tgt)
+
+  // nil *int -> substring
+  assert.Equal(t, fmt.Errorf("A nil *int cannot be converted to a(n) %s", goreflect.TypeOf(tgt)), fn((*int)(nil), &tgt))
   assert.Equal(t, substring("1"), tgt)
 }
 
@@ -442,8 +450,15 @@ func TestLookupConversionPtr2Ptr_(t *testing.T) {
   assert.Equal(t, "1", tgt)
   assert.Equal(t, &tgt, tgtp)
 
-  // nil *int -> *string
+  // nil -> *string
+  tgtp = &tgt
   assert.Nil(t, fn(nil, &tgtp))
+  assert.Equal(t, "1", tgt)
+  assert.Nil(t, tgtp)
+
+  // nil *int -> *string
+  tgtp = &tgt
+  assert.Nil(t, fn((*int)(nil), &tgtp))
   assert.Equal(t, "1", tgt)
   assert.Nil(t, tgtp)
 }
@@ -464,8 +479,15 @@ func TestLookupConversionPtr2PtrBase_(t *testing.T) {
   assert.Equal(t, substring("1"), tgt)
   assert.Equal(t, &tgt, tgtp)
 
-  // nil *int -> *substring
+  // nil  -> *substring
+  tgtp = &tgt
   assert.Nil(t, fn(nil, &tgtp))
+  assert.Equal(t, substring("1"), tgt)
+  assert.Nil(t, tgtp)
+
+  // nil *int -> *substring
+  tgtp = &tgt
+  assert.Nil(t, fn((*int)(nil), &tgtp))
   assert.Equal(t, substring("1"), tgt)
   assert.Nil(t, tgtp)
 }
@@ -484,8 +506,14 @@ func TestLookupConversionPtr2Maybe_(t *testing.T) {
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", tgt.Get())
 
-  // nil *int -> Maybe[string]
+  // nil -> Maybe[string]
+  tgt.Set("2")
   assert.Nil(t, fn(nil, &tgt))
+  assert.False(t, tgt.Present())
+
+  // nil *int -> Maybe[string]
+  tgt.Set("3")
+  assert.Nil(t, fn((*int)(nil), &tgt))
   assert.False(t, tgt.Present())
 }
 
@@ -504,40 +532,68 @@ func TestLookupConversionPtr2MaybeBase_(t *testing.T) {
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), tgt.Get())
 
-  // nil *int -> Maybe[substring]
+  // nil -> Maybe[substring]
+  tgt.Set(substring("2"))
   assert.Nil(t, fn(nil, &tgt))
+  assert.False(t, tgt.Present())
+
+  // nil *int -> Maybe[substring]
+  tgt.Set(substring("3"))
+  assert.Nil(t, fn((*int)(nil), &tgt))
   assert.False(t, tgt.Present())
 }
 
 func TestLookupConversionPtr2MaybePtr_(t *testing.T) {
   var src int = 1
   var srcp = &src
+  var tval string
   var tgt union.Maybe[*string]
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  // 
-  fn(srcp, &tgt)
+  // *int -> Maybe[*string]
+  assert.Nil(t, fn(srcp, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, "1", *tgt.Get())
+
+  // nil -> Maybe[*string]
+  tgt.Set(&tval)
+  assert.Nil(t, fn(nil, &tgt))
+  assert.False(t, tgt.Present())
+
+  // nil *int -> Maybe[*string]
+  tgt.Set(&tval)
+  assert.Nil(t, fn((*int)(nil), &tgt))
+  assert.False(t, tgt.Present())
 }
 
 func TestLookupConversionPtr2MaybePtrBase_(t *testing.T) {
   var src int = 1
   var srcp = &src
   type substring string
+  var tval substring
   var tgt union.Maybe[*substring]
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *int -> *substring
+  assert.Nil(t, fn(srcp, &tgt))
   assert.True(t, tgt.Present())
   assert.Equal(t, substring("1"), *tgt.Get())
+
+  // nil -> *substring
+  tgt.Set(&tval)
+  assert.Nil(t, fn(nil, &tgt))
+  assert.False(t, tgt.Present())
+
+  // nil *int -> *substring
+  tgt.Set(&tval)
+  assert.Nil(t, fn((*int)(nil), &tgt))
+  assert.False(t, tgt.Present())
 }
 
 // ==== LookupConversion from Ptr Base
