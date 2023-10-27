@@ -236,6 +236,16 @@ func TestIsNillable_(t *testing.T) {
 	assert.True(t, IsNillable(goreflect.ValueOf(([]int)(nil))))
 }
 
+func TestIsNil_(t *testing.T) {
+  assert.False(t, IsNil(goreflect.ValueOf(0)))
+  assert.True(t, IsNil(goreflect.ValueOf((chan int)(nil))))
+  assert.True(t, IsNil(goreflect.ValueOf((func())(nil))))
+  assert.True(t, IsNil(goreflect.ValueOf((goreflect.Type)(nil))))
+  assert.True(t, IsNil(goreflect.ValueOf((map[int]any)(nil))))
+  assert.True(t, IsNil(goreflect.ValueOf((*int)(nil))))
+  assert.True(t, IsNil(goreflect.ValueOf(([]int)(nil))))
+}
+
 func TestIsPrimitive_(t *testing.T) {
 	assert.True(t, IsPrimitive(goreflect.TypeOf(0)))
 	assert.False(t, IsPrimitive(goreflect.PtrTo(goreflect.TypeOf(0))))

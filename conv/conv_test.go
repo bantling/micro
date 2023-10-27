@@ -605,11 +605,19 @@ func TestLookupConversionPtrBase2Val_(t *testing.T) {
   var tgt string
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *subint -> string
+  assert.Nil(t, fn(srcp, &tgt))
+  assert.Equal(t, "1", tgt)
+
+  // nil -> string
+  assert.Equal(t, fmt.Errorf("A nil %s cannot be converted to a(n) string", goreflect.TypeOf((*subint)(nil))), fn(nil, &tgt))
+  assert.Equal(t, "1", tgt)
+
+  // nil *subint -> string
+  assert.Equal(t, fmt.Errorf("A nil %s cannot be converted to a(n) string", goreflect.TypeOf((*subint)(nil))), fn((*subint)(nil), &tgt))
   assert.Equal(t, "1", tgt)
 }
 
@@ -621,11 +629,19 @@ func TestLookupConversionPtrBase2Base_(t *testing.T) {
   var tgt substring
 
   fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgt))
-
   assert.NotNil(t, fn)
   assert.Nil(t, err)
 
-  fn(srcp, &tgt)
+  // *subint -> substring
+  assert.Nil(t, fn(srcp, &tgt))
+  assert.Equal(t, substring("1"), tgt)
+
+  // nil -> substring
+  assert.Equal(t, fmt.Errorf("A nil %s cannot be converted to a(n) %s", goreflect.TypeOf((*subint)(nil)), goreflect.TypeOf((substring)(""))), fn(nil, &tgt))
+  assert.Equal(t, substring("1"), tgt)
+
+  // nil *subint -> substring
+  assert.Equal(t, fmt.Errorf("A nil %s cannot be converted to a(n) %s", goreflect.TypeOf((*subint)(nil)), goreflect.TypeOf((substring)(""))), fn((*subint)(nil), &tgt))
   assert.Equal(t, substring("1"), tgt)
 }
 

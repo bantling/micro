@@ -1149,7 +1149,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
           case srcPtr:
             srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() { return s.Elem() }; return s }
           case srcPtrBase:
-            srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() { return s.Elem().Convert(srcPtrBase) }; return s }
+            srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() && (!s.IsNil()) { return s.Elem().Convert(srcPtrBase) }; return s }
           case srcMaybe:
             srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
           case srcMaybeBase:
@@ -1226,7 +1226,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
             srcVal = srcFn(srcVal)
             fmt.Printf("0. %t\n", srcVal.IsValid())
 
-            if !srcVal.IsValid() {
+            if reflect.IsNil(srcVal) {
               fmt.Printf("1. %s\n", tgtVal.Type())
               // Tgt must be nillable or maybe
               if reflect.IsNillable(tgt) {
@@ -1252,6 +1252,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
             fmt.Printf("2. %s\n", temp.Type())
 
             // Convert source -> unwrapped target
+            fmt.Printf("2.5. %s, %#v\n", srcVal.Type(), srcVal.Interface())
             err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
             fmt.Printf("3. %#v, %s\n", temp.Interface(), err)
 

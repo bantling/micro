@@ -224,6 +224,11 @@ func IsNillable[T KindElem[T]](ke T) bool {
 	return (knd == goreflect.Invalid) || ((knd >= goreflect.Chan) && (knd <= goreflect.Slice))
 }
 
+// IsNil returns true if the value is invalid or a nillable type whose value is nil
+func IsNil(val goreflect.Value) bool {
+  return (!val.IsValid()) || (IsNillable(val.Type()) && val.IsNil())
+}
+
 func IsPrimitive[T KindElem[T]](val T) bool {
 	_, hasIt := kindToType[val.Kind()]
 	return hasIt
