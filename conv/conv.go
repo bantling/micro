@@ -1048,10 +1048,10 @@ var (
 // If a conversion is not found               : returns nil,  nil
 // Conversion is not allowed                  : returns nil,  err
 func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
-  // Verify src and tgt are not nil
-  if (src == nil) || (tgt == nil) {
-    return nil, fmt.Errorf(errLookupMsg, src, tgt)
-  }
+	// Verify src and tgt are not nil
+	if (src == nil) || (tgt == nil) {
+		return nil, fmt.Errorf(errLookupMsg, src, tgt)
+	}
 
 	// Verify the types are not more than one pointer
 	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
@@ -1067,200 +1067,255 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		}
 	}
 
-  // Check for conversion from src to tgt as is, most common case
-  if conv, haveIt := convertFromTo[src.String()+tgt.String()]; haveIt {
-    return conv, nil
-  }
+	// Check for conversion from src to tgt as is, most common case
+	if conv, haveIt := convertFromTo[src.String()+tgt.String()]; haveIt {
+		return conv, nil
+	}
 
-  // Search every valid combination of src, tgt = val/subtype, *val/subtype, maybe val/subtype, maybe *val/subtype.
-  // Ensure we do not allow invalid combinations, such as *Maybe.
-  // If a conversion is found:
-  // - create a wrapper func that deals with conversions, *, maybe for both src and tgt
-  // - register it so future calls don't have to do same search
-  // - return it to caller
-  // If no converison found, return nil, error
+	// Search every valid combination of src, tgt = val/subtype, *val/subtype, maybe val/subtype, maybe *val/subtype.
+	// Ensure we do not allow invalid combinations, such as *Maybe.
+	// If a conversion is found:
+	// - create a wrapper func that deals with conversions, *, maybe for both src and tgt
+	// - register it so future calls don't have to do same search
+	// - return it to caller
+	// If no converison found, return nil, error
 
-  var (
-    srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase goreflect.Type
-    tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase goreflect.Type
-    convFn func(any, any) error
-    haveIt bool
-  )
+	var (
+		srcVal, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase goreflect.Type
+		tgtVal, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase goreflect.Type
+		convFn                                                                                    func(any, any) error
+		haveIt                                                                                    bool
+	)
 
-  srcBase = reflect.TypeToBaseType(src)
+	srcVal = src
+	srcBase = reflect.TypeToBaseType(src)
 
-  if srcPtr = funcs.TernaryResult(src.Kind() == goreflect.Pointer, src.Elem, nil); srcPtr != nil {
-    srcPtrBase = reflect.TypeToBaseType(srcPtr)
+	if srcPtr = funcs.TernaryResult(src.Kind() == goreflect.Pointer, src.Elem, nil); srcPtr != nil {
+		srcVal = nil
+		srcPtrBase = reflect.TypeToBaseType(srcPtr)
 
-    if reflect.GetMaybeType(srcPtr) != nil {
-      // Cannot have a *Maybe, that makes no sense
-      return nil, fmt.Errorf(errLookupMsg, src, tgt)
-    }
-  }
+		if reflect.GetMaybeType(srcPtr) != nil {
+			// Cannot have a *Maybe, that makes no sense
+			return nil, fmt.Errorf(errLookupMsg, src, tgt)
+		}
+	}
 
-  if srcMaybe = reflect.GetMaybeType(src); srcMaybe != nil {
-    srcMaybeBase = reflect.TypeToBaseType(srcMaybe)
+	if srcMaybe = reflect.GetMaybeType(src); srcMaybe != nil {
+		srcVal = nil
+		srcMaybeBase = reflect.TypeToBaseType(srcMaybe)
 
-    if srcMaybePtr = funcs.TernaryResult(srcMaybe.Kind() == goreflect.Pointer, srcMaybe.Elem, nil); srcMaybePtr != nil {
-      srcMaybePtrBase = reflect.TypeToBaseType(srcMaybePtr)
-    }
-  }
+		if srcMaybePtr = funcs.TernaryResult(srcMaybe.Kind() == goreflect.Pointer, srcMaybe.Elem, nil); srcMaybePtr != nil {
+			srcMaybePtrBase = reflect.TypeToBaseType(srcMaybePtr)
+		}
+	}
 
-  tgtBase = reflect.TypeToBaseType(tgt)
+	tgtVal = tgt
+	tgtBase = reflect.TypeToBaseType(tgt)
 
-  if tgtPtr = funcs.TernaryResult(tgt.Kind() == goreflect.Pointer, tgt.Elem, nil); tgtPtr != nil {
-    tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
+	if tgtPtr = funcs.TernaryResult(tgt.Kind() == goreflect.Pointer, tgt.Elem, nil); tgtPtr != nil {
+		tgtVal = nil
+		tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
 
-    if reflect.GetMaybeType(tgtPtr) != nil {
-      // Cannot have a *Maybe, that makes no sense
-      return nil, fmt.Errorf(errLookupMsg, src, tgt)
-    }
-  }
+		if reflect.GetMaybeType(tgtPtr) != nil {
+			// Cannot have a *Maybe, that makes no sense
+			return nil, fmt.Errorf(errLookupMsg, src, tgt)
+		}
+	}
 
-  if tgtMaybe = reflect.GetMaybeType(tgt); tgtMaybe != nil {
-    tgtMaybeBase = reflect.TypeToBaseType(tgtMaybe)
+	if tgtMaybe = reflect.GetMaybeType(tgt); tgtMaybe != nil {
+		tgtVal = nil
+		tgtMaybeBase = reflect.TypeToBaseType(tgtMaybe)
 
-    if tgtMaybePtr = funcs.TernaryResult(tgtMaybe.Kind() == goreflect.Pointer, tgtMaybe.Elem, nil); tgtMaybePtr != nil {
-      tgtMaybePtrBase = reflect.TypeToBaseType(tgtMaybePtr)
-    }
-  }
+		if tgtMaybePtr = funcs.TernaryResult(tgtMaybe.Kind() == goreflect.Pointer, tgtMaybe.Elem, nil); tgtMaybePtr != nil {
+			tgtMaybePtrBase = reflect.TypeToBaseType(tgtMaybePtr)
+		}
+	}
 
-  for _, srcTyp := range []goreflect.Type{
-    src, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase,
-  } {
-    for _, tgtTyp := range []goreflect.Type{
-      tgt, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase,
-    } {
-      // Cannot lookup conversions for types that don't exist
-      if (srcTyp != nil) && (tgtTyp != nil) {
-        convFn, haveIt = nil, srcTyp == tgtTyp
-        if (!haveIt) {
-          convFn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]
-        }
+	for _, srcTyp := range []goreflect.Type{
+		srcVal, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase,
+	} {
+		for _, tgtTyp := range []goreflect.Type{
+			tgtVal, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase,
+		} {
+			// Cannot lookup conversions for types that don't exist
+			if (srcTyp != nil) && (tgtTyp != nil) {
+				convFn, haveIt = nil, srcTyp == tgtTyp
+				if !haveIt {
+					convFn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]
+				}
 
-        if haveIt {
-          // Generate a function to unwrap the src type and read it
-          var srcFn func(goreflect.Value) goreflect.Value
-          switch srcTyp {
-          case src:
-            srcFn = func(s goreflect.Value) goreflect.Value { return s }
-          case srcBase:
-            srcFn = func(s goreflect.Value) goreflect.Value {return s.Convert(srcBase) }
-          case srcPtr:
-            srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() { return s.Elem() }; return s }
-          case srcPtrBase:
-            srcFn = func(s goreflect.Value) goreflect.Value { if s.IsValid() && (!s.IsNil()) { return s.Elem().Convert(srcPtrBase) }; return s }
-          case srcMaybe:
-            srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
-          case srcMaybeBase:
-            srcFn = func(s goreflect.Value) goreflect.Value {
-              if temp := reflect.GetMaybeValue(s); temp.IsValid() {
-                return temp.Convert(srcMaybeBase)
-              } else {
-                return temp
-              }
-           }
-          case srcMaybePtr:
-            srcFn = func(s goreflect.Value) goreflect.Value {
-              if temp := reflect.GetMaybeValue(s); temp.IsValid() {
-                return temp.Elem()
-              } else {
-                return temp
-              }
-            }
-          case srcMaybePtrBase:
-            srcFn = func(s goreflect.Value) goreflect.Value {
-              if temp := reflect.GetMaybeValue(s); temp.IsValid() {
-                return temp.Elem().Convert(srcMaybePtrBase)
-              } else {
-                return temp
-              }
-            }
-          }
+				if haveIt {
+					// Generate a function to unwrap the src type and read it
+					var srcFn func(goreflect.Value) goreflect.Value
+					switch srcTyp {
+					case src:
+						srcFn = func(s goreflect.Value) goreflect.Value { return s }
+					case srcBase:
+						srcFn = func(s goreflect.Value) goreflect.Value { return s.Convert(srcBase) }
+					case srcPtr:
+						srcFn = func(s goreflect.Value) goreflect.Value {
+							if s.IsValid() {
+								return s.Elem()
+							}
+							return s
+						}
+					case srcPtrBase:
+						srcFn = func(s goreflect.Value) goreflect.Value {
+							if s.IsValid() && (!s.IsNil()) {
+								return s.Elem().Convert(srcPtrBase)
+							}
+							return s
+						}
+					case srcMaybe:
+						srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
+					case srcMaybeBase:
+						srcFn = func(s goreflect.Value) goreflect.Value {
+							if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+								return temp.Convert(srcMaybeBase)
+							} else {
+								return temp
+							}
+						}
+					case srcMaybePtr:
+						srcFn = func(s goreflect.Value) goreflect.Value {
+							if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+								return temp.Elem()
+							} else {
+								return temp
+							}
+						}
+					case srcMaybePtrBase:
+						srcFn = func(s goreflect.Value) goreflect.Value {
+							if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+								return temp.Elem().Convert(srcMaybePtrBase)
+							} else {
+								return temp
+							}
+						}
+					}
 
-          // Generate a function to wrap the tgt type
-          var tgtFn func(temp, t goreflect.Value)
-          switch tgtTyp {
-          case tgt:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
-          case tgtBase:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt)) }
-          case tgtPtr:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Elem().Set(temp.Elem()) }
-          case tgtPtrBase:
-            tgtFn = func(temp, t goreflect.Value) { t.Elem().Elem().Set(temp.Elem().Convert(tgt.Elem())) }
-          case tgtMaybe:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
-          case tgtMaybeBase:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
-          case tgtMaybePtr:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp) }
-          case tgtMaybePtrBase:
-            tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr))) }
-          }
+					// Generate a function to wrap the tgt type
+					var tgtFn func(temp, t goreflect.Value)
+					switch tgtTyp {
+					case tgt:
+						tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
+					case tgtBase:
+						tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt)) }
+					case tgtPtr:
+						tgtFn = func(temp, t goreflect.Value) {
+							if t.Elem().IsNil() {
+								t.Elem().Set(temp)
+							} else {
+								t.Elem().Elem().Set(temp.Elem())
+							}
+						}
+					case tgtPtrBase:
+						tgtFn = func(temp, t goreflect.Value) {
+							if t.Elem().IsNil() {
+								t.Elem().Set(temp.Convert(t.Elem().Type()))
+							} else {
+								t.Elem().Elem().Set(temp.Elem().Convert(tgt.Elem()))
+							}
+						}
+					case tgtMaybe:
+						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
+					case tgtMaybeBase:
+						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
+					case tgtMaybePtr:
+						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp) }
+					case tgtMaybePtrBase:
+						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr))) }
+					}
 
-          // If convFn is nil and the types are the same, generate a copy function
-          if (convFn == nil) && (srcTyp == tgtTyp) {
-            convFn = func(s, t any) error {
-              goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s))
-              return nil
-            }
-          }
+					// If convFn is nil and the types are the same, generate a copy function
+					if (convFn == nil) && (srcTyp == tgtTyp) {
+						convFn = func(s, t any) error {
+							sv, tv := goreflect.ValueOf(s), goreflect.ValueOf(t)
 
-          // Return a conversion function that unwraps the source as needed, and wraps the target value as needed
-          return func(s, t any) error {
-            // Use reflection to do runtime type assertion exactly like a provided conversion function would
-            // This ensure two things:
-            // - A copy conversion does not inadvertently allow copying any random types that happen to be the same
-            // - Registered conversions panic with errors that indicate if the source or target type is the problem
-            srcVal, tgtVal := goreflect.ValueOf(s), goreflect.ValueOf(t)
-            if srcVal.IsValid() {
-              reflect.MustTypeAssert(srcVal, src, "source")
-            }
-            reflect.MustTypeAssert(tgtVal, goreflect.PtrTo(tgt), "target")
+							// If the source and target are pointers, set target to nil or copy of src value
+							if (!sv.IsValid()) || (sv.Kind() == goreflect.Pointer) {
+								if (!sv.IsValid()) || sv.IsNil() {
+									tv.Elem().SetZero()
+								} else {
+									tv.Elem().Set(sv)
+								}
+								return nil
+							}
 
-            // Unwrap src value, which will be invalid for nil ptr or empty maybe
-            srcVal = srcFn(srcVal)
+							tv.Elem().Set(sv)
+							return nil
+						}
+					}
 
-            if reflect.IsNil(srcVal) {
-              // Tgt must be nillable or maybe
-              if reflect.IsNillable(tgt) {
-                // Tgt is nillable
-                tgtVal.Elem().SetZero()
-              } else if tgtMaybe != nil {
-                // Tgt is a Maybe
-                reflect.SetMaybeValueEmpty(tgtVal)
-              } else if srcMaybe == nil {
-                // Tgt cannot be nil, src is a nil Ptr
-                return fmt.Errorf(errConvertNilSourceMsg, src, tgt)
-              } else {
-                // Tgt cannot be nil, src is an empty Maybe
-                return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
-              }
+					// Return a conversion function that unwraps the source as needed, and wraps the target value as needed
+					return func(s, t any) error {
+						// Use reflection to do runtime type assertion exactly like a provided conversion function would
+						// This ensure two things:
+						// - A copy conversion does not inadvertently allow copying any random types that happen to be the same
+						// - Registered conversions panic with errors that indicate if the source or target type is the problem
+						srcVal, tgtVal := goreflect.ValueOf(s), goreflect.ValueOf(t)
 
-              return nil
-            }
+						// The source may be an untyped nil
+						if srcVal.IsValid() {
+							// If not, then assert types match
+							reflect.MustTypeAssert(srcVal, src, "source")
+						}
 
-            // Create a pointer to the target unwrapped type for the conversion to write to
-            temp := goreflect.New(tgtTyp)
+						// The target may be an untyped nil
+						if !tgtVal.IsValid() {
+							// If so, we cannot convert
+							return fmt.Errorf(errCopyNilTargetMsg, src, tgt)
+						}
+						// The target may be a typed nil
+						if reflect.IsNil(tgtVal) {
+							return fmt.Errorf(errCopyNilTargetMsg, src, tgt)
+						}
+						// If the target is not nil, then assert types match
+						reflect.MustTypeAssert(tgtVal, goreflect.PtrTo(tgt), "target")
 
-            // Convert source -> unwrapped target
-            err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
+						// Unwrap src value, which will be invalid for nil ptr or empty maybe
+						srcVal = srcFn(srcVal)
 
-            // Wrap target value only if no error occurred - the target is unmodified if the conversion fails
-            if err == nil {
-              tgtFn(temp, tgtVal)
-            }
+						if reflect.IsNil(srcVal) {
+							// Tgt must be nillable or maybe
+							if reflect.IsNillable(tgt) {
+								// Tgt is nillable)
+								tgtVal.Elem().SetZero()
+							} else if tgtMaybe != nil {
+								// Tgt is a Maybe
+								reflect.SetMaybeValueEmpty(tgtVal)
+							} else if srcMaybe == nil {
+								// Tgt cannot be nil, src is a nil Ptr
+								return fmt.Errorf(errConvertNilSourceMsg, src, tgt)
+							} else {
+								// Tgt cannot be nil, src is an empty Maybe
+								return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
+							}
 
-            // Return any error
-            return err
-          }, nil
-        }
-      }
-    }
-  }
+							return nil
+						}
 
-  return nil, nil
+						// Create a pointer to the target unwrapped type for the conversion to write to
+						temp := goreflect.New(tgtTyp)
+
+						// Convert source -> unwrapped target
+						err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
+
+						// Wrap target value only if no error occurred - the target is unmodified if the conversion fails
+						if err == nil {
+							fmt.Printf("tgtVal = %#v\n", tgtVal.Interface())
+							tgtFn(temp, tgtVal)
+						}
+
+						// Return any error
+						return err
+					}, nil
+				}
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // RegisterConversion registers a conversion from a value of type S to a value of type T.

@@ -3,7 +3,7 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "fmt"
+	"fmt"
 	"math/big"
 	goreflect "reflect"
 	"testing"
@@ -176,13 +176,13 @@ func TestSetMaybeValueEmpty_(t *testing.T) {
 }
 
 func TestSetPointerValue_(t *testing.T) {
-  m := 0
-  SetPointerValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
-  assert.Equal(t, 1, m)
+	m := 0
+	SetPointerValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
+	assert.Equal(t, 1, m)
 
-  p := &m
-  SetPointerValue(goreflect.ValueOf(&p), goreflect.ValueOf(2))
-  assert.Equal(t, 2, m)
+	p := &m
+	SetPointerValue(goreflect.ValueOf(&p), goreflect.ValueOf(2))
+	assert.Equal(t, 2, m)
 }
 
 func TestIsBigPtr_(t *testing.T) {
@@ -237,13 +237,13 @@ func TestIsNillable_(t *testing.T) {
 }
 
 func TestIsNil_(t *testing.T) {
-  assert.False(t, IsNil(goreflect.ValueOf(0)))
-  assert.True(t, IsNil(goreflect.ValueOf((chan int)(nil))))
-  assert.True(t, IsNil(goreflect.ValueOf((func())(nil))))
-  assert.True(t, IsNil(goreflect.ValueOf((goreflect.Type)(nil))))
-  assert.True(t, IsNil(goreflect.ValueOf((map[int]any)(nil))))
-  assert.True(t, IsNil(goreflect.ValueOf((*int)(nil))))
-  assert.True(t, IsNil(goreflect.ValueOf(([]int)(nil))))
+	assert.False(t, IsNil(goreflect.ValueOf(0)))
+	assert.True(t, IsNil(goreflect.ValueOf((chan int)(nil))))
+	assert.True(t, IsNil(goreflect.ValueOf((func())(nil))))
+	assert.True(t, IsNil(goreflect.ValueOf((goreflect.Type)(nil))))
+	assert.True(t, IsNil(goreflect.ValueOf((map[int]any)(nil))))
+	assert.True(t, IsNil(goreflect.ValueOf((*int)(nil))))
+	assert.True(t, IsNil(goreflect.ValueOf(([]int)(nil))))
 }
 
 func TestIsPrimitive_(t *testing.T) {
@@ -271,57 +271,57 @@ func TestResolveValueType_(t *testing.T) {
 }
 
 func TestTypeAssert_(t *testing.T) {
-  {
-    // any containing an int is not a string
-    var i = []any{0}
-    assert.Equal(t, fmt.Errorf("interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf("")))
-    assert.Equal(t, fmt.Errorf("foo: interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""), "foo"))
+	{
+		// any containing an int is not a string
+		var i = []any{0}
+		assert.Equal(t, fmt.Errorf("interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf("")))
+		assert.Equal(t, fmt.Errorf("foo: interface {} is int, not string"), TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""), "foo"))
 
-    var failed bool
-    funcs.TryTo(
-      func() {
-        MustTypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""))
-        assert.Fail(t, "Must die")
-      },
-      func(e any) {
-        assert.Equal(t, fmt.Errorf("interface {} is int, not string"), e)
-        failed = true
-      },
-    )
-    assert.True(t, failed)
-  }
+		var failed bool
+		funcs.TryTo(
+			func() {
+				MustTypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""))
+				assert.Fail(t, "Must die")
+			},
+			func(e any) {
+				assert.Equal(t, fmt.Errorf("interface {} is int, not string"), e)
+				failed = true
+			},
+		)
+		assert.True(t, failed)
+	}
 
-  {
-    // any containing an int is an int
-    var i = []any{0}
-    assert.Nil(t, TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(0)))
+	{
+		// any containing an int is an int
+		var i = []any{0}
+		assert.Nil(t, TypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(0)))
 
-    var failed bool
-    funcs.TryTo(
-      func() {
-        MustTypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""), "bar")
-        assert.Fail(t, "Must die")
-      },
-      func(e any) {
-        assert.Equal(t, fmt.Errorf("bar: interface {} is int, not string"), e)
-        failed = true
-      },
-    )
-    assert.True(t, failed)
-  }
+		var failed bool
+		funcs.TryTo(
+			func() {
+				MustTypeAssert(goreflect.ValueOf(i).Index(0), goreflect.TypeOf(""), "bar")
+				assert.Fail(t, "Must die")
+			},
+			func(e any) {
+				assert.Equal(t, fmt.Errorf("bar: interface {} is int, not string"), e)
+				failed = true
+			},
+		)
+		assert.True(t, failed)
+	}
 
-  {
-    // int is not a string
-    var i = 0
-    assert.Equal(t, fmt.Errorf("int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf("")))
-    assert.Equal(t, fmt.Errorf("bar: int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf(""), "bar"))
-  }
+	{
+		// int is not a string
+		var i = 0
+		assert.Equal(t, fmt.Errorf("int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf("")))
+		assert.Equal(t, fmt.Errorf("bar: int is int, not string"), TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf(""), "bar"))
+	}
 
-  {
-    // int is an int
-    var i = 0
-    assert.Nil(t, TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf(0)))
-  }
+	{
+		// int is an int
+		var i = 0
+		assert.Nil(t, TypeAssert(goreflect.ValueOf(i), goreflect.TypeOf(0)))
+	}
 }
 
 func TestTypeToBaseType_(t *testing.T) {

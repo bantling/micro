@@ -343,16 +343,16 @@ func (m Maybe[T]) OrError(e error) (res T, err error) {
 
 // Set overwrites the current value with newVal, and sets m as present
 func (m *Maybe[T]) Set(newVal T) {
-  // Store new value, which may be nil if T is a pointer type
+	// Store new value, which may be nil if T is a pointer type
 	m.v = newVal
 
-  // Set present to true unless T is a pointer type and newVal is nil
+	// Set present to true unless T is a pointer type and newVal is nil
 	m.present = !funcs.IsNilValue(newVal)
 }
 
 // SetEmpty overwrites the current value with the zero value, and sets m as empty
 func (m *Maybe[T]) SetEmpty() {
-  var zv T
+	var zv T
 	m.v = zv
 	m.present = false
 }

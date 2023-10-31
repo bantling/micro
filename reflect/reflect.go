@@ -3,7 +3,7 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "fmt"
+	"fmt"
 	"math/big"
 	goreflect "reflect"
 	"strings"
@@ -13,7 +13,7 @@ import (
 )
 
 const (
-  errTypeAssertMsg = "%s%s is %s, not %s"
+	errTypeAssertMsg = "%s%s is %s, not %s"
 )
 
 var (
@@ -193,8 +193,8 @@ func SetMaybeValueEmpty(dst goreflect.Value) {
 // SetPointerValue copies the value of val into dst after dereffing all pointers
 // Dst must be at least one pointer that derefs to some type T, and val must be convertible to T, otherwise a panic will occur
 func SetPointerValue(dst, val goreflect.Value) {
-  deref := DerefValue(dst)
-  deref.Set(val.Convert(deref.Type()))
+	deref := DerefValue(dst)
+	deref.Set(val.Convert(deref.Type()))
 }
 
 // IsBigPtr returns true if the given type is a *big.Int, *big.Float, or *big.Rat, and false otherwise
@@ -226,7 +226,7 @@ func IsNillable[T KindElem[T]](ke T) bool {
 
 // IsNil returns true if the value is invalid or a nillable type whose value is nil
 func IsNil(val goreflect.Value) bool {
-  return (!val.IsValid()) || (IsNillable(val.Type()) && val.IsNil())
+	return (!val.IsValid()) || (IsNillable(val.Type()) && val.IsNil())
 }
 
 func IsPrimitive[T KindElem[T]](val T) bool {
@@ -264,17 +264,17 @@ func ResolveValueType(val goreflect.Value) goreflect.Value {
 // Unlike Go's type assertion syntax, this function can be called with any kind of value and any type.
 // If desired, an optional message can be provided that is placed at the beginning of the error message, followed by a colon and space.
 func TypeAssert(val goreflect.Value, typ goreflect.Type, msg ...string) error {
-  if rt := ResolveValueType(val).Type(); rt != typ {
-    prefix := funcs.SliceIndex(msg, 0)
-    return fmt.Errorf(errTypeAssertMsg, funcs.Ternary(prefix == "", prefix, prefix+": "), val.Type(), rt, typ)
-  }
+	if rt := ResolveValueType(val).Type(); rt != typ {
+		prefix := funcs.SliceIndex(msg, 0)
+		return fmt.Errorf(errTypeAssertMsg, funcs.Ternary(prefix == "", prefix, prefix+": "), val.Type(), rt, typ)
+	}
 
-  return nil
+	return nil
 }
 
 // MustTypeAssert is a must version of TypeAssert
 func MustTypeAssert(val goreflect.Value, typ goreflect.Type, msg ...string) {
-  funcs.Must(TypeAssert(val, typ, msg...))
+	funcs.Must(TypeAssert(val, typ, msg...))
 }
 
 // TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type foo uint8) to the underlying type (eg uint8).
