@@ -1230,19 +1230,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 					// If convFn is nil and the types are the same, generate a copy function
 					if (convFn == nil) && (srcTyp == tgtTyp) {
 						convFn = func(s, t any) error {
-							sv, tv := goreflect.ValueOf(s), goreflect.ValueOf(t)
-
-							// If the source and target are pointers, set target to nil or copy of src value
-							if (!sv.IsValid()) || (sv.Kind() == goreflect.Pointer) {
-								if (!sv.IsValid()) || sv.IsNil() {
-									tv.Elem().SetZero()
-								} else {
-									tv.Elem().Set(sv)
-								}
-								return nil
-							}
-
-							tv.Elem().Set(sv)
+							goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s))
 							return nil
 						}
 					}
@@ -1261,11 +1249,10 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 							reflect.MustTypeAssert(srcVal, src, "source")
 						}
 
-						// The target may be an untyped nil
-						if !tgtVal.IsValid() {
-							// If so, we cannot convert
-							return fmt.Errorf(errCopyNilTargetMsg, src, tgt)
-						}
+						// The target cannot be an untyped nil:
+            // - conv.To accepts *T, which camn only be a typed nil
+            // - reflect.Value.Call requires all arguments to be a valid Value object
+
 						// The target may be a typed nil
 						if reflect.IsNil(tgtVal) {
 							return fmt.Errorf(errCopyNilTargetMsg, src, tgt)
