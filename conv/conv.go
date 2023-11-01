@@ -1250,8 +1250,8 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 						}
 
 						// The target cannot be an untyped nil:
-            // - conv.To accepts *T, which camn only be a typed nil
-            // - reflect.Value.Call requires all arguments to be a valid Value object
+						// - conv.To accepts *T, which camn only be a typed nil
+						// - reflect.Value.Call requires all arguments to be a valid Value object
 
 						// The target may be a typed nil
 						if reflect.IsNil(tgtVal) {
@@ -1290,7 +1290,6 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 
 						// Wrap target value only if no error occurred - the target is unmodified if the conversion fails
 						if err == nil {
-							fmt.Printf("tgtVal = %#v\n", tgtVal.Interface())
 							tgtFn(temp, tgtVal)
 						}
 

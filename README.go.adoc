@@ -209,16 +209,17 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* conv handle union.maybe
-** Useful to convert untyped nulls like json.NullValue into a struct field that is a Maybe[string]
+* conv complete testing
+** Verify JSONValue registers all relevant conversions, incl map[string]any, map[string]Value, []any, []Value
+** Add a capability for json.NullValue to be equivalent to a nil pointer or empty Maybe by LookupConversion
+* alter Makefile to drop docker support, only have podman
 * add capability in reflect package to populate a struct from a map, or map from a struct
-** use conv.To to convert map elements to struct fields, to correctly handle subtypes
+** use conv.To to convert map elements to struct fields, to correctly handle subtypes, pointers, Maybes, etc
 ** field kind must be bool, ints, floats, complex, array, map, slice, string, or struct/*struct
 ** fields of sub struct/*struct must be above types
-** if a field may or may not have a value of type T, use union.Maybe, which is handled specially
+** pointer and Maybe fields can handle null/empty inputs
 ** support case conversions, with built-in converters for UpperCamel/lowerCamel, Upper_Snake/lower_snake, Upper-Kebab, lower-kebab
 ** each case conversion is a pair of func(string) string, with each func the converse of the other
-* alter Makefile to drop docker support
 * simple ORM
 ** map tables to structs, using reflect package map struct, translating column name <-> field name using any available case conversion
 ** query structs, where each field is a func with a spring data like name (no child fields), or field has a struct tag with query
@@ -246,6 +247,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 ** ParallelTask[Id, Res](ParallelMode, Task[Id, Res]...)
 *** Returns a Task that executes a series of tasks in separate in multiple go routines
 *** ParallelMode functions same as streaming api
+** Can a Task be used as async/await?
+** Can a Task be used as a Promise?
 * ETL
 ** Mainly operating on streams, with 3 basic operation types:
 *** Combine streams
