@@ -11,6 +11,7 @@ import (
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/reflect"
+	"github.com/bantling/micro/tuple"
 )
 
 var (
@@ -22,6 +23,9 @@ var (
 	errMsg                         = "The %T value of %s cannot be converted to %s"
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
+  errRegisterNilFuncMsg          = "The conversion from %s to %s requires a non-nil conversion function"
+  errRegisterNilWrapperNilFuncMsg = "The nil wrapper type %s requires non-nil test and set functions"
+  errRegisterNilWrapperExistsMsg = "The nil wrapper type %s has already been registered"
 
 	log2Of10 = math.Log2(10)
 
@@ -1008,6 +1012,10 @@ var (
 		},
 	}
 
+	// map strings of types that may be a nil wrapper to a func(any) bool that tests if the instance wraps nil.
+  // this map is only populated by other packages, as Go has no such standard types.
+	nilWrappers = map[string]tuple.Two[func(any) bool, func(any)]{}
+
 	badConversionKinds = map[goreflect.Kind]bool{
 		goreflect.Uintptr:       true,
 		goreflect.Chan:          true,
@@ -1017,6 +1025,86 @@ var (
 )
 
 // ==== To and functions that support it
+
+// RegisterConversion registers a conversion from a value of type S to a value of type T.
+// Note the conversion function must accept a pointer type for the target.
+// If the target is already a pointer type, an additional level of pointer is required.
+//
+// Examples:
+// RegisterConversion(0, Foo{}, func(int, *Foo) error {...})
+// RegisterConversion((*int)(nil), (*Foo)(nil), func(*int, **Foo) error {...})
+//
+// See LookupConversion for details
+func RegisterConversion[S, T any](convFn func(S, *T) error) error {
+	var (
+    zvs S
+    zvt T
+		sTyp, tTyp = goreflect.TypeOf(zvs), goreflect.TypeOf(zvt)
+		convKey    = sTyp.String() + tTyp.String()
+	)
+
+  // Error if the conversion func is nil
+  if convFn == nil {
+    return fmt.Errorf(errRegisterNilFuncMsg, sTyp, tTyp)
+  }
+
+	// See if a conversion exists for the exact types given.
+	// If not, register it without bothering to use LookupConversion.
+	// This allows registering functions when the types or the same, or a similar conversion exists for convertible type(s).
+	if _, haveIt := convertFromTo[convKey]; haveIt {
+		// Return error that the conversion already exists
+		return fmt.Errorf(errRegisterExistsMsg, sTyp, tTyp)
+	}
+
+	// Store the conversion in the map - we have to store a func(any, any), so generate one
+	convertFromTo[convKey] = func(src, tgt any) error {
+		return convFn(src.(S), tgt.(*T))
+	}
+
+	return nil
+}
+
+// MustRegisterConversion is a must version of RegisterConversion
+func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
+	funcs.Must(RegisterConversion(convFn))
+}
+
+// RegisterNilWrapper allows other packages to register types that can be effectively nil, similar to an empty union.Maybe.
+// Three values are provided:
+// - An example value to get type information from (the example value does not have to be effectively nil)
+// - A func to check if a source value of the type is effectively nil
+// - A func to set a value of the type to be effectively nil
+//
+// The only error condition is if the same type is registered twice
+func RegisterNilWrapper[T any](nilCheck func(T) bool, setNil func(*T)) error {
+  var (
+    zv T
+    typStr = goreflect.TypeOf(zv).String()
+  )
+
+  // Error if either func is nil
+  if (nilCheck == nil) || (setNil == nil) {
+    return fmt.Errorf(errRegisterNilWrapperNilFuncMsg, typStr)
+  }
+
+  // Error if it has already been registered
+  if _, haveIt := nilWrappers[typStr]; haveIt {
+    return fmt.Errorf(errRegisterNilWrapperExistsMsg, typStr)
+  }
+
+  // Register funcs
+  nilWrappers[typStr] = tuple.Of2(
+    func(s any) bool { return nilCheck(s.(T)) },
+    func(t any) { setNil(t.(*T)) },
+  )
+
+  return nil
+}
+
+// MustRegisterNilWrapper is a must verison of RegisterNilWrapper
+func MustRegisterNilWrapper[T any](nilCheck func(T) bool, setNil func(*T)) {
+  funcs.Must(RegisterNilWrapper(nilCheck, setNil))
+}
 
 // LookupConversion looks for a conversion from a source type to a target type.
 //
@@ -1036,12 +1124,16 @@ var (
 // - A conversion using the src sub  type and tgt base type
 // - A conversion using the src base type and tgt base type
 //
-// Example lookups, listing possible conversions in search order (shown with the extra * the target type has to have):
+// Example lookups, listing possible conversions in search order (shown without the extra * the target type has to have):
 // - int to string -> int to string
 // - subint to *string -> subint to string, int to string
 // - Maybe[int] to string -> int to string
 // - int to int -> copy
 // - subint to Maybe[*int] -> subint to *int, subint to int, copy
+//
+// Additionally, other packages can register custom functions to test if an instance of a type is effectively nil, similar
+// to an empty Maybe. The returned conversion will do a precheck to see if the src value is effectively nil, and if so,
+// proceed as if it is nil.
 //
 // This function returns func, error:
 // If a conversion is found (or it is a copy) : returns func, nil
@@ -1302,44 +1394,6 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 	}
 
 	return nil, nil
-}
-
-// RegisterConversion registers a conversion from a value of type S to a value of type T.
-// Note the conversion function must accept a pointer type for the target.
-// If the target is already a pointer type, an additional level of pointer is required.
-//
-// Examples:
-// RegisterConversion(0, Foo{}, func(int, *Foo) error {...})
-// RegisterConversion((*int)(nil), (*Foo)(nil), func(*int, **Foo) error {...})
-//
-// See LookupConversion for details
-func RegisterConversion[S, T any](convFn func(S, *T) error) error {
-	var (
-		fn         = goreflect.TypeOf(convFn)
-		sTyp, tTyp = fn.In(0), fn.In(1).Elem()
-		convKey    = sTyp.String() + tTyp.String()
-	)
-
-	// See if a conversion exists for the exact types given.
-	// If not, register it without bothering to use LookupConversion.
-	// This allows registering functions when the types or the same, or a similar conversion exists for convertible type(s).
-
-	if _, haveIt := convertFromTo[convKey]; haveIt {
-		// Return error that the conversion already exists
-		return fmt.Errorf(errRegisterExistsMsg, sTyp, tTyp)
-	}
-
-	// Store the conversion in the map - we have to store a func(any, any), so generate one
-	convertFromTo[convKey] = func(src, tgt any) error {
-		return convFn(src.(S), tgt.(*T))
-	}
-
-	return nil
-}
-
-// MustRegisterConversion is a must version of RegisterConversion
-func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
-	funcs.Must(RegisterConversion(convFn))
 }
 
 // To converts any supported combination of source and target types.

@@ -1697,6 +1697,11 @@ func TestLookupConversionMaybePtrBase2MaybePtrBase_(t *testing.T) {
 func TestRegisterConversion_(t *testing.T) {
 	type Conv_Reg_Foo struct{ fld int }
 
+  {
+    // Nil conversion function
+    assert.Equal(t, fmt.Errorf("The conversion from int to int requires a non-nil conversion function"), RegisterConversion[int, int](nil))
+  }
+
 	{
 		// Working conversion
 		fn := func(src int, tgt *Conv_Reg_Foo) error { (*tgt).fld = src; return nil }
@@ -1726,6 +1731,59 @@ func TestRegisterConversion_(t *testing.T) {
 		assert.Nil(t, To(Conv_Reg_Foo{7}, &f))
 		assert.Equal(t, Conv_Reg_Foo{8}, f)
 	}
+}
+
+func TestRegisterNilWrapper_(t *testing.T) {
+  type FooWrapper struct {i int}
+
+  var (
+    typName = goreflect.TypeOf(FooWrapper{}).String()
+    val FooWrapper
+    called bool
+    testFunc = func(s FooWrapper) bool { called = true; return s.i == 0 }
+    setFunc = func(t *FooWrapper) { called = true; (*t).i = 0 }
+  )
+
+  assert.Equal(
+    t,
+    fmt.Errorf("The nil wrapper type %s requires non-nil test and set functions", typName),
+    RegisterNilWrapper((func(FooWrapper) bool)(nil), setFunc),
+  )
+
+  assert.Equal(
+    t,
+    fmt.Errorf("The nil wrapper type %s requires non-nil test and set functions", typName),
+    RegisterNilWrapper(testFunc, (func(*FooWrapper))(nil)),
+  )
+
+  assert.Equal(
+    t,
+    fmt.Errorf("The nil wrapper type %s requires non-nil test and set functions", typName),
+    RegisterNilWrapper((func(FooWrapper) bool)(nil), (func(*FooWrapper))(nil)),
+  )
+
+  assert.Nil(t, RegisterNilWrapper(testFunc, setFunc))
+
+  assert.Equal(
+    t,
+    fmt.Errorf("The nil wrapper type %s has already been registered", typName),
+    RegisterNilWrapper(testFunc, setFunc),
+  )
+
+  called = false
+  val = FooWrapper{}
+  assert.True(t, nilWrappers[typName].T(val))
+  assert.True(t, called)
+
+  called = false
+  val = FooWrapper{1}
+  nilWrappers[typName].U(&val)
+  assert.True(t, called)
+  assert.Zero(t, val.i)
+
+  // Cheat and remove mapping to test Must function
+  delete(nilWrappers, typName)
+  MustRegisterNilWrapper(testFunc, setFunc)
 }
 
 func TestTo_(t *testing.T) {

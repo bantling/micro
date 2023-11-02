@@ -210,7 +210,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 === TODO
 
 * conv complete testing
-** Verify JSONValue registers all relevant conversions, incl map[string]any, map[string]Value, []any, []Value
 ** Add a capability for json.NullValue to be equivalent to a nil pointer or empty Maybe by LookupConversion
 * alter Makefile to drop docker support, only have podman
 * add capability in reflect package to populate a struct from a map, or map from a struct
