@@ -427,3 +427,78 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(goreflect.ValueOf(p)))
 	}
 }
+
+type intWrapperTest struct {
+  val int
+  present bool
+}
+
+func (iw intWrapperTest) Get() (int, bool) {
+  if iw.present {
+    return iw.val, true
+  }
+
+  return 0, false
+}
+
+func (iw *intWrapperTest) Set(v int, present bool) {
+  iw.val = funcs.Ternary(present, v, 0)
+  iw.present = present
+}
+
+type anyWrapperTest[T any] struct {
+  val T
+  present bool
+}
+
+func (aw anyWrapperTest[T]) Get() (T, bool) {
+  if aw.present {
+    return aw.val, true
+  }
+
+  var zv T
+  return zv, false
+}
+
+func (iw *anyWrapperTest[T]) Set(v T, present bool) {
+  if present {
+    iw.val = v
+  } else {
+    var zv T
+    iw.val = zv
+  }
+
+  iw.present = present
+}
+
+func TestGetWrapperType_(t *testing.T) {
+  var iw intWrapperTest
+  assert.Equal(t, goreflect.TypeOf(0), GetWrapperType(goreflect.TypeOf(&iw)))
+
+  var aw anyWrapperTest[string]
+  assert.Equal(t, goreflect.TypeOf(""), GetWrapperType(goreflect.TypeOf(&aw)))
+}
+
+func TestGetSetWrapperValue_(t *testing.T) {
+  {
+    var (
+      iw intWrapperTest
+      iwv = goreflect.ValueOf(&iw)
+    )
+
+    assert.False(t, GetWrapperValue(iwv).IsValid())
+    SetWrapperValue(iwv, goreflect.ValueOf(1), true)
+    assert.Equal(t, 1, GetWrapperValue(iwv).Interface())
+  }
+
+  {
+    var (
+      aw anyWrapperTest[string]
+      awv = goreflect.ValueOf(&aw)
+    )
+
+    assert.False(t, GetWrapperValue(awv).IsValid())
+    SetWrapperValue(awv, goreflect.ValueOf("1"), true)
+    assert.Equal(t, "1", GetWrapperValue(awv).Interface())
+  }
+}

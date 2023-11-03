@@ -24,7 +24,6 @@ var (
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
   errRegisterNilFuncMsg          = "The conversion from %s to %s requires a non-nil conversion function"
-  errRegisterNilWrapperNilFuncMsg = "The nil wrapper type %s requires non-nil test and set functions"
   errRegisterNilWrapperExistsMsg = "The nil wrapper type %s has already been registered"
 
 	log2Of10 = math.Log2(10)
@@ -1014,7 +1013,7 @@ var (
 
 	// map strings of types that may be a nil wrapper to a func(any) bool that tests if the instance wraps nil.
   // this map is only populated by other packages, as Go has no such standard types.
-	nilWrappers = map[string]tuple.Two[func(any) bool, func(any)]{}
+	emptyWrappers = map[string]tuple.Two[func(any) bool, func(any)]{}
 
 	badConversionKinds = map[goreflect.Kind]bool{
 		goreflect.Uintptr:       true,
@@ -1069,41 +1068,28 @@ func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
 	funcs.Must(RegisterConversion(convFn))
 }
 
-// RegisterNilWrapper allows other packages to register types that can be effectively nil, similar to an empty union.Maybe.
-// Three values are provided:
-// - An example value to get type information from (the example value does not have to be effectively nil)
-// - A func to check if a source value of the type is effectively nil
-// - A func to set a value of the type to be effectively nil
-//
-// The only error condition is if the same type is registered twice
-func RegisterNilWrapper[T any](nilCheck func(T) bool, setNil func(*T)) error {
+// RegisterEmptyWrapper allows other packages to register types that hold an empty value.
+// The only error condition is if the same type is registered twice.
+func RegisterEmptyWrapper[T any, W Wrapper[T]]() error {
   var (
-    zv T
+    zv W
     typStr = goreflect.TypeOf(zv).String()
   )
 
-  // Error if either func is nil
-  if (nilCheck == nil) || (setNil == nil) {
-    return fmt.Errorf(errRegisterNilWrapperNilFuncMsg, typStr)
-  }
-
-  // Error if it has already been registered
-  if _, haveIt := nilWrappers[typStr]; haveIt {
+  // Error the wrapper type has already been registered
+  if _, haveIt := emptyWrappers[typStr]; haveIt {
     return fmt.Errorf(errRegisterNilWrapperExistsMsg, typStr)
   }
 
   // Register funcs
-  nilWrappers[typStr] = tuple.Of2(
-    func(s any) bool { return nilCheck(s.(T)) },
-    func(t any) { setNil(t.(*T)) },
-  )
+  emptyWrappers[typStr] = W
 
   return nil
 }
 
-// MustRegisterNilWrapper is a must verison of RegisterNilWrapper
-func MustRegisterNilWrapper[T any](nilCheck func(T) bool, setNil func(*T)) {
-  funcs.Must(RegisterNilWrapper(nilCheck, setNil))
+// MustRegisterEmptyWrapper is a must verison of RegisterEmptyWrapper
+func MustRegisterEmptyWrapper[W, V any](presentCheck func(W) bool, setVal func(*W, V, bool)) {
+  funcs.Must(RegisterEmptyWrapper(presentCheck, setVal))
 }
 
 // LookupConversion looks for a conversion from a source type to a target type.

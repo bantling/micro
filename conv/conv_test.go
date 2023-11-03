@@ -1733,41 +1733,41 @@ func TestRegisterConversion_(t *testing.T) {
 	}
 }
 
-func TestRegisterNilWrapper_(t *testing.T) {
-  type FooWrapper struct {i int}
+func TestRegisterEmptyWrapper_(t *testing.T) {
+  type Wrapper struct {i int, present bool }
 
   var (
-    typName = goreflect.TypeOf(FooWrapper{}).String()
-    val FooWrapper
+    typName = goreflect.TypeOf(Wrapper{}).String()
+    val Wrapper
     called bool
-    testFunc = func(s FooWrapper) bool { called = true; return s.i == 0 }
-    setFunc = func(t *FooWrapper) { called = true; (*t).i = 0 }
+    presentCheck = func(w Wrapper) bool { called = true; return w.present }
+    setVal = func(w *Wrapper, v int, present bool) { called = true; if present { (*t).i = 0 }
   )
 
   assert.Equal(
     t,
     fmt.Errorf("The nil wrapper type %s requires non-nil test and set functions", typName),
-    RegisterNilWrapper((func(FooWrapper) bool)(nil), setFunc),
+    RegisterEmptyWrapper((func(FooWrapper) bool)(nil), setFunc),
   )
 
   assert.Equal(
     t,
     fmt.Errorf("The nil wrapper type %s requires non-nil test and set functions", typName),
-    RegisterNilWrapper(testFunc, (func(*FooWrapper))(nil)),
+    RegisterEmptyWrapper(testFunc, (func(*FooWrapper))(nil)),
   )
 
   assert.Equal(
     t,
     fmt.Errorf("The nil wrapper type %s requires non-nil test and set functions", typName),
-    RegisterNilWrapper((func(FooWrapper) bool)(nil), (func(*FooWrapper))(nil)),
+    RegisterEmptyWrapper((func(FooWrapper) bool)(nil), (func(*FooWrapper))(nil)),
   )
 
-  assert.Nil(t, RegisterNilWrapper(testFunc, setFunc))
+  assert.Nil(t, RegisterEmptyWrapper(testFunc, setFunc))
 
   assert.Equal(
     t,
     fmt.Errorf("The nil wrapper type %s has already been registered", typName),
-    RegisterNilWrapper(testFunc, setFunc),
+    RegisterEmptyWrapper(testFunc, setFunc),
   )
 
   called = false
@@ -1783,7 +1783,7 @@ func TestRegisterNilWrapper_(t *testing.T) {
 
   // Cheat and remove mapping to test Must function
   delete(nilWrappers, typName)
-  MustRegisterNilWrapper(testFunc, setFunc)
+  MustRegisterEmptyWrapper(testFunc, setFunc)
 }
 
 func TestTo_(t *testing.T) {
