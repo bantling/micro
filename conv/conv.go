@@ -11,7 +11,6 @@ import (
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/reflect"
-	"github.com/bantling/micro/tuple"
 )
 
 var (
@@ -24,7 +23,7 @@ var (
 	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
 	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
   errRegisterNilFuncMsg          = "The conversion from %s to %s requires a non-nil conversion function"
-  errRegisterNilWrapperExistsMsg = "The nil wrapper type %s has already been registered"
+  errRegisterWrapperInfoExistsMsg = "The wrapper type %s has already been registered"
 
 	log2Of10 = math.Log2(10)
 
@@ -1013,7 +1012,7 @@ var (
 
 	// map strings of types that may be a nil wrapper to a func(any) bool that tests if the instance wraps nil.
   // this map is only populated by other packages, as Go has no such standard types.
-	emptyWrappers = map[string]tuple.Two[func(any) bool, func(any)]{}
+	wrapperTypes = map[string]WrapperInfo{}
 
 	badConversionKinds = map[goreflect.Kind]bool{
 		goreflect.Uintptr:       true,
@@ -1068,28 +1067,67 @@ func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
 	funcs.Must(RegisterConversion(convFn))
 }
 
-// RegisterEmptyWrapper allows other packages to register types that hold an empty value.
+// WrapperInfo describes a wrapper type that can store one or more specific types, and may be able to represent an empty value
+type WrapperInfo interface {
+  // PackagePath returns the package path of the wrapper type
+  PackagePath() string
+
+  // TypeNamePrefix returns the type name prefix. EG, if wrapper is Foo[T] then the prefix is Foo.
+  TypeNamePrefix() string
+
+  // AcceptsType returns true if the given wrapper instance is capable of storing the given type.
+  // A wrapper type may be capable of storing any type, or only a set of specific - possibly unrelated - types.
+  AcceptsType(instance goreflect.Value, typ goreflect.Type) bool
+
+  // CanBeEmpty returns true if the wrapper can hold an empty value.
+  CanBeEmpty(instance goreflect.Value) bool
+
+  // ConvertibleTo returns true if the given wrapper instance is capable of returning the given type.
+  // Actually converting to the specified type can still fail.
+  // EG, a type may be capable of converting to int in general, but the current value may lie outside the range of an int.
+  // Passing any type where AcceptsType returns true will always return true.
+  ConvertibleTo(instance goreflect.Value, typ goreflect.Type) bool
+
+  // Get a value of the given type, which may require a conversion.
+  // Even if the wrapper can be converted to the specified type, it may still fail to convert.
+  // See ConvertibleTo.
+  //
+  // Errors if:
+  // - ConvertibleTo(Type) returns false
+  // - ConvertibleTo(Type) returns true, but the specific value stored cannot be converted to Type.
+  Get(instance goreflect.Value, typ goreflect.Type) (goreflect.Value, bool, error)
+
+  // Set to the given value if the bool is true, else store an empty value (ignoring the value passed) if the bool is false.
+  // When the bool is true, if AcceptsType returns true for the type of value given, Set cannot fail.
+  // If CanBeEmpty returns true, then providing a bool flag of false cannot fail.
+  // See AcceptsType.
+  //
+  // Errors if:
+  // - AcceptsType returns false for the type of value given and the bool is true
+  // - CanBeEmpty returns false and the bool is false (the value is irrelevant)
+  Set(instance, val goreflect.Value, present bool) error
+}
+
+// RegisterWrapper allows other packages to register types that hold an empty value.
 // The only error condition is if the same type is registered twice.
-func RegisterEmptyWrapper[T any, W Wrapper[T]]() error {
-  var (
-    zv W
-    typStr = goreflect.TypeOf(zv).String()
-  )
+func RegisterWrapper(wi WrapperInfo) error {
+  // Map key is package name "." type name prefix
+  key := fmt.Sprintf("%s.%s", wi.PackagePath(), wi.TypeNamePrefix())
 
   // Error the wrapper type has already been registered
-  if _, haveIt := emptyWrappers[typStr]; haveIt {
-    return fmt.Errorf(errRegisterNilWrapperExistsMsg, typStr)
+  if _, haveIt := wrapperTypes[key]; haveIt {
+    return fmt.Errorf(errRegisterWrapperInfoExistsMsg, key)
   }
 
   // Register funcs
-  emptyWrappers[typStr] = W
+  wrapperTypes[key] = wi
 
   return nil
 }
 
 // MustRegisterEmptyWrapper is a must verison of RegisterEmptyWrapper
-func MustRegisterEmptyWrapper[W, V any](presentCheck func(W) bool, setVal func(*W, V, bool)) {
-  funcs.Must(RegisterEmptyWrapper(presentCheck, setVal))
+func MustRegisterWrapper(wi WrapperInfo) {
+  funcs.Must(RegisterWrapper(wi))
 }
 
 // LookupConversion looks for a conversion from a source type to a target type.

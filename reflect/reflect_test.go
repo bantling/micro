@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -146,33 +145,6 @@ func TestFieldsByName_(t *testing.T) {
 
 		assert.Equal(t, map[string]goreflect.StructField{"Foo": fooFld, "Bar": barFld}, FieldsByName(typ))
 	}
-}
-
-func TestGetMaybeType_(t *testing.T) {
-	assert.Equal(t, goreflect.TypeOf(0), GetMaybeType(goreflect.TypeOf(union.Maybe[int]{})))
-	assert.Equal(t, goreflect.TypeOf((*big.Int)(nil)), GetMaybeType(goreflect.TypeOf(union.Maybe[*big.Int]{})))
-	assert.Nil(t, GetMaybeType(goreflect.TypeOf(0)))
-}
-
-func TestGetMaybeValue_(t *testing.T) {
-	val := GetMaybeValue(goreflect.ValueOf(union.Of(1)))
-	assert.Equal(t, 1, GetMaybeValue(goreflect.ValueOf(union.Of(1))).Interface())
-
-	val = GetMaybeValue(goreflect.ValueOf(union.Empty[int]()))
-	assert.False(t, val.IsValid())
-}
-
-func TestSetMaybeValue_(t *testing.T) {
-	var m union.Maybe[int]
-	SetMaybeValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
-	assert.True(t, m.Present())
-	assert.Equal(t, 1, m.Get())
-}
-
-func TestSetMaybeValueEmpty_(t *testing.T) {
-	m := union.Of(1)
-	SetMaybeValueEmpty(goreflect.ValueOf(&m))
-	assert.False(t, m.Present())
 }
 
 func TestSetPointerValue_(t *testing.T) {
@@ -426,79 +398,4 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 		var p **int
 		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(goreflect.ValueOf(p)))
 	}
-}
-
-type intWrapperTest struct {
-  val int
-  present bool
-}
-
-func (iw intWrapperTest) Get() (int, bool) {
-  if iw.present {
-    return iw.val, true
-  }
-
-  return 0, false
-}
-
-func (iw *intWrapperTest) Set(v int, present bool) {
-  iw.val = funcs.Ternary(present, v, 0)
-  iw.present = present
-}
-
-type anyWrapperTest[T any] struct {
-  val T
-  present bool
-}
-
-func (aw anyWrapperTest[T]) Get() (T, bool) {
-  if aw.present {
-    return aw.val, true
-  }
-
-  var zv T
-  return zv, false
-}
-
-func (iw *anyWrapperTest[T]) Set(v T, present bool) {
-  if present {
-    iw.val = v
-  } else {
-    var zv T
-    iw.val = zv
-  }
-
-  iw.present = present
-}
-
-func TestGetWrapperType_(t *testing.T) {
-  var iw intWrapperTest
-  assert.Equal(t, goreflect.TypeOf(0), GetWrapperType(goreflect.TypeOf(&iw)))
-
-  var aw anyWrapperTest[string]
-  assert.Equal(t, goreflect.TypeOf(""), GetWrapperType(goreflect.TypeOf(&aw)))
-}
-
-func TestGetSetWrapperValue_(t *testing.T) {
-  {
-    var (
-      iw intWrapperTest
-      iwv = goreflect.ValueOf(&iw)
-    )
-
-    assert.False(t, GetWrapperValue(iwv).IsValid())
-    SetWrapperValue(iwv, goreflect.ValueOf(1), true)
-    assert.Equal(t, 1, GetWrapperValue(iwv).Interface())
-  }
-
-  {
-    var (
-      aw anyWrapperTest[string]
-      awv = goreflect.ValueOf(&aw)
-    )
-
-    assert.False(t, GetWrapperValue(awv).IsValid())
-    SetWrapperValue(awv, goreflect.ValueOf("1"), true)
-    assert.Equal(t, "1", GetWrapperValue(awv).Interface())
-  }
 }

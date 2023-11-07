@@ -4,7 +4,7 @@ package union
 
 import (
 	"fmt"
-	"reflect"
+	goreflect "reflect"
 
 	"github.com/bantling/micro/funcs"
 )
@@ -156,7 +156,7 @@ func OfError[R any](err error) Result[R] {
 func OfResultError[R any](r R, err error) Result[R] {
 	if err != nil {
 		// R is not comparable
-		if !reflect.ValueOf(r).IsZero() {
+		if !goreflect.ValueOf(r).IsZero() {
 			panic(fmt.Errorf("A Result cannot have both a non-zero R value and a non-nil error"))
 		}
 	}

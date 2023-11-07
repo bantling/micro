@@ -1734,7 +1734,10 @@ func TestRegisterConversion_(t *testing.T) {
 }
 
 func TestRegisterEmptyWrapper_(t *testing.T) {
-  type Wrapper struct {i int, present bool }
+  type Wrapper struct {
+    i int
+    present bool
+  }
 
   var (
     typName = goreflect.TypeOf(Wrapper{}).String()

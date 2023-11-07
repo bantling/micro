@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"math/big"
 	goreflect "reflect"
-	"strings"
 
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/union"
 )
 
 const (
@@ -43,9 +41,6 @@ var (
 		goreflect.TypeOf((*big.Float)(nil)): true,
 		goreflect.TypeOf((*big.Rat)(nil)):   true,
 	}
-
-	unionPkgPath = goreflect.TypeOf(union.Maybe[int]{}).PkgPath()
-	wrapperPkgPath = goreflect.TypeOf((*Wrapper[int])(nil)).Elem().PkgPath()
 )
 
 // KindElem describes the Kind and Elem methods common to both Value and Type objects
@@ -153,42 +148,6 @@ func FieldsByName(typ goreflect.Type) map[string]goreflect.StructField {
 	}
 
 	return fields
-}
-
-// GetMaybeType gets the generic type of the value wrapped in a union.Maybe.
-// If the type is not a union.Maybe, then it returns a nil Type.
-func GetMaybeType(typ goreflect.Type) goreflect.Type {
-	if (typ.PkgPath() == unionPkgPath) && strings.HasPrefix(typ.Name(), "Maybe") {
-		if get, hasIt := typ.MethodByName("Get"); hasIt {
-			return get.Type.Out(0)
-		}
-	}
-
-	return nil
-}
-
-// GetMaybeValue gets the value of a Maybe
-// returns Invalid Value if the Maybe is empty
-// returns Valid Value   if the Maybe is present
-// panics if val is not a Maybe
-func GetMaybeValue(val goreflect.Value) goreflect.Value {
-	if val.MethodByName("Present").Call(nil)[0].Bool() {
-		return val.MethodByName("Get").Call(nil)[0]
-	}
-
-	return goreflect.Value{}
-}
-
-// SetMaybeValue copies the value of val into dst
-// Dst must be a Maybe[T], and val must be a T, otherwise a panic will occur
-func SetMaybeValue(dst, val goreflect.Value) {
-	dst.MethodByName("Set").Call([]goreflect.Value{val})
-}
-
-// SetMaybeValueEmpty sets a Maybe to empty
-// Dst must be a Maybe[T], otherwise a panic will occur
-func SetMaybeValueEmpty(dst goreflect.Value) {
-	dst.MethodByName("SetEmpty").Call(nil)
 }
 
 // SetPointerValue copies the value of val into dst after dereffing all pointers
@@ -337,71 +296,4 @@ func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
 	}
 
 	return typ
-}
-
-// Wrapper is an interface that can describe any kind of wrapper type.
-// If an existing wrapper type implementation differs from this one, it can be adapted.
-type Wrapper[T any] interface {
-  // Get returns value of type T and true if the value is present, or false if the value is not present.
-  // If value is not present, T can be any value, it will be ignored.
-	Get() (T, bool)
-
-  // Set accepts a value of type T and true if the value is present, or false if the value is not present.
-  // If value is not present, T can be any value. Ideally, T is ignored and a zero value is stored.
-	Set(T, bool)
-}
-
-// GetWrapperType gets the generic type of the value wrapped in a Wrapper.
-// If the type is not a Wrapper, then it returns a nil Type.
-//
-// For a particular type W that implements Wrapper[T], Go automatically takes the address of an instance when calling
-// the Set method that requires a pointer receiver.
-// The caller has to explicitly pass the address of the instance to goreflect.Type so GetWrapperType can find methods.
-func GetWrapperType(typ goreflect.Type) goreflect.Type {
-  // To check with goreflect.Type.Implements, we would have to have a goreflect.Type of Wrapper[T].
-  // We can't create generic goreflect.Type instances at runtime unless we have an example value,
-  // and we can't create an example Wrapper[T] without knowing T at compile time.
-  // So instead, just check if type implements the methods we need with the signatures we need.
-  var (
-    wrappedType goreflect.Type
-    boolType = goreflect.TypeOf(true)
-  )
-
-  // Is there a Get method?
-	if get, hasGet := typ.MethodByName("Get"); hasGet {
-    // Is it Get(WrapperType) (T, bool) for some type T?
-    if (get.Type.NumIn() == 1) && (get.Type.NumOut() == 2) && (get.Type.Out(1) == boolType) {
-      wrappedType = get.Type.Out(0)
-
-      // Is there a Set method?
-      if set, hasSet := typ.MethodByName("Set"); hasSet {
-        // Is it Set(WrapperType, T, bool) for same type T as get?
-        if (set.Type.NumIn() == 3) && (set.Type.In(1) == wrappedType) && (set.Type.In(2) == boolType) && (set.Type.NumOut() == 0) {
-          return wrappedType
-        }
-      }
-    }
-
-		return nil
-	}
-
-	return wrappedType
-}
-
-// GetWrapperValue gets the value of a Wrapper
-// Returns Invalid Value if the Wrapper is empty
-// Returns Valid Value   if the Wrapper is present
-// Panics if val does not have a Get() (T, bool) method.
-func GetWrapperValue(w goreflect.Value) goreflect.Value {
-	if valPresent := w.MethodByName("Get").Call(nil); valPresent[1].Bool() {
-		return valPresent[0]
-	}
-
-	return goreflect.Value{}
-}
-
-// SetWrapperValue copies the value of val into w.
-// Panics if w does not have a Set(T, bool) method, or val is not a valid T.
-func SetWrapperValue(w, val goreflect.Value, present bool) {
-	w.MethodByName("Set").Call([]goreflect.Value{val, goreflect.ValueOf(present)})
 }
