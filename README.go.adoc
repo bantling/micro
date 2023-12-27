@@ -212,6 +212,11 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 * conv complete testing
 ** Add a capability for json.NullValue to be equivalent to a nil pointer or empty Maybe by LookupConversion
 * alter Makefile to drop docker support, only have podman
+* make a Dockerfile that uses https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md
+  and uses gcr.io/distroless/static
+* modify stream parallel func to have an additional criteria of max threads
+** idea is to only create at most max threads even if number of chunks > max threads
+** new outer loop that executes existing code loop, until all chunks processed
 * add capability in reflect package to populate a struct from a map, or map from a struct
 ** use conv.To to convert map elements to struct fields, to correctly handle subtypes, pointers, Maybes, etc
 ** field kind must be bool, ints, floats, complex, array, map, slice, string, or struct/*struct
