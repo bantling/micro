@@ -6,7 +6,7 @@ import (
   goreflect "reflect"
 )
 
-// Type is an enum of all basic types, by language
+// Type is an enum of all basic types
 type Type uint
 
 cont (
@@ -39,7 +39,7 @@ cont (
   // Enum
   Enum
 
-  // Object, Map, Set, Array, Maybe
+  // Object, Map, Set, List, Maybe
   Object,
   Map
   Set
@@ -56,29 +56,24 @@ type VarDef struct {
   Maybe bool // True if the var is a Maybe, which can wrap around anything except map, set, list, and maybe
 }
 
-// Var is a variable instance
-type Var struct {
-  VarDef // The definition of the variable type
-  Val string // The value of the variable
-}
-
 // Func is a function definition
 type Func struct {
   Params []VarDef // Parameters of function
-  LocalVars map[string]Var
+  LocalConsts map[string]VarDef // Local constants
+  LocalVars map[string]VarDef // Local vars
   Results []VarDef // Results of function
 }
 
 // Object is an object, which can have fields and functions that operate on them
 type Object struct {
-  Fields map[string]Var
+  Fields map[string]VarDef
   Funcs map[string]Func
 }
 
 // Src is a source file
 type Src struct {
-  GlobalConstants map[string]Var
-  GlobalVars map[string]Var
+  GlobalConsts map[string]VarDef
+  GlobalVars map[string]VarDef
   Objects map[string]Object
   Funcs map[string]Func
 }
@@ -86,9 +81,15 @@ type Src struct {
 // Dir is a directory of source files
 type Dir struct {
   Sources []Src
+
+  // Init is an optional initialization function for the directory.
+  // The set of all Init functions execute in some arbitrary order at runtime.
+  // Depending on the target language, they may all execute before main starts, or they may execute some time later, such
+  // as when files that need them are loaded.
+  Init union.Maybe[Func]
 }
 
 // Package is a package of code, usually not a complete program (usually some other files will be hand written)
-type Program struct {
+type Package struct {
   Dirs map[string]Dir
 }

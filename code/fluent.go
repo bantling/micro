@@ -10,13 +10,14 @@ package code
 //
 // The caller must generate parent directories before child directories, or a panic occurs.
 type PackageGenerator interface {
-  SetBasePath(basePath string) // Set the base path to generate dirs under
-  Dir(name string) SrcGenerator // Create a dir under base path. Dir can be a name or relative path
-  EndProgram()
+  GetBasePath() string // Return the base path to generate dirs under
+  SetBasePath(basePath string) // Set the base path once to generate dirs under. Setting again panics.
+  Dir(name string) SrcGenerator // Create a dir under base path, it can be a name or relative path. Creating existing dir panics.
+  EndPackage() // Doesn't necessarily do anything, mostly for completeness
 }
 
 // SrcGenerator creates zero or more source files in the current directory.
-// The SrcPartsGenerator eventually returns this same instance, allowing additional source files to be created in the same
+// The SrcPartsGenerator returns this same instance, allowing additional source files to be created in the same
 // directory, or stop generation in this directory. A given source file can only be defined once, or a panic occurs.
 // It is allowable to create an empty directory, or a directory that only contains other directories.
 type SrcGenerator interface {
@@ -24,43 +25,15 @@ type SrcGenerator interface {
   EndDir() ProgramGenerator
 }
 
-// SrcPartsGenerator populates a source file, in the following order:
+// SrcPartsGenerator populates a source file, with the following parts in any order:
 // - Global constants
 // - Global variables
-// - Objects
+// - Types
 // - Functions
 type SrcPartsGenerator interface {
-  GlobalConst(constants ...Var) SrcGlobalVarsGenerator
-  GlobalVars(globals ...Var) SrcObjectsGenerator
-  Objects(objects ...Object) SrcFuncsGenerator
-  Funcs(funcs ...Func) SrcEnder
-}
-
-// SrcGlobalVarsGenerator populates a source file, in the following order:
-// - Global variables
-// - Objects
-// - Functions
-type SrcGlobalVarsGenerator interface {
-  GlobalVars(globals ...Var) SrcObjectsGenerator
-  Objects(objects ...Object) SrcFuncsGenerator
-  Funcs(funcs ...Func) SrcEnder
-}
-
-// SrcObjectsGenerator populates a source file, in the following order:
-// - Objects
-// - Functions
-type SrcObjectsGenerator interface {
-  Objects(objects ...Object) SrcFuncsGenerator
-  Funcs(funcs ...Func) SrcEnder
-}
-
-// SrcFuncsGenerator populates a source file, in the following order:
-// - Functions
-type SrcFuncsGenerator interface {
-  Funcs(funcs ...Func) SrcEnder
-}
-
-// SrcEnder ends the current source file, returning to the parent SrcGenerator instance
-type SrcEnder interface {
+  GlobalConst(constants ...Var) SrcPartsGenerator
+  GlobalVars(globals ...Var) SrcPartsGenerator
+  Types(objects ...Object) SrcPartsGenerator
+  Funcs(funcs ...Func) SrcPartsGenerator
   EndSrc() SrcGenerator
 }

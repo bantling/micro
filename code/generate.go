@@ -5,6 +5,7 @@ package code
 import (
   "fmt"
   "io/fs"
+  "path"
   "strings"
   "os"
 
@@ -36,8 +37,8 @@ func AddLanguage(language string, generator PackageGenerator) {
 
 // BasePackageGenerator contains base implementation of PackageGenerator
 type BasePackageGenerator struct {
-  BasePath string // BasePath is the path prefix of zero or more dirs that contain all generated artifacts
-  Dirs map[string]bool // Dirs is the set of dirs created under BasePath
+  basePath string // BasePath is the path prefix of zero or more dirs that contain all generated artifacts
+  dirs map[string]bool // Dirs is the set of dirs created under BasePath
 }
 
 // Construct a generator for a specific language
@@ -59,52 +60,68 @@ func Of(language string, basePath string) PackageGenerator {
     )
   }
 
+  // Use clean path
+  cleanPath := path.Clean(basePath)
+
   // Does the base path exist and contain stuff already from a previous run?
-  _, err := os.ReadDir(basePath)
+  _, err := os.ReadDir(cleanPath)
   if err != nil {
     if os.IsNotExist(err) {
       // Doesn't exist is ok, we'll just create all the parts that are missing for it
-      if err = os.MkdirAll(basePath, fs.ModeDir); err != nil {
+      if err = os.MkdirAll(cleanPath, fs.ModeDir); err != nil {
         // Could not create some part
-        panic(fmt.Errorf(errBasePathCreateMsg, basePath, err))
+        panic(fmt.Errorf(errBasePathCreateMsg, cleanPath, err))
       }
     } else {
       // Exists but can't be read
-      panic(fmt.Errorf(errBasePathReadMsg, basePath, err))
+      panic(fmt.Errorf(errBasePathReadMsg, cleanPath, err))
     }
   } else {
     // Yes, we have stuff from previous run, delete last path part and recreate it
-    if err = os.RemoveAll(basePath); err != nil {
+    if err = os.RemoveAll(cleanPath); err != nil {
       // Could not delete path
-      panic(fmt.Errorf(errBasePathDeleteMsg, basePath, err))
+      panic(fmt.Errorf(errBasePathDeleteMsg, cleanPath, err))
     }
 
-    if err = os.Mkdir(basePath, fs.ModeDir); err != nil {
+    if err = os.Mkdir(cleanPath, fs.ModeDir); err != nil {
       // Could not recreate path
-      panic(fmt.Errorf(errBasePathCreateMsg, basePath, err))
+      panic(fmt.Errorf(errBasePathCreateMsg, cleanPath, err))
     }
   }
 
-  generator.SetBasePath(basePath)
+  generator.SetBasePath(cleanPath)
 
   return generator
 }
 
+// GetBasePath from PackageGenerator
+func (bpg *BasePackageGenerator) GetBasePath() string {
+  return bpg.basePath
+}
+
 // SetBasePath from PackageGenerator
 func (bpg *BasePackageGenerator) SetBasePath(basePath string) {
-  bpg.BasePath = basePath
+  if bpg.basePath != "" {
+    panic(fmt.Errorf(errBasePathAlreadySetMsg, basePath, bpg.basePath)
+  }
+
+  bpg.basePath = basePath
 }
 
 // Dir from PackageGenerator
 func (bpg BasePackageGenerator) Dir(name string) SrcGenerator {
-  path := bpg.BasePath + "/" + name
+  // Get
+  dirPath := path.Clean(bpg.basePath + "/" + name)
 
-  if err := os.MkdirAll(path, fs.ModeDir); err != nil {
+  // Die if dir already exists
+  if bpg.dirs[dirpath]
+
+  if err := os.MkdirAll(dirPath, fs.ModeDir); err != nil {
     // Could not create dir under base path
-    panic(fmt.Errorf(name, bpg.BasePath, err))
+    panic(fmt.Errorf(name, dirPath, err))
   }
 
-  return BaseSrcGenerator{Dir: path}
+  return BaseSrcGenerator{Dir: dirPath}
 }
 
 // PackageGenerator
@@ -115,7 +132,6 @@ func (bpg BasePackageGenerator) EndProgram() {
 // BaseSrcGenerator contains base implementation of SrcGenerator
 type BaseSrcGenerator struct {
   Dir string // The path of the dir containing generated source files
-  File writer.Writer[string] // The file to write to with unicode strings
 }
 
 // Src from SrcGenerator
@@ -128,7 +144,13 @@ func (bsg *BaseSrcGenerator) Src(name string) SrcPartsGenerator {
       panic(fmt.Errorf(errCreateSrcFileInDirMsg, name, bsg.Dir, err))
   }
 
-  bsg.File = writer.OfIOWriterAsStrings(f)
+  return BaseSrcPartsGenerator{File: path, Writer: writer.OfIOWriterAsStrings(f)}
+}
 
-  return nil
+// EndDir from SrcGenerator
+func (bsg *BaseSrcGenerator) EndDir() ProgramGenerator
+
+type BaseSrcPartsGenerator struct {
+  File string // The path to the file, for error messages
+  Writer writer.Writer[string] // The file to write to with unicode strings
 }
