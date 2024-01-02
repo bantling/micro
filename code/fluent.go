@@ -10,11 +10,12 @@ package code
 //
 // The caller must generate parent directories before child directories, or a panic occurs.
 type PackageGenerator interface {
-  Dir(name string) SrcGenerator
+  SetBasePath(basePath string) // Set the base path to generate dirs under
+  Dir(name string) SrcGenerator // Create a dir under base path. Dir can be a name or relative path
   EndProgram()
 }
 
-// SrcGenerator creates zero or more source files in a directory.
+// SrcGenerator creates zero or more source files in the current directory.
 // The SrcPartsGenerator eventually returns this same instance, allowing additional source files to be created in the same
 // directory, or stop generation in this directory. A given source file can only be defined once, or a panic occurs.
 // It is allowable to create an empty directory, or a directory that only contains other directories.
