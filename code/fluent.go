@@ -22,7 +22,7 @@ type PackageGenerator interface {
 // It is allowable to create an empty directory, or a directory that only contains other directories.
 type SrcGenerator interface {
   Src(name string) SrcPartsGenerator
-  EndDir() ProgramGenerator
+  EndDir() PackageGenerator
 }
 
 // SrcPartsGenerator populates a source file, with the following parts in any order:
@@ -31,9 +31,9 @@ type SrcGenerator interface {
 // - Types
 // - Functions
 type SrcPartsGenerator interface {
-  GlobalConst(constants ...Var) SrcPartsGenerator
-  GlobalVars(globals ...Var) SrcPartsGenerator
-  Types(objects ...Object) SrcPartsGenerator
-  Funcs(funcs ...Func) SrcPartsGenerator
+  GlobalConsts(constants ...VarDef) SrcPartsGenerator
+  GlobalVars(globals ...VarDef) SrcPartsGenerator
+  Types(objects ...ObjectDef) SrcPartsGenerator
+  Funcs(funcs ...FuncDef) SrcPartsGenerator
   EndSrc() SrcGenerator
 }

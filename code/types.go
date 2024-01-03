@@ -3,13 +3,13 @@ package code
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  goreflect "reflect"
+  "github.com/bantling/micro/union"
 )
 
 // Type is an enum of all basic types
 type Type uint
 
-cont (
+const (
   // Boolean
   Bool Type = iota
   Uint8
@@ -40,7 +40,7 @@ cont (
   Enum
 
   // Object, Map, Set, List, Maybe
-  Object,
+  Object
   Map
   Set
   List
@@ -51,31 +51,31 @@ cont (
 type VarDef struct {
   Type Type  // The type of variable
   KeyType Type // The key type, if the variable is a map
-  ValueType Var // The value type, if the variable is an object, map, set, list, or maybe
+  ValueType Type // The value type, if the variable is an object, map, set, list, or maybe
   Names []string // The names of enum constants - zero-based indexes are the enum values, strings are the names
   Maybe bool // True if the var is a Maybe, which can wrap around anything except map, set, list, and maybe
 }
 
-// Func is a function definition
-type Func struct {
+// FuncDef is a function definition
+type FuncDef struct {
   Params []VarDef // Parameters of function
   LocalConsts map[string]VarDef // Local constants
   LocalVars map[string]VarDef // Local vars
   Results []VarDef // Results of function
 }
 
-// Object is an object, which can have fields and functions that operate on them
-type Object struct {
+// ObjectDef is an object, which can have fields and functions that operate on them
+type ObjectDef struct {
   Fields map[string]VarDef
-  Funcs map[string]Func
+  Funcs map[string]FuncDef
 }
 
 // Src is a source file
 type Src struct {
   GlobalConsts map[string]VarDef
   GlobalVars map[string]VarDef
-  Objects map[string]Object
-  Funcs map[string]Func
+  Objects map[string]ObjectDef
+  Funcs map[string]FuncDef
 }
 
 // Dir is a directory of source files
@@ -86,7 +86,7 @@ type Dir struct {
   // The set of all Init functions execute in some arbitrary order at runtime.
   // Depending on the target language, they may all execute before main starts, or they may execute some time later, such
   // as when files that need them are loaded.
-  Init union.Maybe[Func]
+  Init union.Maybe[FuncDef]
 }
 
 // Package is a package of code, usually not a complete program (usually some other files will be hand written)

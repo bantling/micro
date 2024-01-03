@@ -11,6 +11,7 @@ import (
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/reflect"
+	unionreflect "github.com/bantling/micro/union/reflect"
 )
 
 var (
@@ -1210,13 +1211,13 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		srcVal = nil
 		srcPtrBase = reflect.TypeToBaseType(srcPtr)
 
-		if reflect.GetMaybeType(srcPtr) != nil {
+		if unionreflect.GetMaybeType(srcPtr) != nil {
 			// Cannot have a *Maybe, that makes no sense
 			return nil, fmt.Errorf(errLookupMsg, src, tgt)
 		}
 	}
 
-	if srcMaybe = reflect.GetMaybeType(src); srcMaybe != nil {
+	if srcMaybe = unionreflect.GetMaybeType(src); srcMaybe != nil {
 		srcVal = nil
 		srcMaybeBase = reflect.TypeToBaseType(srcMaybe)
 
@@ -1232,13 +1233,13 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 		tgtVal = nil
 		tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
 
-		if reflect.GetMaybeType(tgtPtr) != nil {
+		if unionreflect.GetMaybeType(tgtPtr) != nil {
 			// Cannot have a *Maybe, that makes no sense
 			return nil, fmt.Errorf(errLookupMsg, src, tgt)
 		}
 	}
 
-	if tgtMaybe = reflect.GetMaybeType(tgt); tgtMaybe != nil {
+	if tgtMaybe = unionreflect.GetMaybeType(tgt); tgtMaybe != nil {
 		tgtVal = nil
 		tgtMaybeBase = reflect.TypeToBaseType(tgtMaybe)
 
@@ -1283,10 +1284,10 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 							return s
 						}
 					case srcMaybe:
-						srcFn = func(s goreflect.Value) goreflect.Value { return reflect.GetMaybeValue(s) }
+						srcFn = func(s goreflect.Value) goreflect.Value { return unionreflect.GetMaybeValue(s) }
 					case srcMaybeBase:
 						srcFn = func(s goreflect.Value) goreflect.Value {
-							if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+							if temp := unionreflect.GetMaybeValue(s); temp.IsValid() {
 								return temp.Convert(srcMaybeBase)
 							} else {
 								return temp
@@ -1294,7 +1295,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 						}
 					case srcMaybePtr:
 						srcFn = func(s goreflect.Value) goreflect.Value {
-							if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+							if temp := unionreflect.GetMaybeValue(s); temp.IsValid() {
 								return temp.Elem()
 							} else {
 								return temp
@@ -1302,7 +1303,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 						}
 					case srcMaybePtrBase:
 						srcFn = func(s goreflect.Value) goreflect.Value {
-							if temp := reflect.GetMaybeValue(s); temp.IsValid() {
+							if temp := unionreflect.GetMaybeValue(s); temp.IsValid() {
 								return temp.Elem().Convert(srcMaybePtrBase)
 							} else {
 								return temp
@@ -1334,13 +1335,13 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 							}
 						}
 					case tgtMaybe:
-						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem()) }
+						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp.Elem()) }
 					case tgtMaybeBase:
-						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
+						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
 					case tgtMaybePtr:
-						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp) }
+						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp) }
 					case tgtMaybePtrBase:
-						tgtFn = func(temp, t goreflect.Value) { reflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr))) }
+						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr))) }
 					}
 
 					// If convFn is nil and the types are the same, generate a copy function
@@ -1386,7 +1387,7 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 								tgtVal.Elem().SetZero()
 							} else if tgtMaybe != nil {
 								// Tgt is a Maybe
-								reflect.SetMaybeValueEmpty(tgtVal)
+								unionreflect.SetMaybeValueEmpty(tgtVal)
 							} else if srcMaybe == nil {
 								// Tgt cannot be nil, src is a nil Ptr
 								return fmt.Errorf(errConvertNilSourceMsg, src, tgt)
