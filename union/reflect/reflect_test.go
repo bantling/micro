@@ -3,14 +3,14 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "math/big"
-  goreflect "reflect"
-  "testing"
+	"math/big"
+	goreflect "reflect"
+	"testing"
 
-  // "github.com/bantling/micro/funcs"
-  // "github.com/bantling/micro/tuple"
-  "github.com/bantling/micro/union"
-  "github.com/stretchr/testify/assert"
+	// "github.com/bantling/micro/funcs"
+	// "github.com/bantling/micro/tuple"
+	"github.com/bantling/micro/union"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetMaybeType_(t *testing.T) {

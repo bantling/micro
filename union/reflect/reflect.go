@@ -3,10 +3,10 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  goreflect "reflect"
-  "strings"
+	goreflect "reflect"
+	"strings"
 
-  "github.com/bantling/micro/reflect"
+	"github.com/bantling/micro/reflect"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 // GetMaybeType gets the generic type of the value wrapped in a union.Maybe (which may have pointers to it).
 // If the type is not a union.Maybe, then it returns a nil Type.
 func GetMaybeType(typ goreflect.Type) goreflect.Type {
-  dtyp := reflect.DerefType(typ)
+	dtyp := reflect.DerefType(typ)
 	if (dtyp.PkgPath() == unionPkgPath) && strings.HasPrefix(dtyp.Name(), "Maybe") {
 		if get, hasIt := dtyp.MethodByName("Get"); hasIt {
 			return get.Type.Out(0)

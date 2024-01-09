@@ -10,10 +10,10 @@ package code
 //
 // The caller must generate parent directories before child directories, or a panic occurs.
 type PackageGenerator interface {
-  GetBasePath() string // Return the base path to generate dirs under
-  SetBasePath(basePath string) // Set the base path once to generate dirs under. Setting again panics.
-  Dir(name string) SrcGenerator // Create a dir under base path, it can be a name or relative path. Creating existing dir panics.
-  EndPackage() // Doesn't necessarily do anything, mostly for completeness
+	GetBasePath() string          // Return the base path to generate dirs under
+	SetBasePath(basePath string)  // Set the base path once to generate dirs under. Setting again panics.
+	Dir(name string) SrcGenerator // Create a dir under base path, it can be a name or relative path. Creating existing dir panics.
+	EndPackage()                  // Doesn't necessarily do anything, mostly for completeness
 }
 
 // SrcGenerator creates zero or more source files in the current directory.
@@ -21,8 +21,8 @@ type PackageGenerator interface {
 // directory, or stop generation in this directory. A given source file can only be defined once, or a panic occurs.
 // It is allowable to create an empty directory, or a directory that only contains other directories.
 type SrcGenerator interface {
-  Src(name string) SrcPartsGenerator
-  EndDir() PackageGenerator
+	Src(name string) SrcPartsGenerator
+	EndDir() PackageGenerator
 }
 
 // SrcPartsGenerator populates a source file, with the following parts in any order:
@@ -31,9 +31,9 @@ type SrcGenerator interface {
 // - Types
 // - Functions
 type SrcPartsGenerator interface {
-  GlobalConsts(constants ...VarDef) SrcPartsGenerator
-  GlobalVars(globals ...VarDef) SrcPartsGenerator
-  Types(objects ...ObjectDef) SrcPartsGenerator
-  Funcs(funcs ...FuncDef) SrcPartsGenerator
-  EndSrc() SrcGenerator
+	GlobalConsts(constants ...VarDef) SrcPartsGenerator
+	GlobalVars(globals ...VarDef) SrcPartsGenerator
+	Types(objects ...ObjectDef) SrcPartsGenerator
+	Funcs(funcs ...FuncDef) SrcPartsGenerator
+	EndSrc() SrcGenerator
 }

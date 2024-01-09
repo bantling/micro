@@ -15,16 +15,16 @@ import (
 )
 
 var (
-	errLookupMsg                   = "%v cannot be converted to %v"
-	errCopyNilSourceMsg            = "A nil %s cannot be copied to a(n) %s"
-	errConvertNilSourceMsg         = "A nil %s cannot be converted to a(n) %s"
-	errCopyNilTargetMsg            = "A(n) %s cannot be copied to a nil %s"
-	errEmptyMaybeMsg               = "An empty %s cannot be converted to a(n) %s"
-	errMsg                         = "The %T value of %s cannot be converted to %s"
-	errRegisterMultiplePointersMsg = "The %s type %s has too many pointers"
-	errRegisterExistsMsg           = "The conversion from %s to %s has already been registered"
-  errRegisterNilFuncMsg          = "The conversion from %s to %s requires a non-nil conversion function"
-  errRegisterWrapperInfoExistsMsg = "The wrapper type %s has already been registered"
+	errLookupMsg                    = "%v cannot be converted to %v"
+	errCopyNilSourceMsg             = "A nil %s cannot be copied to a(n) %s"
+	errConvertNilSourceMsg          = "A nil %s cannot be converted to a(n) %s"
+	errCopyNilTargetMsg             = "A(n) %s cannot be copied to a nil %s"
+	errEmptyMaybeMsg                = "An empty %s cannot be converted to a(n) %s"
+	errMsg                          = "The %T value of %s cannot be converted to %s"
+	errRegisterMultiplePointersMsg  = "The %s type %s has too many pointers"
+	errRegisterExistsMsg            = "The conversion from %s to %s has already been registered"
+	errRegisterNilFuncMsg           = "The conversion from %s to %s requires a non-nil conversion function"
+	errRegisterWrapperInfoExistsMsg = "The wrapper type %s has already been registered"
 
 	log2Of10 = math.Log2(10)
 
@@ -1012,7 +1012,7 @@ var (
 	}
 
 	// map strings of types that may be a nil wrapper to a func(any) bool that tests if the instance wraps nil.
-  // this map is only populated by other packages, as Go has no such standard types.
+	// this map is only populated by other packages, as Go has no such standard types.
 	wrapperTypes = map[string]WrapperInfo{}
 
 	badConversionKinds = map[goreflect.Kind]bool{
@@ -1036,16 +1036,16 @@ var (
 // See LookupConversion for details
 func RegisterConversion[S, T any](convFn func(S, *T) error) error {
 	var (
-    zvs S
-    zvt T
+		zvs        S
+		zvt        T
 		sTyp, tTyp = goreflect.TypeOf(zvs), goreflect.TypeOf(zvt)
 		convKey    = sTyp.String() + tTyp.String()
 	)
 
-  // Error if the conversion func is nil
-  if convFn == nil {
-    return fmt.Errorf(errRegisterNilFuncMsg, sTyp, tTyp)
-  }
+	// Error if the conversion func is nil
+	if convFn == nil {
+		return fmt.Errorf(errRegisterNilFuncMsg, sTyp, tTyp)
+	}
 
 	// See if a conversion exists for the exact types given.
 	// If not, register it without bothering to use LookupConversion.
@@ -1070,65 +1070,65 @@ func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
 
 // WrapperInfo describes a wrapper type that can store one or more specific types, and may be able to represent an empty value
 type WrapperInfo interface {
-  // PackagePath returns the package path of the wrapper type
-  PackagePath() string
+	// PackagePath returns the package path of the wrapper type
+	PackagePath() string
 
-  // TypeNamePrefix returns the type name prefix. EG, if wrapper is Foo[T] then the prefix is Foo.
-  TypeNamePrefix() string
+	// TypeNamePrefix returns the type name prefix. EG, if wrapper is Foo[T] then the prefix is Foo.
+	TypeNamePrefix() string
 
-  // AcceptsType returns true if the given wrapper instance is capable of storing the given type.
-  // A wrapper type may be capable of storing any type, or only a set of specific - possibly unrelated - types.
-  AcceptsType(instance goreflect.Value, typ goreflect.Type) bool
+	// AcceptsType returns true if the given wrapper instance is capable of storing the given type.
+	// A wrapper type may be capable of storing any type, or only a set of specific - possibly unrelated - types.
+	AcceptsType(instance goreflect.Value, typ goreflect.Type) bool
 
-  // CanBeEmpty returns true if the wrapper can hold an empty value.
-  CanBeEmpty(instance goreflect.Value) bool
+	// CanBeEmpty returns true if the wrapper can hold an empty value.
+	CanBeEmpty(instance goreflect.Value) bool
 
-  // ConvertibleTo returns true if the given wrapper instance is capable of returning the given type.
-  // Actually converting to the specified type can still fail.
-  // EG, a type may be capable of converting to int in general, but the current value may lie outside the range of an int.
-  // Passing any type where AcceptsType returns true will always return true.
-  ConvertibleTo(instance goreflect.Value, typ goreflect.Type) bool
+	// ConvertibleTo returns true if the given wrapper instance is capable of returning the given type.
+	// Actually converting to the specified type can still fail.
+	// EG, a type may be capable of converting to int in general, but the current value may lie outside the range of an int.
+	// Passing any type where AcceptsType returns true will always return true.
+	ConvertibleTo(instance goreflect.Value, typ goreflect.Type) bool
 
-  // Get a value of the given type, which may require a conversion.
-  // Even if the wrapper can be converted to the specified type, it may still fail to convert.
-  // See ConvertibleTo.
-  //
-  // Errors if:
-  // - ConvertibleTo(Type) returns false
-  // - ConvertibleTo(Type) returns true, but the specific value stored cannot be converted to Type.
-  Get(instance goreflect.Value, typ goreflect.Type) (goreflect.Value, bool, error)
+	// Get a value of the given type, which may require a conversion.
+	// Even if the wrapper can be converted to the specified type, it may still fail to convert.
+	// See ConvertibleTo.
+	//
+	// Errors if:
+	// - ConvertibleTo(Type) returns false
+	// - ConvertibleTo(Type) returns true, but the specific value stored cannot be converted to Type.
+	Get(instance goreflect.Value, typ goreflect.Type) (goreflect.Value, bool, error)
 
-  // Set to the given value if the bool is true, else store an empty value (ignoring the value passed) if the bool is false.
-  // When the bool is true, if AcceptsType returns true for the type of value given, Set cannot fail.
-  // If CanBeEmpty returns true, then providing a bool flag of false cannot fail.
-  // See AcceptsType.
-  //
-  // Errors if:
-  // - AcceptsType returns false for the type of value given and the bool is true
-  // - CanBeEmpty returns false and the bool is false (the value is irrelevant)
-  Set(instance, val goreflect.Value, present bool) error
+	// Set to the given value if the bool is true, else store an empty value (ignoring the value passed) if the bool is false.
+	// When the bool is true, if AcceptsType returns true for the type of value given, Set cannot fail.
+	// If CanBeEmpty returns true, then providing a bool flag of false cannot fail.
+	// See AcceptsType.
+	//
+	// Errors if:
+	// - AcceptsType returns false for the type of value given and the bool is true
+	// - CanBeEmpty returns false and the bool is false (the value is irrelevant)
+	Set(instance, val goreflect.Value, present bool) error
 }
 
 // RegisterWrapper allows other packages to register types that hold an empty value.
 // The only error condition is if the same type is registered twice.
 func RegisterWrapper(wi WrapperInfo) error {
-  // Map key is package name "." type name prefix
-  key := fmt.Sprintf("%s.%s", wi.PackagePath(), wi.TypeNamePrefix())
+	// Map key is package name "." type name prefix
+	key := fmt.Sprintf("%s.%s", wi.PackagePath(), wi.TypeNamePrefix())
 
-  // Error the wrapper type has already been registered
-  if _, haveIt := wrapperTypes[key]; haveIt {
-    return fmt.Errorf(errRegisterWrapperInfoExistsMsg, key)
-  }
+	// Error the wrapper type has already been registered
+	if _, haveIt := wrapperTypes[key]; haveIt {
+		return fmt.Errorf(errRegisterWrapperInfoExistsMsg, key)
+	}
 
-  // Register funcs
-  wrapperTypes[key] = wi
+	// Register funcs
+	wrapperTypes[key] = wi
 
-  return nil
+	return nil
 }
 
 // MustRegisterEmptyWrapper is a must verison of RegisterEmptyWrapper
 func MustRegisterWrapper(wi WrapperInfo) {
-  funcs.Must(RegisterWrapper(wi))
+	funcs.Must(RegisterWrapper(wi))
 }
 
 // LookupConversion looks for a conversion from a source type to a target type.
@@ -1341,7 +1341,9 @@ func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
 					case tgtMaybePtr:
 						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp) }
 					case tgtMaybePtrBase:
-						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr))) }
+						tgtFn = func(temp, t goreflect.Value) {
+							unionreflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr)))
+						}
 					}
 
 					// If convFn is nil and the types are the same, generate a copy function

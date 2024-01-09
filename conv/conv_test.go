@@ -11,6 +11,7 @@ import (
 	"unsafe"
 
 	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/reflect"
 	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
@@ -1697,10 +1698,10 @@ func TestLookupConversionMaybePtrBase2MaybePtrBase_(t *testing.T) {
 func TestRegisterConversion_(t *testing.T) {
 	type Conv_Reg_Foo struct{ fld int }
 
-  {
-    // Nil conversion function
-    assert.Equal(t, fmt.Errorf("The conversion from int to int requires a non-nil conversion function"), RegisterConversion[int, int](nil))
-  }
+	{
+		// Nil conversion function
+		assert.Equal(t, fmt.Errorf("The conversion from int to int requires a non-nil conversion function"), RegisterConversion[int, int](nil))
+	}
 
 	{
 		// Working conversion
@@ -1735,81 +1736,82 @@ func TestRegisterConversion_(t *testing.T) {
 
 // intWrapper is an example of a wrapper that can be registered, and conversions
 type intWrapper struct {
-  val int
-  present bool
+	val     int
+	present bool
 }
 
 type intWrapperInfo int
 
 func (iwi intWrapperInfo) PackagePath() string {
-  return "github.com/bantling/micro/conv"
+	return "github.com/bantling/micro/conv"
 }
 
 func (iwi intWrapperInfo) TypeNamePrefix() string {
-  return "intWrapperInfo"
+	return "intWrapper"
 }
 
 func (iwi intWrapperInfo) AcceptsType(instance goreflect.Value, typ goreflect.Type) bool {
-  return goreflect.TypeOf(0) == typ
+	return goreflect.TypeOf(0) == typ
 }
 
 func (iwi intWrapperInfo) CanBeEmpty(instance goreflect.Value) bool {
-  return true
+	return true
 }
 
 func (iwi intWrapperInfo) ConvertibleTo(instance goreflect.Value, typ goreflect.Type) bool {
-  return goreflect.TypeOf(0) == typ
+	return goreflect.TypeOf(0) == typ
 }
 
 func (iwi intWrapperInfo) Get(instance goreflect.Value, typ goreflect.Type) (goreflect.Value, bool, error) {
-  if iwi.ConvertibleTo(instance, typ) {
-    iw := goreflect.DerefValue(instance).Interface().(intWrapper)
-    return goreflect.ValueOf(iw.val), iw.present, nil
-  }
+	if iwi.ConvertibleTo(instance, typ) {
+		iw := reflect.DerefValue(instance).Interface().(intWrapper)
+		return goreflect.ValueOf(iw.val), iw.present, nil
+	}
 
-  return goreflect.Value{}, false, fmt.Errorf("An intWrapperInfo cannot return type %s", typ)
+	return goreflect.Value{}, false, fmt.Errorf("An intWrapper cannot return type %s", typ)
 }
 
 func (iwi intWrapperInfo) Set(instance, val goreflect.Value, present bool) error {
-  iw := instance.Interface().(*intWrapper)
+	iw := instance.Interface().(*intWrapper)
 
-  if !present {
-    (*iw).val = 0
-    (*iw).present = false
-    return nil
-  }
+	if !present {
+		(*iw).val = 0
+		(*iw).present = false
+		return nil
+	}
 
-  if iwi.ConvertibleTo(instance, val.Type()) {
-    (*iw).val = int(val.Int())
-    (*iw).present = true
-    return nil
-  }
+	if iwi.ConvertibleTo(instance, val.Type()) {
+		(*iw).val = int(val.Int())
+		(*iw).present = true
+		return nil
+	}
 
-  return fmt.Errorf("intWrapper cannot be set to a value of type %s", val.Type())
+	return fmt.Errorf("An intWrapper cannot be set to a value of type %s", val.Type())
 }
 
 func TestRegisterWrapper_(t *testing.T) {
-  var wi intWrapperInfo
+	var (
+		iwi intWrapperInfo
+		wi  WrapperInfo
+	)
+	wi = iwi
 
-  _, isa := wi.(WrapperInfo)
-  assert.True(t, isa)
+	assert.Nil(t, RegisterWrapper(wi))
 
-  assert.Nil(t, RegisterWrapper(wi))
+	assert.Equal(
+		t,
+		fmt.Errorf("The wrapper type github.com/bantling/micro/conv.intWrapper has already been registered"),
+		RegisterWrapper(wi),
+	)
 
-  assert.Equal(
-    t,
-    fmt.Errorf("The WrapperInfo type github.com/bantling/micro/conv.intWrapper has already been registered"),
-    RegisterWrapper(wi),
-  )
+	assert.True(t, wi == wrapperTypes["github.com/bantling/micro/conv.intWrapper"])
 
-  assert.True(t, wi == wrappers["github.com/bantling/micro/conv.intWrapper"])
+	// Remove mapping to test Must function
+	delete(wrapperTypes, "github.com/bantling/micro/conv.intWrapper")
+	MustRegisterWrapper(wi)
 
-  // Remove mapping to test Must function
-  delete(wrappers, "github.com/bantling/micro/conv.intWrapper")
-  MustRegisterWrapper(wi)
-
-  // Remove mapping so other tests are unaffected
-  delete(wrappers, "github.com/bantling/micro/conv.intWrapper")
+	// Remove mapping so other tests are unaffected
+	delete(wrapperTypes, "github.com/bantling/micro/conv.intWrapper")
 }
 
 func TestTo_(t *testing.T) {
