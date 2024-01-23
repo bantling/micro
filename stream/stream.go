@@ -203,10 +203,7 @@ func Reduce[T any](
 	}
 }
 
-// ReduceTo is similar to Reduce, except that:
-// - The result does not have to be the same type
-// - If no identity value is given, the zero value is used
-//
+// ReduceTo is similar to Reduce, except that the result does not have to be the same type
 // The resulting iter can return any kind of error from source iter, or EOI.
 func ReduceTo[T, U any](
 	reducer func(U, T) U,

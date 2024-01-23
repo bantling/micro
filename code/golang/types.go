@@ -8,7 +8,7 @@ import (
 
 // Map general primitive types to Go types
 var (
-	typeMap = map[code.Type]string{
+	typeMap = map[string]string{
 		// Boolean
 		code.Bool: "bool",
 
@@ -30,11 +30,33 @@ var (
 		code.Json:   "json.Value", // provided by this library in encoding/json
 
 		// Date, DateTime, and Interval
-		code.Date:                 "time.Time",     // provided by standard library, resolution is days since 2970
-		code.DateTimeSeconds:      "time.Time",     // provided by standard library, resolution is seconds since 1970
-		code.DateTimeMilliseconds: "time.Time",     // provided by standard library, resolution is milliseconds since 1970
-		code.IntervalDays:         "time.Duration", // provided by standard library, resolution is days
-		code.IntervalSeconds:      "time.Duration", // provided by standard library, resolution is seconds
-		code.IntervalMilliseconds: "time.Duration", // provided by standard library, resolution is milliseconds
+		code.Date:                 "time.Time",
+		code.DateTimeSecs:      "time.Time",
+		code.DateTimeMillis: "time.Time",
+		code.DurationDays:         "time.Duration",
+		code.DurationSecs:      "time.Duration",
+		code.DurationMillis: "time.Duration",
 	}
 )
+
+// TypeDefString produces a type declaration
+func TypeDefString(def code.TypeDef, top bool) string {
+  switch def.Type {
+  case code.Object:
+    return funcs.Ternary(top, "struct ", "") + TypeDeclaration(def.ObjectType, false) + " {"
+  case code.Map:
+    return "map[" + TypeDefString(def.KeyType, false) + "]" + TypeDefString(def.ValueType, false)
+  case code.Set:
+    return "map[" + TypeDefString(def.ValueType, false) + "]bool"
+  case code.Array:
+    return iter.Maybe(
+      stream.Reduce(
+        func(a, b string) {return a + b},
+      )(
+        stream.Map(func(bound int) string { return "[" + strconv.Itoa(bound) + "]" }) (iter.Of(def.Bounds...))
+      )
+    ).Get() + TypeDefString(def.ValueType, false)
+  case code.List:
+    return "[]" + TypeDefString(def.ValueType, false)
+  }
+}

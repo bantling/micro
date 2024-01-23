@@ -422,6 +422,23 @@ func TestMaybe_(t *testing.T) {
 		assert.True(t, res.Empty())
 	}
 
+  {
+    res := Empty[int]()
+    res = Of(1)
+
+		var e error
+		funcs.TryTo(
+			func() {
+				res.SetOrError(2)
+				assert.Fail(t, "Must die")
+			},
+			func(r any) {
+				e = r.(error)
+			},
+		)
+		assert.Equal(t, errPresentMaybe, e)
+  }
+
 	// Empty
 	{
 		res := Empty[int]()
@@ -450,6 +467,9 @@ func TestMaybe_(t *testing.T) {
 		assert.True(t, res.Empty())
 		assert.Equal(t, 0, res.v)
 
+    res.SetOrError(1)
+    assert.Equal(t, Of(1), res)
+
 		var i int
 		resp := Of(&i)
 		assert.True(t, resp.Present())
@@ -466,5 +486,8 @@ func TestMaybe_(t *testing.T) {
 		resp.SetEmpty()
 		assert.True(t, resp.Empty())
 		assert.Nil(t, resp.v)
+
+    resp.SetOrError(&i)
+    assert.Equal(t, &i, resp.Get())
 	}
 }

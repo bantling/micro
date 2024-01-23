@@ -14,6 +14,7 @@ import (
 var (
 	errWhichMsg   = "Member %s is not available"
 	errEmptyMaybe = fmt.Errorf("Empty Maybe cannot return a value")
+  errPresentMaybe = fmt.Errorf("Present Maybe cannot be overwritten with SetOrError")
 )
 
 // ==== Types
@@ -341,7 +342,7 @@ func (m Maybe[T]) OrError(e error) (res T, err error) {
 	return
 }
 
-// Set overwrites the current value with newVal, and sets m as present
+// Set overwrites the current value with newVal, and sets m as present unless the newVal is a nil pointer
 func (m *Maybe[T]) Set(newVal T) {
 	// Store new value, which may be nil if T is a pointer type
 	m.v = newVal
@@ -355,6 +356,16 @@ func (m *Maybe[T]) SetEmpty() {
 	var zv T
 	m.v = zv
 	m.present = false
+}
+
+// SetOrError sets the current value with val if empty, else panics if a present val has already been set
+func (m *Maybe[T]) SetOrError(val T) {
+  if m.present {
+    panic(errPresentMaybe)
+  }
+
+  m.v = val
+  m.present = true
 }
 
 // ==== Result

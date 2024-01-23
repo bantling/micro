@@ -391,7 +391,7 @@ func Map2Set[K1, K2 comparable, V any](mp *map[K1]map[K2]V, key1 K1, key2 K2, va
 	mp2[key2] = value
 }
 
-// Map2Test returns true if mp[K1] and
+// Map2Test returns true if mp[K1] and mp[K1][K2] exist
 func Map2Test[K1, K2 comparable, V any](mp map[K1]map[K2]V, key1 K1, key2 K2) (exists bool) {
 	if mp != nil {
 		if m2 := mp[key1]; m2 != nil {

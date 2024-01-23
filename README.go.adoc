@@ -210,6 +210,8 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 === TODO
 
 * conv complete testing
+** conv and WrapperInfo needs to be revamped somehow - conv.LookupConversion requires args of reflect.Type to determine
+   if a conversion is possible, but WrapperInfo requires instances of reflect.Value and reflect.Type
 ** Add a capability for json.NullValue to be equivalent to a nil pointer or empty Maybe by LookupConversion
 * alter Makefile to drop docker support, only have podman
 * make a Dockerfile that uses https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md

@@ -6,54 +6,61 @@ import (
 	"github.com/bantling/micro/union"
 )
 
-// Type is an enum of all basic types
-type Type uint
-
 const (
 	// Boolean
-	Bool Type = iota
-	Uint8
-	Uint16
-	Uint32
-	Uint64
+	Bool   = "bool"
+	Uint8  = "uint8"
+	Uint16 = "uint16"
+	Uint32 = "uint32"
+	Uint64 = "uint64"
 
 	// Signed ints
-	Int8
-	Int16
-	Int32
-	Int64
+	Int8  = "int8"
+	Int16 = "int16"
+	Int32 = "int32"
+	Int64 = "int64"
 
 	// String, UUID, JSON
-	String
-	Uuid //   = "uuid.UUID"  // provided by Google library github.com/google/uuid
-	Json //   = "json.Value" // provided by this library in encoding/json
+	String = "string"
+	Uuid   = "uuid"
+	Json   = "json"
 
 	// Date, DateTime, and Interval
-	Date                 // = "time.Time" // provided by standard library, resolution is days since 2970
-	DateTimeSeconds      // = "time.Time" // provided by standard library, resolution is seconds since 1970
-	DateTimeMilliseconds // = "time.Time" // provided by standard library, resolution is milliseconds since 1970
-	IntervalDays         // = "time.Duration" // provided by standard library, resolution is  days
-	IntervalSeconds      // = "time.Duration" // provided by standard library, resolution is seconds
-	IntervalMilliseconds //  = "time.Duration" // provided by standard library, resolution is milliseconds
+	Date           = "date"           // days since 2970
+	DateTimeSecs   = "dateTimeSecs"   // seconds since 1970
+	DateTimeMillis = "dateTimeMillis" // milliseconds since 1970
+	DurationDays   = "durationDays"   // days elapsed
+	DurationSecs   = "durationSecs"   // seconds elapsed
+	DurationMillis = "durationMillis" // elapsed milliseconds
 
 	// Enum
-	Enum
+	Enum = "enum"
 
 	// Object, Map, Set, List, Maybe
-	Object
-	Map
-	Set
-	List
-	Maybe
+	Object = "object"
+	Map    = "map"
+	Set    = "set"
+  Array  = "array"
+	List   = "list"
+	Maybe  = "maybe"
+
+  Main = "main" // name of main function
 )
+
+type TypeDef struct {
+  Type      string // The type
+  ObjectType TypeDef // The object type
+	KeyType   TypeDef // The map key type
+	ValueType TypeDef // The map value type, set type, array type, list type, or maybe type
+  ArrayBounds    []int   // The bounds of an array, cannot be empty
+  ListDimension int // The dimension of the list (eg, list of string, list of list of string, etc), cannot be 0
+	EnumConstants []string // The names of enum constants - zero-based indexes are the enum values, strings are the names
+}
 
 // VarDef is a variable type definition
 type VarDef struct {
-	Type      Type     // The type of variable
-	KeyType   Type     // The key type, if the variable is a map
-	ValueType Type     // The value type, if the variable is an object, map, set, list, or maybe
-	Names     []string // The names of enum constants - zero-based indexes are the enum values, strings are the names
-	Maybe     bool     // True if the var is a Maybe, which can wrap around anything except map, set, list, and maybe
+	Type      TypeDef  // The type of variable
+  Name      string   // The name of the variable
 }
 
 // FuncDef is a function definition
@@ -89,7 +96,7 @@ type Dir struct {
 	Init union.Maybe[FuncDef]
 }
 
-// Package is a package of code, usually not a complete program (usually some other files will be hand written)
+// Package is a package of code, not necessarily a complete program
 type Package struct {
 	Dirs map[string]Dir
 }
