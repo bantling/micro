@@ -495,6 +495,7 @@ func TestLookupConversionPtr2Base_(t *testing.T) {
 func TestLookupConversionPtr2Ptr_(t *testing.T) {
 	// Copy
 	{
+		// *string -> *string shd copy string, not pointer
 		var src string = "1"
 		var tgt string
 		var srcp = &src
@@ -504,46 +505,53 @@ func TestLookupConversionPtr2Ptr_(t *testing.T) {
 		assert.NotNil(t, fn)
 		assert.Nil(t, err)
 
-		// *string -> *string shd copy string, not pointer
 		assert.Nil(t, fn(srcp, &tgtp))
 		assert.Equal(t, "1", tgt)
 		assert.Equal(t, &tgt, tgtp)
 	}
-	//
-	// var src int = 1
-	// var srcp = &src
-	// var tgt string
-	// var tgtp *string
-	//
-	// fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
-	// assert.NotNil(t, fn)
-	// assert.Nil(t, err)
-	//
-	// // *int -> *string
-	// tgtp = &tgt
-	// assert.Nil(t, fn(srcp, &tgtp))
-	// assert.Equal(t, "1", tgt)
-	// assert.Equal(t, &tgt, tgtp)
-	//
-	// // *int -> nil *string
-	// src = 2
-	// tgtp = nil
-	// assert.Nil(t, fn(srcp, &tgtp))
-	// assert.Equal(t, "1", tgt)
-	// assert.Equal(t, "2", *tgtp)
-	// assert.NotEqual(t, &tgt, tgtp)
-	//
-	// // nil -> *string
-	// tgtp = &tgt
-	// assert.Nil(t, fn(nil, &tgtp))
-	// assert.Equal(t, "1", tgt)
-	// assert.Nil(t, tgtp)
-	//
-	// // nil *int -> *string
-	// tgtp = &tgt
-	// assert.Nil(t, fn((*int)(nil), &tgtp))
-	// assert.Equal(t, "1", tgt)
-	// assert.Nil(t, tgtp)
+
+  {
+    // *int -> *string
+  	var src = 1
+    var tgt string
+  	var srcp = &src
+  	var tgtp = &tgt
+
+  	fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
+  	assert.NotNil(t, fn)
+  	assert.Nil(t, err)
+
+		assert.Nil(t, fn(srcp, &tgtp))
+		assert.Equal(t, "1", tgt)
+  }
+
+  {
+  	// *int -> nil *string
+  	var src = 2
+  	var srcp = &src
+  	var tgtp *string
+
+  	fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
+  	assert.NotNil(t, fn)
+  	assert.Nil(t, err)
+
+  	assert.Nil(t, fn(srcp, &tgtp))
+    assert.Equal(t, "2", *tgtp)
+  }
+
+  {
+  	// nil *int -> *string
+    var tgt = "3"
+  	var tgtp = &tgt
+
+  	fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf(tgtp))
+  	assert.NotNil(t, fn)
+  	assert.Nil(t, err)
+
+  	assert.Nil(t, fn(nil, &tgtp))
+  	assert.Equal(t, "3", tgt)
+  	assert.Nil(t, tgtp)
+  }
 }
 
 func TestLookupConversionPtr2PtrBase_(t *testing.T) {
@@ -3044,4 +3052,29 @@ func TestToBigOps_(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("The string value of a cannot be converted to *big.Int"), e.(error).Error())
 		},
 	)
+}
+
+type Foo struct {}
+
+func TestReflectTo_(t *testing.T) {
+  {
+    // int to string
+    var str string
+    assert.Nil(t, ReflectTo(goreflect.ValueOf(1), goreflect.ValueOf(&str)))
+    assert.Equal(t, "1", str)
+  }
+
+  {
+    // int to struct string field
+    type Foo struct {
+      Str string
+    }
+
+    var f = Foo{}
+    assert.Nil(t, ReflectTo(goreflect.ValueOf(2), goreflect.ValueOf(&f).Elem().FieldByName("Str").Addr()))
+    assert.Equal(t, "2", f.Str)
+  }
+
+  typ := goreflect.TypeOf(Foo{})
+  fmt.Printf("%s, %s, %s\n", typ, typ.PkgPath(), typ.Name())
 }

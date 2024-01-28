@@ -45,7 +45,7 @@ func SetMaybeValue(dst, val goreflect.Value) {
 }
 
 // SetMaybeValueEmpty sets a Maybe to empty
-// Dst must be a Maybe[T], otherwise a panic will occur
+// Dst must be a Maybe, otherwise a panic will occur
 func SetMaybeValueEmpty(dst goreflect.Value) {
 	dst.MethodByName("SetEmpty").Call(nil)
 }

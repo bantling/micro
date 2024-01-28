@@ -1467,11 +1467,9 @@ func To[T any](src any, tgt *T) error {
 		srcTyp = valsrc.Type()
 		tgtTyp = valtgt.Type().Elem()
 	)
-	// fmt.Printf("To: %s -> %s\n", srcTyp, tgtTyp)
 
 	// Use LookupConversion to find the conversion function, if it exists
 	fn, err := LookupConversion(srcTyp, tgtTyp)
-	// fmt.Printf("Lookup: %p, %s\n", fn, err)
 	switch {
 	case (fn == nil) && (err == nil):
 		// No conversion exists, but could be registered
@@ -1515,4 +1513,17 @@ func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt
 // MustToBigOps is a Must version of ToBigOps
 func MustToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) {
 	funcs.Must(ToBigOps(src, tgt))
+}
+
+// ReflectTo uses reflection objects to convert from source to target.
+// This function is useful for reflection algorithms that need to do conversions.
+// The tgt must wrap a pointer.
+func ReflectTo(src, tgt goreflect.Value) error {
+    // Try to convert src into tgt using LookupConversion to find a conversion based on their types
+    // Note that To expects a target pointer, but derefs the type when calling LookupConversion
+    if convFn, err := LookupConversion(src.Type(), tgt.Type().Elem()); err != nil {
+      return err
+    } else {
+      return convFn(src.Interface(), tgt.Interface())
+    }
 }

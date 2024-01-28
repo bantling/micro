@@ -7,6 +7,7 @@ import (
 	"math/big"
 	goreflect "reflect"
 	"testing"
+  "time"
 
 	"github.com/bantling/micro/funcs"
 	"github.com/stretchr/testify/assert"
@@ -398,4 +399,131 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 		var p **int
 		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(goreflect.ValueOf(p)))
 	}
+}
+
+func TestRecurseFields_(t *testing.T) {
+  var (
+    modes []RecurseMode
+    paths [][]string
+    flds []goreflect.StructField
+    vals []goreflect.Value
+    now = time.Now()
+  )
+
+  type Address struct {
+    Line string
+    City string
+  }
+
+  type Customer struct {
+    Name string
+    Address
+    Update time.Time
+    Codes []string
+  }
+
+  // custTyp := goreflect.TypeOf(Customer{})
+  // addrTyp := GetFieldByName(custTyp, "Address").Type
+
+  RecurseFields(
+    goreflect.ValueOf(
+      Customer {
+        Name: "Jane Doe",
+        Address: Address {
+          Line: "123 Sesame St",
+          City: "New York",
+        },
+        Update: now,
+        Codes: []string{"ABC", "DEFG"},
+      },
+    ),
+    func(
+      mode RecurseMode,
+      path []string,
+      fld goreflect.StructField,
+      val goreflect.Value,
+    ) error {
+      modes = append(modes, mode)
+      paths = append(paths, path)
+      flds = append(flds, fld)
+      vals = append(vals, val)
+
+      return nil
+    },
+  )
+
+  // Results shd be:
+  // Start, []
+  // Field, [Name]
+  // Start, [Address]
+  // Field, [Address, Line]
+  // Field, [Address, City]
+  // End, [Address]
+  // Field, [Updated]
+  // Field, [Codes]
+  // End, []
+
+  assert.Equal(
+    t,
+    []RecurseMode{
+      Start,
+      Field,
+      Start,
+      Field,
+      Field,
+      End,
+      Field,
+      Field,
+      End,
+    },
+    modes,
+  )
+
+  // assert.Equal(
+  //   t,
+  //   [][]string{
+  //     []string{},
+  //     []string{"Name"},
+  //     []string{"Address"},
+  //     []string{"Address", "Line"},
+  //     []string{"Address", "City"},
+  //     []string{"Address"},
+  //     []string{"Updated"},
+  //     []string{"Codes"},
+  //     []string{},
+  //   },
+  //   paths,
+  // )
+  //
+  // assert.Equal(
+  //   t,
+  //   []goreflect.StructField{
+  //     goreflect.StructField{},
+  //     GetFieldByName(custTyp, "Name"),
+  //     goreflect.StructField{},
+  //     GetFieldByName(addrTyp, "Line"),
+  //     GetFieldByName(addrTyp, "City"),
+  //     goreflect.StructField{},
+  //     GetFieldByName(custTyp, "Updated"),
+  //     GetFieldByName(custTyp, "Codes"),
+  //     goreflect.StructField{},
+  //   },
+  //   flds,
+  // )
+  //
+  // assert.Equal(
+  //   t,
+  //   []goreflect.Value{
+  //     goreflect.Value{},
+  //     goreflect.ValueOf("Jane Doe"),
+  //     goreflect.Value{},
+  //     goreflect.ValueOf("123 Sesame St"),
+  //     goreflect.ValueOf("New York"),
+  //     goreflect.Value{},
+  //     goreflect.ValueOf(now),
+  //     goreflect.ValueOf([]string{"ABC", "DEFG"}),
+  //     goreflect.Value{},
+  //   },
+  //   vals,
+  // )
 }

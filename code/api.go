@@ -133,7 +133,7 @@ func (bg *BaseGenerator) Src(name string) {
 	}
 
   funcs.Map2Set(&bg.srcs, bg.currentDir, name, true)
-  bg.currentSrc = writer.OfIOWriterAsLines(f)
+  bg.currentSrc = writer.OfIOWriterAsStrings(f)
 }
 
 // CurrentSrc returns the writer for the current src
