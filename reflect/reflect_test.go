@@ -402,11 +402,12 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 }
 
 func TestRecurseFields_(t *testing.T) {
+  // USE UNION FOUR
   var (
     modes []RecurseMode
     paths [][]string
     flds []goreflect.StructField
-    vals []goreflect.Value
+    vals []any
     now = time.Now()
   )
 
@@ -422,21 +423,23 @@ func TestRecurseFields_(t *testing.T) {
     Codes []string
   }
 
-  // custTyp := goreflect.TypeOf(Customer{})
-  // addrTyp := GetFieldByName(custTyp, "Address").Type
+  var (
+    custTyp = goreflect.TypeOf(Customer{})
+    addrTyp = GetFieldByName(custTyp, "Address").Type
+
+    cust =  Customer {
+      Name: "Jane Doe",
+      Address: Address {
+        Line: "123 Sesame St",
+        City: "New York",
+      },
+      Update: now,
+      Codes: []string{"ABC", "DEFG"},
+    }
+  )
 
   RecurseFields(
-    goreflect.ValueOf(
-      Customer {
-        Name: "Jane Doe",
-        Address: Address {
-          Line: "123 Sesame St",
-          City: "New York",
-        },
-        Update: now,
-        Codes: []string{"ABC", "DEFG"},
-      },
-    ),
+    goreflect.ValueOf(cust),
     func(
       mode RecurseMode,
       path []string,
@@ -444,24 +447,13 @@ func TestRecurseFields_(t *testing.T) {
       val goreflect.Value,
     ) error {
       modes = append(modes, mode)
-      paths = append(paths, path)
+      paths = append(paths, append([]string{}, path...))
       flds = append(flds, fld)
-      vals = append(vals, val)
+      vals = append(vals, funcs.TernaryResult(val.IsValid(), val.Interface, func() any { return nil }))
 
       return nil
     },
   )
-
-  // Results shd be:
-  // Start, []
-  // Field, [Name]
-  // Start, [Address]
-  // Field, [Address, Line]
-  // Field, [Address, City]
-  // End, [Address]
-  // Field, [Updated]
-  // Field, [Codes]
-  // End, []
 
   assert.Equal(
     t,
@@ -479,51 +471,51 @@ func TestRecurseFields_(t *testing.T) {
     modes,
   )
 
-  // assert.Equal(
-  //   t,
-  //   [][]string{
-  //     []string{},
-  //     []string{"Name"},
-  //     []string{"Address"},
-  //     []string{"Address", "Line"},
-  //     []string{"Address", "City"},
-  //     []string{"Address"},
-  //     []string{"Updated"},
-  //     []string{"Codes"},
-  //     []string{},
-  //   },
-  //   paths,
-  // )
-  //
-  // assert.Equal(
-  //   t,
-  //   []goreflect.StructField{
-  //     goreflect.StructField{},
-  //     GetFieldByName(custTyp, "Name"),
-  //     goreflect.StructField{},
-  //     GetFieldByName(addrTyp, "Line"),
-  //     GetFieldByName(addrTyp, "City"),
-  //     goreflect.StructField{},
-  //     GetFieldByName(custTyp, "Updated"),
-  //     GetFieldByName(custTyp, "Codes"),
-  //     goreflect.StructField{},
-  //   },
-  //   flds,
-  // )
-  //
-  // assert.Equal(
-  //   t,
-  //   []goreflect.Value{
-  //     goreflect.Value{},
-  //     goreflect.ValueOf("Jane Doe"),
-  //     goreflect.Value{},
-  //     goreflect.ValueOf("123 Sesame St"),
-  //     goreflect.ValueOf("New York"),
-  //     goreflect.Value{},
-  //     goreflect.ValueOf(now),
-  //     goreflect.ValueOf([]string{"ABC", "DEFG"}),
-  //     goreflect.Value{},
-  //   },
-  //   vals,
-  // )
+  assert.Equal(
+    t,
+    [][]string{
+      []string{},
+      []string{"Name"},
+      []string{"Address"},
+      []string{"Address", "Line"},
+      []string{"Address", "City"},
+      []string{"Address"},
+      []string{"Update"},
+      []string{"Codes"},
+      []string{},
+    },
+    paths,
+  )
+
+  assert.Equal(
+    t,
+    []goreflect.StructField{
+      goreflect.StructField{},
+      GetFieldByName(custTyp, "Name"),
+      GetFieldByName(custTyp, "Address"),
+      GetFieldByName(addrTyp, "Line"),
+      GetFieldByName(addrTyp, "City"),
+      GetFieldByName(custTyp, "Address"),
+      GetFieldByName(custTyp, "Update"),
+      GetFieldByName(custTyp, "Codes"),
+      goreflect.StructField{},
+    },
+    flds,
+  )
+
+  assert.Equal(
+    t,
+    []any{
+      nil,
+      "Jane Doe",
+      cust.Address,
+      "123 Sesame St",
+      "New York",
+      cust.Address,
+      now,
+      []string{"ABC", "DEFG"},
+      nil,
+    },
+    vals,
+  )
 }

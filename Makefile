@@ -139,11 +139,12 @@ test:
 	[ -z "$(run)" ] || testOpt="$$testOpt -run $(run)"; \
 	go test -coverprofile=.coverage.html -v $$testOpt $(pkg)
 
+# Generate coverage information and display it in user's default browser (host)
 .PHONY: coverage
 coverage:
 	go tool cover -html=.coverage.html
 
-# Check that every README and .go file contains the string SPDX-License-Identifier: Apache-2.0
+# Check that every README and .go file contains the string SPDX-License-Identifier: Apache-2.0 (host, docker, podman)
 .PHONY: spdx
 .SILENT: spdx
 spdx:
@@ -155,16 +156,19 @@ spdx:
 			} \
 		done
 
+# Check that every Go package has a doc.go file (host, docker, podman)
 .PHONY: check-doc-go
 check-doc-go:
 	for srcDir in $$(find . -type f -name '*.go' | sed -r 's,[.]/(.*)/[^/]*,\1,' | sort -u); do \
 		if [ \! -f "$$srcDir/doc.go" ]; then { echo "Missing $$srcDir/doc.go"; exit 1; }; fi; \
 	done
 
+# Check that the dot program is installed (host)
 .PHONY: have-dot
 have-dot:
 	@which dot 2>&1 > /dev/null || echo "The Graphviz package must be installed to generate a dependency graph"
 
+# Generate depgraph using dot (host)
 .PHONY: depgraph
 depgraph: have-dot
 	{ \
@@ -185,16 +189,20 @@ depgraph: have-dot
 	} | cat > .depgraph.dot
 	dot -Tsvg .depgraph.dot > depgraph.svg
 
+# Check if the asciidoc program is installed (host)
 .PHONY: have-asciidoc
 have-asciidoc:
 	@which asciidoc 2>&1 > /dev/null || echo "The asciidoc package must be installed to generate the readme html file"
 
+# Generate .readme.html using asciidoc (host)
 .readme.html: README.adoc | have-asciidoc
 	asciidoc -b html -o $@ $<
 
+# Generate .readme.go.html using asciidoc (host)
 .readme.go.html: README.go.adoc | have-asciidoc
 	asciidoc -b html -o $@ $<
 
+# Push all changes to git via add/commit/push
 .PHONY: push
 push:
 	git add -A
