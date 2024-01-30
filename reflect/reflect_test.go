@@ -10,6 +10,7 @@ import (
   "time"
 
 	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -402,15 +403,6 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 }
 
 func TestRecurseFields_(t *testing.T) {
-  // USE UNION FOUR
-  var (
-    modes []RecurseMode
-    paths [][]string
-    flds []goreflect.StructField
-    vals []any
-    now = time.Now()
-  )
-
   type Address struct {
     Line string
     City string
@@ -424,8 +416,7 @@ func TestRecurseFields_(t *testing.T) {
   }
 
   var (
-    custTyp = goreflect.TypeOf(Customer{})
-    addrTyp = GetFieldByName(custTyp, "Address").Type
+    now = time.Now()
 
     cust =  Customer {
       Name: "Jane Doe",
@@ -436,6 +427,11 @@ func TestRecurseFields_(t *testing.T) {
       Update: now,
       Codes: []string{"ABC", "DEFG"},
     }
+
+    custTyp = goreflect.TypeOf(Customer{})
+    addrTyp = GetFieldByName(custTyp, "Address").Type
+
+    data []tuple.Four[RecurseMode, []string, goreflect.StructField, any]
   )
 
   RecurseFields(
@@ -446,10 +442,15 @@ func TestRecurseFields_(t *testing.T) {
       fld goreflect.StructField,
       val goreflect.Value,
     ) error {
-      modes = append(modes, mode)
-      paths = append(paths, append([]string{}, path...))
-      flds = append(flds, fld)
-      vals = append(vals, funcs.TernaryResult(val.IsValid(), val.Interface, func() any { return nil }))
+      data = append(
+        data,
+        tuple.Of4(
+          mode,
+          path,
+          fld,
+          funcs.TernaryResult(val.IsValid(), val.Interface, func() any { return nil }),
+        ),
+      )
 
       return nil
     },
@@ -457,65 +458,17 @@ func TestRecurseFields_(t *testing.T) {
 
   assert.Equal(
     t,
-    []RecurseMode{
-      Start,
-      Field,
-      Start,
-      Field,
-      Field,
-      End,
-      Field,
-      Field,
-      End,
+    []tuple.Four[RecurseMode, []string, goreflect.StructField, any]{
+      tuple.Of4(Start, []string{}, goreflect.StructField{}, any(nil)),
+      tuple.Of4(Field, []string{"Name"}, GetFieldByName(custTyp, "Name"), any("Jane Doe")),
+      tuple.Of4(Start, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
+      tuple.Of4(Field, []string{"Address", "Line"}, GetFieldByName(addrTyp, "Line"), any("123 Sesame St")),
+      tuple.Of4(Field, []string{"Address", "City"}, GetFieldByName(addrTyp, "City"), any("New York")),
+      tuple.Of4(End, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
+      tuple.Of4(Field, []string{"Update"}, GetFieldByName(custTyp, "Update"), any(now)),
+      tuple.Of4(Field, []string{"Codes"}, GetFieldByName(custTyp, "Codes"), any([]string{"ABC", "DEFG"})),
+      tuple.Of4(End, []string{}, goreflect.StructField{}, any(nil)),
     },
-    modes,
-  )
-
-  assert.Equal(
-    t,
-    [][]string{
-      []string{},
-      []string{"Name"},
-      []string{"Address"},
-      []string{"Address", "Line"},
-      []string{"Address", "City"},
-      []string{"Address"},
-      []string{"Update"},
-      []string{"Codes"},
-      []string{},
-    },
-    paths,
-  )
-
-  assert.Equal(
-    t,
-    []goreflect.StructField{
-      goreflect.StructField{},
-      GetFieldByName(custTyp, "Name"),
-      GetFieldByName(custTyp, "Address"),
-      GetFieldByName(addrTyp, "Line"),
-      GetFieldByName(addrTyp, "City"),
-      GetFieldByName(custTyp, "Address"),
-      GetFieldByName(custTyp, "Update"),
-      GetFieldByName(custTyp, "Codes"),
-      goreflect.StructField{},
-    },
-    flds,
-  )
-
-  assert.Equal(
-    t,
-    []any{
-      nil,
-      "Jane Doe",
-      cust.Address,
-      "123 Sesame St",
-      "New York",
-      cust.Address,
-      now,
-      []string{"ABC", "DEFG"},
-      nil,
-    },
-    vals,
+    data,
   )
 }
