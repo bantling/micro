@@ -22,7 +22,7 @@ var (
 
 // parsePath parses a path string into a slice of tuple/union structures that represents what to search for.
 // The structures contain {path, union of {key, index}}.
-// The idea is that for .addresses[3].city, there would be e tuple/union structures:
+// The idea is that for .addresses[3].city, there would be the following tuple/union structures:
 // - {t: ".addresses", u: {t: "addresses"}}
 // - {t: "[3]", {u: 3}}
 // - {t: ".city", {t: "city"}}
