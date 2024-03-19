@@ -25,6 +25,7 @@ func Test2_(t *testing.T) {
 		u2T.SetT("b")
 		assert.Equal(t, T, u2T.Which())
 		assert.Equal(t, "b", u2T.T())
+		assert.Equal(t, fmt.Sprintf("b"), u2T.String())
 
 		funcs.TryTo(
 			func() {
@@ -46,6 +47,7 @@ func Test2_(t *testing.T) {
 		u2U.SetU(2)
 		assert.Equal(t, U, u2U.Which())
 		assert.Equal(t, 2, u2U.U())
+		assert.Equal(t, fmt.Sprintf("2"), u2U.String())
 
 		funcs.TryTo(
 			func() {
@@ -71,6 +73,7 @@ func Test3_(t *testing.T) {
 		u3T.SetT("b")
 		assert.Equal(t, T, u3T.Which())
 		assert.Equal(t, "b", u3T.T())
+		assert.Equal(t, fmt.Sprintf("b"), u3T.String())
 
 		funcs.TryTo(
 			func() {
@@ -103,6 +106,7 @@ func Test3_(t *testing.T) {
 		u3U.SetU(2)
 		assert.Equal(t, U, u3U.Which())
 		assert.Equal(t, 2, u3U.U())
+		assert.Equal(t, fmt.Sprintf("2"), u3U.String())
 
 		funcs.TryTo(
 			func() {
@@ -135,6 +139,7 @@ func Test3_(t *testing.T) {
 		u3V.SetV("b")
 		assert.Equal(t, V, u3V.Which())
 		assert.Equal(t, "b", u3V.V())
+		assert.Equal(t, fmt.Sprintf("b"), u3V.String())
 
 		funcs.TryTo(
 			func() {
@@ -171,6 +176,7 @@ func Test4_(t *testing.T) {
 		u4T.SetT("b")
 		assert.Equal(t, T, u4T.Which())
 		assert.Equal(t, "b", u4T.T())
+		assert.Equal(t, fmt.Sprintf("b"), u4T.String())
 
 		funcs.TryTo(
 			func() {
@@ -214,6 +220,7 @@ func Test4_(t *testing.T) {
 		u4U.SetU(2)
 		assert.Equal(t, U, u4U.Which())
 		assert.Equal(t, 2, u4U.U())
+		assert.Equal(t, fmt.Sprintf("2"), u4U.String())
 
 		funcs.TryTo(
 			func() {
@@ -257,6 +264,7 @@ func Test4_(t *testing.T) {
 		u4V.SetV("b")
 		assert.Equal(t, V, u4V.Which())
 		assert.Equal(t, "b", u4V.V())
+		assert.Equal(t, fmt.Sprintf("b"), u4V.String())
 
 		funcs.TryTo(
 			func() {
@@ -300,6 +308,7 @@ func Test4_(t *testing.T) {
 		u4W.SetW(2)
 		assert.Equal(t, W, u4W.Which())
 		assert.Equal(t, 2, u4W.W())
+		assert.Equal(t, fmt.Sprintf("2"), u4W.String())
 
 		funcs.TryTo(
 			func() {
@@ -344,6 +353,7 @@ func TestResult_(t *testing.T) {
 		assert.False(t, res.HasError())
 		assert.Equal(t, "a", res.Get())
 		assert.Zero(t, res.Error())
+		assert.Equal(t, fmt.Sprintf("a"), res.String())
 	}
 
 	// Error
@@ -354,6 +364,7 @@ func TestResult_(t *testing.T) {
 		assert.True(t, res.HasError())
 		assert.Zero(t, res.Get())
 		assert.Equal(t, e, res.Error())
+		assert.Equal(t, fmt.Sprintf("An Error"), res.String())
 
 		funcs.TryTo(
 			func() {
@@ -422,9 +433,9 @@ func TestMaybe_(t *testing.T) {
 		assert.True(t, res.Empty())
 	}
 
-  {
-    res := Empty[int]()
-    res = Of(1)
+	{
+		res := Empty[int]()
+		res = Of(1)
 
 		var e error
 		funcs.TryTo(
@@ -437,7 +448,7 @@ func TestMaybe_(t *testing.T) {
 			},
 		)
 		assert.Equal(t, errPresentMaybe, e)
-  }
+	}
 
 	// Empty
 	{
@@ -467,8 +478,8 @@ func TestMaybe_(t *testing.T) {
 		assert.True(t, res.Empty())
 		assert.Equal(t, 0, res.v)
 
-    res.SetOrError(1)
-    assert.Equal(t, Of(1), res)
+		res.SetOrError(1)
+		assert.Equal(t, Of(1), res)
 
 		var i int
 		resp := Of(&i)
@@ -487,7 +498,13 @@ func TestMaybe_(t *testing.T) {
 		assert.True(t, resp.Empty())
 		assert.Nil(t, resp.v)
 
-    resp.SetOrError(&i)
-    assert.Equal(t, &i, resp.Get())
+		resp.SetOrError(&i)
+		assert.Equal(t, &i, resp.Get())
+	}
+
+	// String
+	{
+		assert.Equal(t, "1", Of("1").String())
+		assert.Equal(t, "Empty union.Maybe[int]", Empty[int]().String())
 	}
 }

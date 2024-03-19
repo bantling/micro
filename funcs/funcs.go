@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/cmplx"
 	"reflect"
+	"regexp"
 	"sort"
-  "regexp"
-  "strings"
+	"strings"
 
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/tuple"
@@ -32,8 +32,8 @@ const (
 )
 
 var (
-  // ucaseRegexp is a regexp for uppercase chars
-  camelWordsRegexp = regexp.MustCompile("[A-Z][a-z]*")
+	// ucaseRegexp is a regexp for uppercase chars
+	camelWordsRegexp = regexp.MustCompile("[A-Z][a-z]*")
 )
 
 // ==== Slices
@@ -1326,30 +1326,30 @@ func TryTo(tryFn func(), panicFn func(any), closers ...func()) {
 // SnakeToCamelCase converts [sS]nake_[cC]ase to CamelCase
 // If the input is empty, the result is empty
 func SnakeToCamelCase(snake string) string {
-  var sb strings.Builder
-  for _, word := range strings.Split(snake, "_") {
-    sb.WriteString(strings.ToUpper(string(word[0])))
-    sb.WriteString(string(word[1:]))
-  }
+	var sb strings.Builder
+	for _, word := range strings.Split(snake, "_") {
+		sb.WriteString(strings.ToUpper(string(word[0])))
+		sb.WriteString(string(word[1:]))
+	}
 
-  return sb.String()
+	return sb.String()
 }
 
 // CamelCaseToSnakeCase converts [cC]amelCase to snake_case
 func CamelCaseToSnakeCase(camel string) string {
-  var (
-    sb strings.Builder
-    words = camelWordsRegexp.FindAllString(strings.ToUpper(string(camel[0])) + camel[1:], -1)
-    lastWord = len(words) - 1
-  )
+	var (
+		sb       strings.Builder
+		words    = camelWordsRegexp.FindAllString(strings.ToUpper(string(camel[0]))+camel[1:], -1)
+		lastWord = len(words) - 1
+	)
 
-  for i, word := range words {
-    sb.WriteString(strings.ToLower(string(word[0])))
-    sb.WriteString(word[1:])
-    if i < lastWord {
-      sb.WriteRune('_')
-    }
-  }
+	for i, word := range words {
+		sb.WriteString(strings.ToLower(string(word[0])))
+		sb.WriteString(word[1:])
+		if i < lastWord {
+			sb.WriteRune('_')
+		}
+	}
 
-  return sb.String()
+	return sb.String()
 }

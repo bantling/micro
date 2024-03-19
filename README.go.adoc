@@ -209,10 +209,12 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
-* conv complete testing
-** conv and WrapperInfo needs to be revamped somehow - conv.LookupConversion requires args of reflect.Type to determine
-   if a conversion is possible, but WrapperInfo requires instances of reflect.Value and reflect.Type
-** Add a capability for json.NullValue to be equivalent to a nil pointer or empty Maybe by LookupConversion
+* reflect complete struct recursion testing
+* conv
+** complete testing
+** remove loop
+** remove handling for WrapperInfo
+** add handling for json.Value, where json.NullValue is equivalent to a nil pointer or empty Maybe
 * Add ability to use star characters (*) in json path expressions in following places, where * = regex .*:
 ** key name (all or partial) - eg .first* (all keys of current object), .* (all keys)
 ** array index - eg [*] (all array indexes of current object)
@@ -222,6 +224,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 *** .addresses.[*].city: the cities of every address, in order encountered in the array
 *** .address*[3].city: the third city of every object key whose name begins with address
 *** .addresses.[]*.city: recursively search all sub objects and array indexes of addresses key for objects that have a city
+* Finish decimal by adding division by another decimal using BCD and longhand division
 * make a Dockerfile that uses https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md
   and uses gcr.io/distroless/static
 * modify stream parallel func to have an additional criteria of max threads

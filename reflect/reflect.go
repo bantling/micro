@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"math/big"
 	goreflect "reflect"
-  "strings"
+	"strings"
 
 	"github.com/bantling/micro/funcs"
 )
 
 const (
-	errTypeAssertMsg = "%s%s is %s, not %s"
-  errNoSuchFieldName = "type %s does not have a field named %s"
-  errNotAStructMsg = "Cannot recurse type %s, it is not a struct"
+	errTypeAssertMsg   = "%s%s is %s, not %s"
+	errNoSuchFieldName = "type %s does not have a field named %s"
+	errNotAStructMsg   = "Cannot recurse type %s, it is not a struct"
 )
 
 var (
@@ -50,22 +50,22 @@ var (
 type RecurseMode uint
 
 const (
-  Start RecurseMode = iota // Start recursing into a struct
-  Field // A field of current struct
-  End // Occurs after last field of current struct
+	Start RecurseMode = iota // Start recursing into a struct
+	Field                    // A field of current struct
+	End                      // Occurs after last field of current struct
 )
 
 var (
-  recurseModeString = map[RecurseMode]string{
-    Start: "Start",
-    Field: "Field",
-    End: "End",
-  }
+	recurseModeString = map[RecurseMode]string{
+		Start: "Start",
+		Field: "Field",
+		End:   "End",
+	}
 )
 
 // String is Stringer interface for RecurseMode
 func (rm RecurseMode) String() string {
-  return recurseModeString[rm]
+	return recurseModeString[rm]
 }
 
 // KindElem describes the Kind and Elem methods common to both Value and Type objects
@@ -327,21 +327,21 @@ func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
 // If the field does not exist, it panics.
 // Mostly useful in unit testing
 func GetFieldByName(typ goreflect.Type, name string) goreflect.StructField {
-  if sf, hasIt := typ.FieldByName(name); hasIt {
-    return sf
-  }
+	if sf, hasIt := typ.FieldByName(name); hasIt {
+		return sf
+	}
 
-  panic(fmt.Errorf(errNoSuchFieldName, typ.String(), name))
+	panic(fmt.Errorf(errNoSuchFieldName, typ.String(), name))
 }
 
 // FieldHandler is a function to handle a single field of a struct.
 // The path is the location of the field within the struct.
 // The path can never be empty, it will always be at least one element.
 type FieldHandler func(
-  mode RecurseMode,
-  path []string,
-  fld goreflect.StructField,
-  val goreflect.Value,
+	mode RecurseMode,
+	path []string,
+	fld goreflect.StructField,
+	val goreflect.Value,
 ) error
 
 // RescurseFields recurses the fields of a struct, calling the given FieldHandler for each field.
@@ -353,16 +353,18 @@ type FieldHandler func(
 // Where the domain name will have at least one dot in it; built in types never have dots, just pkg(/pkg)*
 //
 // Example:
-// type Address Struct {
-//   Line string
-//   City string
-// }
-// type Customer struct {
-//   Name string
-//   Address
-//   Updated *time.Time
-//   Codes []string
-// }
+//
+//	type Address Struct {
+//	  Line string
+//	  City string
+//	}
+//
+//	type Customer struct {
+//	  Name string
+//	  Address
+//	  Updated *time.Time
+//	  Codes []string
+//	}
 //
 // The following paths would be provided for a Customer, with modes shown in the order shown (go returns fields in order declared):
 // Start, []
@@ -385,81 +387,79 @@ type FieldHandler func(
 // If the FieldHandler returns an error, then recursion stops, and that error is returned.
 // Otherwise, all applicable fields are recursed, and nil is returned.
 func RecurseFields(strukt goreflect.Value, handler FieldHandler) (err error) {
-  // Error if the derefd type is not a struct
-  ds := DerefValue(strukt)
-  if ds.Kind() != goreflect.Struct {
-    return fmt.Errorf(errNotAStructMsg, ds.Type())
-  }
+	// Error if the derefd type is not a struct
+	ds := DerefValue(strukt)
+	if ds.Kind() != goreflect.Struct {
+		return fmt.Errorf(errNotAStructMsg, ds.Type())
+	}
 
-  var (
-    recurse func(goreflect.Value)
-    noField goreflect.StructField
-    noValue goreflect.Value
-    path = []string{}
-  )
+	var (
+		recurse func(goreflect.Value)
+		noField goreflect.StructField
+		noValue goreflect.Value
+		path    = []string{}
+	)
 
-  // Signal start of top struct
-  if err := handler(Start, []string{}, noField, noValue); err != nil {
-    panic(err)
-  }
+	// Signal start of top struct
+	if err := handler(Start, []string{}, noField, noValue); err != nil {
+		panic(err)
+	}
 
-  recurse = func(val goreflect.Value) {
-    // Iterate all fields, if any
-    for i, nf := 0, val.NumField(); i < nf; i++ {
-      tf, df := val.Type().Field(i), DerefValue(val.Field(i))
-      if knd := df.Kind(); (
-        (knd != goreflect.Uintptr) &&
-        (knd != goreflect.Chan) &&
-        (knd != goreflect.UnsafePointer)) {
-        // Add field name to end of path
-        path = append(path, tf.Name)
+	recurse = func(val goreflect.Value) {
+		// Iterate all fields, if any
+		for i, nf := 0, val.NumField(); i < nf; i++ {
+			tf, df := val.Type().Field(i), DerefValue(val.Field(i))
+			if knd := df.Kind(); (knd != goreflect.Uintptr) &&
+				(knd != goreflect.Chan) &&
+				(knd != goreflect.UnsafePointer) {
+				// Add field name to end of path
+				path = append(path, tf.Name)
 
-        if (
-          (df.Kind() == goreflect.Struct) &&
-          (
-            // Struct is not from a go builtin package (has a dot in the package name, eg github.com)
-            (strings.IndexRune(df.Type().PkgPath(), '.') >= 0) ||
-            // Struct Field does not have tag of recurse:"-"
-            ((tf.Tag.Get("recurse") != "") && tf.Tag.Get("recurse") != "-"))) {
-          // Signal start of recursing sub struct
-          if err := handler(Start, append([]string{}, path...), tf, df); err != nil {
-            // Unwind recursion on first handler error
-            panic(err)
-          }
+				if (df.Kind() == goreflect.Struct) &&
+					(
+					// Struct is not from a go builtin package (has a dot in the package name, eg github.com)
+					(strings.IndexRune(df.Type().PkgPath(), '.') >= 0) ||
+						// Struct Field does not have tag of recurse:"-"
+						((tf.Tag.Get("recurse") != "") && tf.Tag.Get("recurse") != "-")) {
+					// Signal start of recursing sub struct
+					if err := handler(Start, append([]string{}, path...), tf, df); err != nil {
+						// Unwind recursion on first handler error
+						panic(err)
+					}
 
-          // Recurse sub struct
-          recurse(df)
+					// Recurse sub struct
+					recurse(df)
 
-          // Signal end of recursing sub struct
-          if err := handler(End, append([]string{}, path...), tf, df); err != nil {
-            // Unwind recursion on first handler error
-            panic(err)
-          }
-        } else {
-          // Signal field of current struct
-          if err := handler(Field, append([]string{}, path...), tf, df); err != nil {
-            // Unwind recursion on first handler error
-            panic(err)
-          }
-        }
+					// Signal end of recursing sub struct
+					if err := handler(End, append([]string{}, path...), tf, df); err != nil {
+						// Unwind recursion on first handler error
+						panic(err)
+					}
+				} else {
+					// Signal field of current struct
+					if err := handler(Field, append([]string{}, path...), tf, df); err != nil {
+						// Unwind recursion on first handler error
+						panic(err)
+					}
+				}
 
-        // Remove field name from end of path
-        path = path[:len(path)-1]
-      }
-    }
-  }
+				// Remove field name from end of path
+				path = path[:len(path)-1]
+			}
+		}
+	}
 
-  funcs.TryTo(
-    func() { recurse(ds) },
-    func(e any) {
-      err = e.(error)
-    },
-  )
+	funcs.TryTo(
+		func() { recurse(ds) },
+		func(e any) {
+			err = e.(error)
+		},
+	)
 
-  // Signal end of top struct
-  if err := handler(End, []string{}, noField, noValue); err != nil {
-    panic(err)
-  }
+	// Signal end of top struct
+	if err := handler(End, []string{}, noField, noValue); err != nil {
+		panic(err)
+	}
 
-  return
+	return
 }

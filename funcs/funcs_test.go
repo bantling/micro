@@ -1328,21 +1328,21 @@ func TestTryTo_(t *testing.T) {
 }
 
 func TestSnakeCaseToCamelCase(t *testing.T) {
-  assert.Equal(t, "FirstName", SnakeToCamelCase("First_Name"))
-  assert.Equal(t, "FirstName", SnakeToCamelCase("first_Name"))
-  assert.Equal(t, "FirstName", SnakeToCamelCase("First_name"))
-  assert.Equal(t, "FirstName", SnakeToCamelCase("first_name"))
-  assert.Equal(t, "FirstName", SnakeToCamelCase("firstName"))
-  assert.Equal(t, "FirstName", SnakeToCamelCase("FirstName"))
+	assert.Equal(t, "FirstName", SnakeToCamelCase("First_Name"))
+	assert.Equal(t, "FirstName", SnakeToCamelCase("first_Name"))
+	assert.Equal(t, "FirstName", SnakeToCamelCase("First_name"))
+	assert.Equal(t, "FirstName", SnakeToCamelCase("first_name"))
+	assert.Equal(t, "FirstName", SnakeToCamelCase("firstName"))
+	assert.Equal(t, "FirstName", SnakeToCamelCase("FirstName"))
 
-  assert.Equal(t, "Name", SnakeToCamelCase("Name"))
-  assert.Equal(t, "Name", SnakeToCamelCase("name"))
+	assert.Equal(t, "Name", SnakeToCamelCase("Name"))
+	assert.Equal(t, "Name", SnakeToCamelCase("name"))
 }
 
 func TestCamelCaseToSnakeCase(t *testing.T) {
-  assert.Equal(t, "first_name", CamelCaseToSnakeCase("FirstName"))
-  assert.Equal(t, "first_name", CamelCaseToSnakeCase("firstName"))
+	assert.Equal(t, "first_name", CamelCaseToSnakeCase("FirstName"))
+	assert.Equal(t, "first_name", CamelCaseToSnakeCase("firstName"))
 
-  assert.Equal(t, "name", CamelCaseToSnakeCase("Name"))
-  assert.Equal(t, "name", CamelCaseToSnakeCase("name"))
+	assert.Equal(t, "name", CamelCaseToSnakeCase("Name"))
+	assert.Equal(t, "name", CamelCaseToSnakeCase("name"))
 }

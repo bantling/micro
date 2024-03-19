@@ -510,48 +510,48 @@ func TestLookupConversionPtr2Ptr_(t *testing.T) {
 		assert.Equal(t, &tgt, tgtp)
 	}
 
-  {
-    // *int -> *string
-  	var src = 1
-    var tgt string
-  	var srcp = &src
-  	var tgtp = &tgt
+	{
+		// *int -> *string
+		var src = 1
+		var tgt string
+		var srcp = &src
+		var tgtp = &tgt
 
-  	fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
-  	assert.NotNil(t, fn)
-  	assert.Nil(t, err)
+		fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
+		assert.NotNil(t, fn)
+		assert.Nil(t, err)
 
 		assert.Nil(t, fn(srcp, &tgtp))
 		assert.Equal(t, "1", tgt)
-  }
+	}
 
-  {
-  	// *int -> nil *string
-  	var src = 2
-  	var srcp = &src
-  	var tgtp *string
+	{
+		// *int -> nil *string
+		var src = 2
+		var srcp = &src
+		var tgtp *string
 
-  	fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
-  	assert.NotNil(t, fn)
-  	assert.Nil(t, err)
+		fn, err := LookupConversion(goreflect.TypeOf(srcp), goreflect.TypeOf(tgtp))
+		assert.NotNil(t, fn)
+		assert.Nil(t, err)
 
-  	assert.Nil(t, fn(srcp, &tgtp))
-    assert.Equal(t, "2", *tgtp)
-  }
+		assert.Nil(t, fn(srcp, &tgtp))
+		assert.Equal(t, "2", *tgtp)
+	}
 
-  {
-  	// nil *int -> *string
-    var tgt = "3"
-  	var tgtp = &tgt
+	{
+		// nil *int -> *string
+		var tgt = "3"
+		var tgtp = &tgt
 
-  	fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf(tgtp))
-  	assert.NotNil(t, fn)
-  	assert.Nil(t, err)
+		fn, err := LookupConversion(goreflect.TypeOf((*int)(nil)), goreflect.TypeOf(tgtp))
+		assert.NotNil(t, fn)
+		assert.Nil(t, err)
 
-  	assert.Nil(t, fn(nil, &tgtp))
-  	assert.Equal(t, "3", tgt)
-  	assert.Nil(t, tgtp)
-  }
+		assert.Nil(t, fn(nil, &tgtp))
+		assert.Equal(t, "3", tgt)
+		assert.Nil(t, tgtp)
+	}
 }
 
 func TestLookupConversionPtr2PtrBase_(t *testing.T) {
@@ -3054,27 +3054,27 @@ func TestToBigOps_(t *testing.T) {
 	)
 }
 
-type Foo struct {}
+type Foo struct{}
 
 func TestReflectTo_(t *testing.T) {
-  {
-    // int to string
-    var str string
-    assert.Nil(t, ReflectTo(goreflect.ValueOf(1), goreflect.ValueOf(&str)))
-    assert.Equal(t, "1", str)
-  }
+	{
+		// int to string
+		var str string
+		assert.Nil(t, ReflectTo(goreflect.ValueOf(1), goreflect.ValueOf(&str)))
+		assert.Equal(t, "1", str)
+	}
 
-  {
-    // int to struct string field
-    type Foo struct {
-      Str string
-    }
+	{
+		// int to struct string field
+		type Foo struct {
+			Str string
+		}
 
-    var f = Foo{}
-    assert.Nil(t, ReflectTo(goreflect.ValueOf(2), goreflect.ValueOf(&f).Elem().FieldByName("Str").Addr()))
-    assert.Equal(t, "2", f.Str)
-  }
+		var f = Foo{}
+		assert.Nil(t, ReflectTo(goreflect.ValueOf(2), goreflect.ValueOf(&f).Elem().FieldByName("Str").Addr()))
+		assert.Equal(t, "2", f.Str)
+	}
 
-  typ := goreflect.TypeOf(Foo{})
-  fmt.Printf("%s, %s, %s\n", typ, typ.PkgPath(), typ.Name())
+	typ := goreflect.TypeOf(Foo{})
+	fmt.Printf("%s, %s, %s\n", typ, typ.PkgPath(), typ.Name())
 }

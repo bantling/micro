@@ -12,9 +12,9 @@ import (
 // Errors
 
 var (
-	errWhichMsg   = "Member %s is not available"
-	errEmptyMaybe = fmt.Errorf("Empty Maybe cannot return a value")
-  errPresentMaybe = fmt.Errorf("Present Maybe cannot be overwritten with SetOrError")
+	errWhichMsg     = "Member %s is not available"
+	errEmptyMaybe   = fmt.Errorf("Empty Maybe cannot return a value")
+	errPresentMaybe = fmt.Errorf("Present Maybe cannot be overwritten with SetOrError")
 )
 
 // ==== Types
@@ -38,7 +38,7 @@ var (
 	}
 )
 
-// Stringer for Which
+// String is the Stringer interface
 func (w Which) String() string {
 	return whichStr[w]
 }
@@ -207,6 +207,16 @@ func (s *Two[TT, UU]) SetU(u UU) {
 	s.which = U
 }
 
+// String is Stringer interface
+func (s Two[TT, UU]) String() string {
+	switch s.which {
+	case T:
+		return fmt.Sprintf("%v", any(s.t))
+	default:
+		return fmt.Sprintf("%v", any(s.u))
+	}
+}
+
 // ==== Three
 
 // Which of Three
@@ -248,6 +258,18 @@ func (s Three[TT, UU, VV]) V() VV {
 func (s *Three[TT, UU, VV]) SetV(v VV) {
 	s.v = v
 	s.which = V
+}
+
+// String is Stringer interface
+func (s Three[TT, UU, VV]) String() string {
+	switch s.which {
+	case T:
+		return fmt.Sprintf("%v", any(s.t))
+	case U:
+		return fmt.Sprintf("%v", any(s.u))
+	default:
+		return fmt.Sprintf("%v", any(s.v))
+	}
 }
 
 // ==== Four
@@ -305,6 +327,20 @@ func (s *Four[TT, UU, VV, WW]) SetW(w WW) {
 	s.which = W
 }
 
+// String is Stringer interface
+func (s Four[TT, UU, VV, WW]) String() string {
+	switch s.which {
+	case T:
+		return fmt.Sprintf("%v", any(s.t))
+	case U:
+		return fmt.Sprintf("%v", any(s.u))
+	case V:
+		return fmt.Sprintf("%v", any(s.v))
+	default:
+		return fmt.Sprintf("%v", any(s.w))
+	}
+}
+
 // ==== Maybe
 
 // Present returns true if Maybe contains a value
@@ -360,12 +396,22 @@ func (m *Maybe[T]) SetEmpty() {
 
 // SetOrError sets the current value with val if empty, else panics if a present val has already been set
 func (m *Maybe[T]) SetOrError(val T) {
-  if m.present {
-    panic(errPresentMaybe)
-  }
+	if m.present {
+		panic(errPresentMaybe)
+	}
 
-  m.v = val
-  m.present = true
+	m.v = val
+	m.present = true
+}
+
+// String is the Stringer interface
+func (m Maybe[T]) String() string {
+	switch m.present {
+	case true:
+		return fmt.Sprintf("%v", any(m.v))
+	default:
+		return fmt.Sprintf("Empty %v", goreflect.TypeOf(m))
+	}
 }
 
 // ==== Result
@@ -388,4 +434,14 @@ func (r Result[R]) Get() R {
 // Error returns a nil error if there is a result, or a non-nil error if there is an error
 func (r Result[R]) Error() error {
 	return r.e
+}
+
+// String is the Stringer interface
+func (r Result[R]) String() string {
+	switch r.e == nil {
+	case true:
+		return fmt.Sprintf("%v", any(r.r))
+	default:
+		return fmt.Sprintf("%v", r.e)
+	}
 }

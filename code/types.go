@@ -34,31 +34,31 @@ const (
 	DurationMillis = "durationMillis" // elapsed milliseconds
 
 	// Aray, Enum, List, Map, Maybe, Object, Set
-  Array  = "array"
-  Enum = "enum"
-  List   = "list"
-  Map    = "map"
-  Maybe  = "maybe"
+	Array  = "array"
+	Enum   = "enum"
+	List   = "list"
+	Map    = "map"
+	Maybe  = "maybe"
 	Object = "object"
 	Set    = "set"
 
-  Main = "main" // name of main function
+	Main = "main" // name of main function
 )
 
 type TypeDef struct {
-  Type      string // The type
-  ArrayBounds    []int   // The bounds of an array, cannot be empty
-  Name string // The name of an enum or object
-  Names []string // The names of enum constants or object generics - zero-based indexes are the enum values, strings are the names
-  ListDimension int // The dimension of the list (eg, list of string, list of list of string, etc), cannot be 0
-  KeyType   TypeDef // The map key type
-  ValueType TypeDef // The array element type, list element type, map value type, maybe type, or set type
+	Type          string   // The type
+	ArrayBounds   []int    // The bounds of an array, cannot be empty
+	Name          string   // The name of an enum or object
+	Names         []string // The names of enum constants or object generics - zero-based indexes are the enum values, strings are the names
+	ListDimension int      // The dimension of the list (eg, list of string, list of list of string, etc), cannot be 0
+	KeyType       *TypeDef // The map key type
+	ValueType     *TypeDef // The array element type, list element type, map value type, maybe type, or set type
 }
 
 // VarDef is a variable type definition
 type VarDef struct {
-	Type      TypeDef  // The type of variable
-  Name      string   // The name of the variable
+	Type TypeDef // The type of variable
+	Name string  // The name of the variable
 }
 
 // FuncDef is a function definition

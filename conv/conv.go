@@ -1519,11 +1519,11 @@ func MustToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S,
 // This function is useful for reflection algorithms that need to do conversions.
 // The tgt must wrap a pointer.
 func ReflectTo(src, tgt goreflect.Value) error {
-    // Try to convert src into tgt using LookupConversion to find a conversion based on their types
-    // Note that To expects a target pointer, but derefs the type when calling LookupConversion
-    if convFn, err := LookupConversion(src.Type(), tgt.Type().Elem()); err != nil {
-      return err
-    } else {
-      return convFn(src.Interface(), tgt.Interface())
-    }
+	// Try to convert src into tgt using LookupConversion to find a conversion based on their types
+	// Note that To expects a target pointer, but derefs the type when calling LookupConversion
+	if convFn, err := LookupConversion(src.Type(), tgt.Type().Elem()); err != nil {
+		return err
+	} else {
+		return convFn(src.Interface(), tgt.Interface())
+	}
 }

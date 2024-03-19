@@ -7,7 +7,7 @@ import (
 	"math/big"
 	goreflect "reflect"
 	"testing"
-  "time"
+	"time"
 
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/tuple"
@@ -403,72 +403,72 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 }
 
 func TestRecurseFields_(t *testing.T) {
-  type Address struct {
-    Line string
-    City string
-  }
+	type Address struct {
+		Line string
+		City string
+	}
 
-  type Customer struct {
-    Name string
-    Address
-    Update time.Time
-    Codes []string
-  }
+	type Customer struct {
+		Name string
+		Address
+		Update time.Time
+		Codes  []string
+	}
 
-  var (
-    now = time.Now()
+	var (
+		now = time.Now()
 
-    cust =  Customer {
-      Name: "Jane Doe",
-      Address: Address {
-        Line: "123 Sesame St",
-        City: "New York",
-      },
-      Update: now,
-      Codes: []string{"ABC", "DEFG"},
-    }
+		cust = Customer{
+			Name: "Jane Doe",
+			Address: Address{
+				Line: "123 Sesame St",
+				City: "New York",
+			},
+			Update: now,
+			Codes:  []string{"ABC", "DEFG"},
+		}
 
-    custTyp = goreflect.TypeOf(Customer{})
-    addrTyp = GetFieldByName(custTyp, "Address").Type
+		custTyp = goreflect.TypeOf(Customer{})
+		addrTyp = GetFieldByName(custTyp, "Address").Type
 
-    data []tuple.Four[RecurseMode, []string, goreflect.StructField, any]
-  )
+		data []tuple.Four[RecurseMode, []string, goreflect.StructField, any]
+	)
 
-  RecurseFields(
-    goreflect.ValueOf(cust),
-    func(
-      mode RecurseMode,
-      path []string,
-      fld goreflect.StructField,
-      val goreflect.Value,
-    ) error {
-      data = append(
-        data,
-        tuple.Of4(
-          mode,
-          path,
-          fld,
-          funcs.TernaryResult(val.IsValid(), val.Interface, func() any { return nil }),
-        ),
-      )
+	RecurseFields(
+		goreflect.ValueOf(cust),
+		func(
+			mode RecurseMode,
+			path []string,
+			fld goreflect.StructField,
+			val goreflect.Value,
+		) error {
+			data = append(
+				data,
+				tuple.Of4(
+					mode,
+					path,
+					fld,
+					funcs.TernaryResult(val.IsValid(), val.Interface, func() any { return nil }),
+				),
+			)
 
-      return nil
-    },
-  )
+			return nil
+		},
+	)
 
-  assert.Equal(
-    t,
-    []tuple.Four[RecurseMode, []string, goreflect.StructField, any]{
-      tuple.Of4(Start, []string{}, goreflect.StructField{}, any(nil)),
-      tuple.Of4(Field, []string{"Name"}, GetFieldByName(custTyp, "Name"), any("Jane Doe")),
-      tuple.Of4(Start, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
-      tuple.Of4(Field, []string{"Address", "Line"}, GetFieldByName(addrTyp, "Line"), any("123 Sesame St")),
-      tuple.Of4(Field, []string{"Address", "City"}, GetFieldByName(addrTyp, "City"), any("New York")),
-      tuple.Of4(End, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
-      tuple.Of4(Field, []string{"Update"}, GetFieldByName(custTyp, "Update"), any(now)),
-      tuple.Of4(Field, []string{"Codes"}, GetFieldByName(custTyp, "Codes"), any([]string{"ABC", "DEFG"})),
-      tuple.Of4(End, []string{}, goreflect.StructField{}, any(nil)),
-    },
-    data,
-  )
+	assert.Equal(
+		t,
+		[]tuple.Four[RecurseMode, []string, goreflect.StructField, any]{
+			tuple.Of4(Start, []string{}, goreflect.StructField{}, any(nil)),
+			tuple.Of4(Field, []string{"Name"}, GetFieldByName(custTyp, "Name"), any("Jane Doe")),
+			tuple.Of4(Start, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
+			tuple.Of4(Field, []string{"Address", "Line"}, GetFieldByName(addrTyp, "Line"), any("123 Sesame St")),
+			tuple.Of4(Field, []string{"Address", "City"}, GetFieldByName(addrTyp, "City"), any("New York")),
+			tuple.Of4(End, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
+			tuple.Of4(Field, []string{"Update"}, GetFieldByName(custTyp, "Update"), any(now)),
+			tuple.Of4(Field, []string{"Codes"}, GetFieldByName(custTyp, "Codes"), any([]string{"ABC", "DEFG"})),
+			tuple.Of4(End, []string{}, goreflect.StructField{}, any(nil)),
+		},
+		data,
+	)
 }
