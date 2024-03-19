@@ -212,7 +212,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 * reflect complete struct recursion testing
 * conv
 ** remove loop
-** remove handling for WrapperInfo
 ** add handling for json.Value, where json.NullValue is equivalent to a nil pointer or empty Maybe
 * Add ability to use star characters (*) in json path expressions in following places, where * = regex .*:
 ** key name (all or partial) - eg .first* (all keys of current object), .* (all keys)
