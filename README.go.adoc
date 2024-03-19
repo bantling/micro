@@ -211,7 +211,6 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 * reflect complete struct recursion testing
 * conv
-** complete testing
 ** remove loop
 ** remove handling for WrapperInfo
 ** add handling for json.Value, where json.NullValue is equivalent to a nil pointer or empty Maybe

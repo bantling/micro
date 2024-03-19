@@ -3073,8 +3073,17 @@ func TestReflectTo_(t *testing.T) {
 		var f = Foo{}
 		assert.Nil(t, ReflectTo(goreflect.ValueOf(2), goreflect.ValueOf(&f).Elem().FieldByName("Str").Addr()))
 		assert.Equal(t, "2", f.Str)
-	}
 
-	typ := goreflect.TypeOf(Foo{})
-	fmt.Printf("%s, %s, %s\n", typ, typ.PkgPath(), typ.Name())
+		// cannot convert from Invalid to *Foo (failure in ReflectTo)
+		assert.Equal(t, errReflectToInvalidSrc, ReflectTo(goreflect.Value{}, goreflect.ValueOf(&f)))
+
+		// cannot convert from int to Invalid (failure in ReflectTo)
+		assert.Equal(t, errReflectToInvalidTgt, ReflectTo(goreflect.ValueOf(4), goreflect.Value{}))
+
+		// cannot convert a src type with multiple pointers (failure in LookupConversion)
+		assert.Equal(t, fmt.Errorf("**int cannot be converted to conv.Foo"), ReflectTo(goreflect.ValueOf((**int)(nil)), goreflect.ValueOf(&f)))
+
+		// non-existent conversion from int to struct (LookupConversion returns a nil conversion func)
+		assert.Equal(t, fmt.Errorf("int cannot be converted to *conv.Foo"), ReflectTo(goreflect.ValueOf(3), goreflect.ValueOf(&f)))
+	}
 }
