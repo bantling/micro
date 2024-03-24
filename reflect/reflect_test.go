@@ -11,6 +11,7 @@ import (
 
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/tuple"
+	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -431,14 +432,14 @@ func TestRecurseFields_(t *testing.T) {
 		custTyp = goreflect.TypeOf(Customer{})
 		addrTyp = GetFieldByName(custTyp, "Address").Type
 
-		data []tuple.Four[RecurseMode, []string, goreflect.StructField, any]
+		data []tuple.Four[RecurseMode, []union.Two[string, int], goreflect.StructField, any]
 	)
 
 	RecurseFields(
 		goreflect.ValueOf(cust),
 		func(
 			mode RecurseMode,
-			path []string,
+			path []union.Two[string, int],
 			fld goreflect.StructField,
 			val goreflect.Value,
 		) error {

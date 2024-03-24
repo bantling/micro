@@ -75,12 +75,17 @@ func TestSliceIndex_(t *testing.T) {
 	assert.Equal(t, 0, SliceIndex(slc, 0))
 	assert.Equal(t, 0, SliceIndex(slc, 1))
 	assert.Equal(t, 1, SliceIndex(slc, 0, 1))
+	assert.Equal(t, 0, SliceIndex(slc, -1))
+	assert.Equal(t, 1, SliceIndex(slc, -2, 1))
 
 	slc = []int{1, 2}
 	assert.Equal(t, 1, SliceIndex(slc, 0))
 	assert.Equal(t, 2, SliceIndex(slc, 1))
 	assert.Equal(t, 0, SliceIndex(slc, 2))
 	assert.Equal(t, 3, SliceIndex(slc, 2, 3))
+	assert.Equal(t, 1, SliceIndex(slc, -2))
+	assert.Equal(t, 2, SliceIndex(slc, -1))
+	assert.Equal(t, 3, SliceIndex(slc, -3, 3))
 }
 
 func TestSliceOf_(t *testing.T) {

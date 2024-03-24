@@ -135,13 +135,18 @@ func SliceFlatten[T any](value any) []T {
 
 // SliceIndex returns the first of the following given a slice, index, and optional default value:
 // 1. slice[index] if the slice is non-nil and length > index
-// 2. default value if provided
-// 3. zero value of slice element type
-func SliceIndex[T any](slc []T, index uint, defawlt ...T) T {
+// 2. slice[length + index] if the slice is non-nil and index < 0 and length + index >= 0
+// 3. default value if provided
+// 4. zero value of slice element type
+func SliceIndex[T any](slc []T, index int, defawlt ...T) T {
 	// Return index if it exists
 	idx := int(index)
-	if (slc != nil) && (len(slc) > idx) {
-		return slc[idx]
+	if slc != nil {
+		if l := len(slc); (index >= 0) && l > idx {
+			return slc[idx]
+		} else if (index < 0) && ((l + idx) >= 0) {
+			return slc[l+idx]
+		}
 	}
 
 	// Else return default if provided

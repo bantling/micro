@@ -211,8 +211,16 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 * reflect complete struct recursion testing
 * conv
-** remove loop
 ** add handling for json.Value, where json.NullValue is equivalent to a nil pointer or empty Maybe
+** since encoding/json refers to conv, conv cannot refer to encoding/json
+** option 1: move encoding/json/init.go to encoding/json/conv/init.go - shd be ok, seems to only use exported functions
+** option 2: extend conv.LookupConversion to have WrapperInfo
+*** Indicates what type a wrapper type currently contains
+*** Indicates what types the wrapper can accept
+*** Indicates if wrapped value is currently nil
+*** Allows setting the wrapped value to any type it says it can accept
+*** Have maybe implement WrapperInfo and replace current conv Maybe logic with WrapperInfo
+*** Have JSON implement WrapperInfo and above change to conv to use WrapperInfo should just work
 * Add ability to use star characters (*) in json path expressions in following places, where * = regex .*:
 ** key name (all or partial) - eg .first* (all keys of current object), .* (all keys)
 ** array index - eg [*] (all array indexes of current object)
