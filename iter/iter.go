@@ -49,7 +49,7 @@ type IterImpl[T any] struct {
 // OfIter constructs an Iter[T] from an iterating function that returns (T, error).
 // The function must return (nextItem, nil) for every item available to iterate, then return (invalid, EOI) on the
 // next call after the last item, where invalid is any value of type T.
-// If some actual error occurs attempting read the next value, then the function must return (invalid, non-nil non-EOI error).
+// If some actual error occurs attempting to read the next value, then the function must return (invalid, non-nil non-EOI error).
 // Once the function returns a non-nil error, it will never be called again.
 // Panics if iterFn is nil.
 //
@@ -63,6 +63,7 @@ func OfIter[T any](iterFn func() (T, error)) Iter[T] {
 }
 
 // Of constructs an Iter[T] that iterates the items passed.
+// The intention is hard-coded values are passed.
 //
 // See SliceIterGen.
 func Of[T any](items ...T) Iter[T] {
@@ -81,6 +82,14 @@ func OfEmpty[T any]() Iter[T] {
 // See SingleValueIterGen.
 func OfOne[T any](item T) Iter[T] {
 	return OfIter[T](SingleValueIterGen[T](item))
+}
+
+// OfSlice constructs an Iter[T] that iterates the slice values passed.
+// The intention is the slice may be large, and passing the slice by reference is better than using varargs like Of(...).
+//
+// See SliceIterGen
+func OfSlice[T any](items []T) Iter[T] {
+  return OfIter[T](SliceIterGen[T](items))
 }
 
 // Of constructs an Iter[tuple.Two[K, V]] that iterates the items passed.

@@ -209,6 +209,25 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 
 === TODO
 
+* add a reflect func to take a map[string]any and populate a struct with it
+** consider pointers, Maybe, and JSON
+** use conv.To to convert individual map key values into struct fields
+** if a struct field is a JSON Value, use conv.To to convert map key value into JSON
+** maybe no special handling of JSON is required, maybe instead try using LookupConversion from map key value to field,
+   and if no such conversion exists and map key value is a submap and field is a sub struct, then recurse into it
+* add C64 style BASIC
+** Named funcs that can accept params and/or return value(s)
+** globals can be constant or variable
+** Extensible - parser can accept (command, func(string, executionContext) error)
+*** command is a string name of a command that is not builtin, and not registered already
+*** func accepts all chars after the command up to the end of the command, and parses it
+*** executionContext allows reading/writing all current vars (global and local), defining and calling any functions
+*** if a func returns an error, execution stops
+*** globals, structs, and funcs arranged in packages
+*** all code parsed before execution begins
+*** oop syntax, where depth of subclass trees is known in advance, due to parsing of all code, so no vtable, just a map[name] func
+*** possible to write a script with no functions, declare variables with a syntax that indicates they are inputs, and end
+    with a return statement (to provide one or more results), or no return (modify inputs) or both (modify inputs and return)
 * reflect complete struct recursion testing
 * conv
 ** add handling for json.Value, where json.NullValue is equivalent to a nil pointer or empty Maybe

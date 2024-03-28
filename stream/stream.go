@@ -781,8 +781,8 @@ func Duplicate[T comparable](it iter.Iter[T]) iter.Iter[T] {
 			count := vals[val]
 			if count < 3 {
 				count++
+  			vals[val] = count
 			}
-			vals[val] = count
 
 			return count == 2
 		})
@@ -804,7 +804,7 @@ func Reverse[T any](it iter.Iter[T]) iter.Iter[T] {
 	funcs.SliceReverse(slc)
 
 	// Return iterator of reversed elements
-	return iter.Of(slc...)
+	return iter.OfSlice(slc)
 }
 
 // SortOrdered sorts an Ordered type that is implicitly sortable using funcs.SliceSortOrdered.
@@ -822,7 +822,7 @@ func SortOrdered[T constraint.Ordered](it iter.Iter[T]) iter.Iter[T] {
 	funcs.SliceSortOrdered(slc)
 
 	// Successfully return sorted iter
-	return iter.Of(slc...)
+	return iter.OfSlice(slc)
 }
 
 // SortComplex sorts a Complex type using funcs.SliceSortComplex.
@@ -840,7 +840,7 @@ func SortComplex[T constraint.Complex](it iter.Iter[T]) iter.Iter[T] {
 	funcs.SliceSortComplex(slc)
 
 	// Successfully return sorted iter
-	return iter.Of(slc...)
+	return iter.OfSlice(slc)
 }
 
 // SortCmp sorts a Cmp type using funcs.SliceSortCmp.
@@ -858,7 +858,7 @@ func SortCmp[T constraint.Cmp[T]](it iter.Iter[T]) iter.Iter[T] {
 	funcs.SliceSortCmp(slc)
 
 	// Successfully return sorted iter
-	return iter.Of(slc...)
+	return iter.OfSlice(slc)
 }
 
 // SortBy sorts any type using funcs.SliceSortBy and the given comparator.
@@ -877,7 +877,7 @@ func SortBy[T any](less func(T, T) bool) func(iter.Iter[T]) iter.Iter[T] {
 		funcs.SliceSortBy(slc, less)
 
 		// Successfully return sorted iter
-		return iter.Of(slc...)
+		return iter.OfSlice(slc)
 	}
 }
 
@@ -1231,7 +1231,7 @@ func Parallel[T, U any](transforms func(iter.Iter[T]) iter.Iter[U], info ...PInf
 			defer wg.Done()
 
 			// Perform transforms and copy to output
-			_, threadErr := ReduceIntoSlice(out)(transforms(iter.Of(in...))).Next()
+			_, threadErr := ReduceIntoSlice(out)(transforms(iter.OfSlice(in))).Next()
 
 			// In case an error occurs, populate the appropriate errs slot
 			errs[threadNum] = threadErr
@@ -1255,6 +1255,6 @@ func Parallel[T, U any](transforms func(iter.Iter[T]) iter.Iter[U], info ...PInf
 			}
 		}
 
-		return funcs.Ternary(err == nil, iter.Of(output...), iter.SetError(iter.OfEmpty[U](), err))
+		return funcs.Ternary(err == nil, iter.OfSlice(output), iter.SetError(iter.OfEmpty[U](), err))
 	}
 }

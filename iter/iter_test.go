@@ -62,6 +62,14 @@ func TestOfOne_(t *testing.T) {
 	assert.Equal(t, union.OfError[int](EOI), Maybe(it))
 }
 
+func TestOfSlice_(t *testing.T) {
+  it := OfSlice([]int{3,4})
+	assert.Equal(t, union.OfResult(3), Maybe(it))
+	assert.Equal(t, union.OfResult(4), Maybe(it))
+	assert.Equal(t, union.OfError[int](EOI), Maybe(it))
+	assert.Equal(t, union.OfError[int](EOI), Maybe(it))
+}
+
 func TestOfMap_(t *testing.T) {
 	var (
 		src = map[string]int{"a": 1, "b": 2}
