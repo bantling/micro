@@ -215,6 +215,7 @@ A dependency graph can be generated anytime by running `make depgraph`, which pr
 ** if a struct field is a JSON Value, use conv.To to convert map key value into JSON
 ** maybe no special handling of JSON is required, maybe instead try using LookupConversion from map key value to field,
    and if no such conversion exists and map key value is a submap and field is a sub struct, then recurse into it
+* json Value should just be its own union, not based on union.Four
 * add C64 style BASIC
 ** Named funcs that can accept params and/or return value(s)
 ** globals can be constant or variable

@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"math/big"
 	goreflect "reflect"
-	"strings"
 
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/union"
 )
 
 const (
@@ -47,28 +45,6 @@ var (
 		goreflect.TypeOf((*big.Rat)(nil)):   true,
 	}
 )
-
-// RecurseMode indicates the progress of recursing a struct
-type RecurseMode uint
-
-const (
-	Start RecurseMode = iota // Start recursing into a struct
-	Field                    // A field of current struct
-	End                      // Occurs after last field of current struct
-)
-
-var (
-	recurseModeString = map[RecurseMode]string{
-		Start: "Start",
-		Field: "Field",
-		End:   "End",
-	}
-)
-
-// String is Stringer interface for RecurseMode
-func (rm RecurseMode) String() string {
-	return recurseModeString[rm]
-}
 
 // KindElem describes the Kind and Elem methods common to both Value and Type objects
 type KindElem[T any] interface {
@@ -325,239 +301,13 @@ func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
 	return typ
 }
 
-// StructFieldByName is a more convenient version of reflect.Type.FieldByName - it only returns a reflect.StructField,.
+// StructFieldByName is a more convenient version of reflect.Type.FieldByName - it only returns a reflect.StructField.
 // If the field does not exist, it panics.
-// Mostly useful in unit testing
+// Mostly useful in unit testing.
 func GetFieldByName(typ goreflect.Type, name string) goreflect.StructField {
 	if sf, hasIt := typ.FieldByName(name); hasIt {
 		return sf
 	}
 
 	panic(fmt.Errorf(errNoSuchFieldNameMsg, typ.String(), name))
-}
-
-// FieldHandler is a function to handle a single field of a struct.
-// The path is the location of the field within the struct.
-// The path can never be empty, it will always be at least one element.
-type FieldHandler func(
-	mode RecurseMode,
-	path []union.Two[string, int],
-	fld goreflect.StructField,
-	val goreflect.Value,
-) error
-
-// RescurseFields recurses the fields of a struct, calling the given FieldHandler for each field.
-// If a field is a struct, *struct, or Maybe[struct or *struct] it will be recursed if non-nil, except for go built-in types.
-// If a field is an array, slice or map, it is up to the caller to handle them.
-// Nil fields and empty Maybe fields are ignored.
-//
-// Detecting built in types is done by checking if the package path of the dereferenced type has at least one dot in it.
-// Any value type that is not a built-in type should be pulled from the network, and be of the following form:
-// <domain name>/<account>/<project>(/pkg)*
-// Where the domain name will have at least one dot in it; built in types never have dots, just pkg(/pkg)*
-//
-// Example:
-//
-//			type Address Struct {
-//			  Line string
-//			  City string
-//			}
-//
-//			type Customer struct {
-//			  Name string
-//			  Address
-//	     SecondaryAddress Maybe[Address]
-//			  Updated *time.Time
-//			  Codes []string
-//			}
-//
-// The following paths would be provided for a Customer, with modes shown in the order shown below.
-// If the SecondaryAddress is empty, the lines shown below for SecondaryAddress would not be present.
-// Similarly, if the Updated field is nil, the line shown below for Updated would not be present.
-// The lines shown below for Codes assumes it contains the two values "CodeA", "CodeB" in that order.
-// If Codes is nil or empty, the lines shown below for Codes would not be present.
-//
-// Start, []
-// Field, [Name]
-// Start, [Address]
-// Field, [Address, Line]
-// Field, [Address, City]
-// End,   [Address]
-// Start, [SecondaryAddress]
-// Field, [SecondaryAddress, Line]
-// Field, [SecondaryAddress, City]
-// End,   [SecondaryAddress]
-// Field, [Updated]
-// Start, [Codes]
-// Field, [Codes,0]
-// Field, [Codes,1]
-// End,   [Codes]
-// End,   []
-//
-// Notes:
-// - The provided context is passed to every invocation of the handler, to allow persistent user data across all calls
-// - When mode is Start or End, the StructTag and Value handler parameters are zero values
-// - If Customer.Address was declared as a pointer, and/or codes was an array, the same paths would still be returned.
-// - Customer.Codes is not recursed, as no arrays, slices, or maps are recursed
-// - Uintptr, Chan, and UnsafePointer fields are ignored
-// - If the caller wants to modify the struct, then the caller must pass a pointer to the struct
-//
-// If the FieldHandler returns an error, then recursion stops, and that error is returned.
-// Otherwise, all applicable fields are recursed, and nil is returned.
-func RecurseFields(strukt goreflect.Value, handler FieldHandler) (err error) {
-	// Error if the derefd type is not a struct
-	ds := DerefValue(strukt)
-	if ds.Kind() != goreflect.Struct {
-		return fmt.Errorf(errNotAStructMsg, ds.Type())
-	}
-
-	var (
-		recurse func(goreflect.Value)
-		noField goreflect.StructField
-		noValue goreflect.Value
-		path    = []union.Two[string, int]{}
-	)
-
-	// Signal start of top struct
-	if err := handler(Start, path, noField, noValue); err != nil {
-		panic(err)
-	}
-
-	recurse = func(val goreflect.Value) {
-		// Iterate all fields, if any
-		for i, nf := 0, val.NumField(); i < nf; i++ {
-			tf, df := val.Type().Field(i), DerefValue(val.Field(i))
-			if knd := df.Kind(); (knd != goreflect.Uintptr) &&
-				(knd != goreflect.Chan) &&
-				(knd != goreflect.UnsafePointer) {
-				// Add field name to end of path
-				path = append(path, union.Of2T[string, int](tf.Name))
-
-				switch {
-				case (df.Kind() == goreflect.Struct) &&
-					(
-					// Struct is not from a go builtin package (has a dot in the package name, eg github.com)
-					(strings.IndexRune(df.Type().PkgPath(), '.') >= 0) &&
-						// Struct Field does not have tag of recurse:"-"
-						tf.Tag.Get("recurse") != "-"):
-
-					// Signal start of recursing sub struct
-					if err := handler(Start, append([]union.Two[string, int]{}, path...), tf, df); err != nil {
-						// Unwind recursion on first handler error
-						panic(err)
-					}
-
-					// Recurse sub struct
-					recurse(df)
-
-					// Signal end of recursing sub struct
-					if err := handler(End, append([]union.Two[string, int]{}, path...), tf, df); err != nil {
-						// Unwind recursion on first handler error
-						panic(err)
-					}
-
-				case ((df.Kind() == goreflect.Array) || (df.Kind() == goreflect.Slice)) && (tf.Tag.Get("recurse") != "-"):
-					// Signal start of recursing sub slice
-					if err := handler(Start, append([]union.Two[string, int]{}, path...), tf, df); err != nil {
-						// Unwind recursion on first handler error
-						panic(err)
-					}
-
-					// Recurse each array/slice index
-					for i := 0; i < df.Len(); i++ {
-						recurse(df.Index(i))
-					}
-
-					// Signal end of recursing indexes
-					if err := handler(End, append([]union.Two[string, int]{}, path...), tf, df); err != nil {
-						// Unwind recursion on first handler error
-						panic(err)
-					}
-
-				default:
-					// Signal field of current struct
-					if err := handler(Field, append([]union.Two[string, int]{}, path...), tf, df); err != nil {
-						// Unwind recursion on first handler error
-						panic(err)
-					}
-				}
-
-				// Remove field name from end of path
-				path = path[:len(path)-1]
-			}
-		}
-	}
-
-	funcs.TryTo(
-		func() { recurse(ds) },
-		func(e any) {
-			err = e.(error)
-		},
-	)
-
-	// Signal end of top struct
-	if err := handler(End, []union.Two[string, int]{}, noField, noValue); err != nil {
-		panic(err)
-	}
-
-	return
-}
-
-// FieldsToMap converts the fields of a struct to a recursive map[string]any.
-// It is an error if strukt is not a struct instance.
-// The map field names are converted from snake case to camel case.
-func FieldsToMap(strukt goreflect.Value) (map[string]any, error) {
-	var (
-		resultMap  = map[string]any{} // result map to return
-		err        error
-		currentMap = resultMap          // current map to work with during recursion
-		mapList    = []map[string]any{} // list of maps to add/remove during recursion
-	)
-
-	err = RecurseFields(
-		strukt,
-		func(
-			mode RecurseMode,
-			path []union.Two[string, int],
-			fld goreflect.StructField,
-			val goreflect.Value,
-		) error {
-			switch mode {
-			case Start:
-				// Create a new submap to recurse into and append it to the list, so we can return to it later
-				currentMap = map[string]any{}
-				mapList = append(mapList, currentMap)
-
-			case Field:
-				var (
-					lastPathPart = funcs.SliceIndex(path, -1)
-					derefdVal    = DerefValue(val)
-					knd          = derefdVal.Kind()
-				)
-
-				switch {
-				case knd == goreflect.Invalid:
-					// One or more pointers, where some pointer is nil: put a correctly typed nil value in the map
-					currentMap[lastPathPart.T()] = goreflect.Zero(fld.Type).Interface()
-
-				case ((knd >= goreflect.Bool) && (knd <= goreflect.Complex128)) || (knd == goreflect.String):
-					// It's a scalar type, store the value in the map
-					currentMap[lastPathPart.T()] = val.Interface()
-
-				default:
-					// Should never reach this code
-					panic(fmt.Errorf(errFieldHandlingMsg, fld.Type))
-				}
-
-			default: // Must be End
-				// Remove map at end of list, and set current map to new end of list (if it is not empty)
-				mapList = mapList[0 : len(mapList)-1]
-				currentMap = funcs.SliceIndex(mapList, -1)
-			}
-
-			return nil
-		},
-	)
-
-	return resultMap, err
 }
