@@ -781,7 +781,7 @@ func Duplicate[T comparable](it iter.Iter[T]) iter.Iter[T] {
 			count := vals[val]
 			if count < 3 {
 				count++
-  			vals[val] = count
+				vals[val] = count
 			}
 
 			return count == 2

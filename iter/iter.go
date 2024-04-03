@@ -89,7 +89,7 @@ func OfOne[T any](item T) Iter[T] {
 //
 // See SliceIterGen
 func OfSlice[T any](items []T) Iter[T] {
-  return OfIter[T](SliceIterGen[T](items))
+	return OfIter[T](SliceIterGen[T](items))
 }
 
 // Of constructs an Iter[tuple.Two[K, V]] that iterates the items passed.
