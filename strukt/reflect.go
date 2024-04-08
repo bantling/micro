@@ -49,21 +49,24 @@ func MapToStruct[T any](mp map[string]any, strukt *T, ignore ...MapStructIgnoreM
 	return mapToStruct(mp, strukt, funcs.SliceIndex(ignore, 0))
 }
 
-func mapToStruct(mp map[string]any, strukt any, ignore MapStructIgnoreMode) error {
+func mapToStruct(mp map[string]any, struktPtr any, ignore MapStructIgnoreMode) error {
 	var (
-		struktVal = goreflect.ValueOf(strukt)
+		struktVal = goreflect.ValueOf(struktPtr)
 		struktTyp = struktVal.Type().Elem()
 	)
 
-	// strukt * must point to a struct
+	// struktPtr must be a pointer to a struct
 	if struktTyp.Kind() != goreflect.Struct {
 		return fmt.Errorf(errNotAStructPtrMsg, struktVal.Type())
 	}
 
-	// strukt * cannot be nil
+	// strukt * cannot be nil - the top call stores the result in the struct the pointer references
 	if struktVal.IsNil() {
 		return fmt.Errorf(errNilStructPtrMsg, struktVal.Type())
 	}
+
+  // Deref the strukt so we can access fields of it
+  struktVal = struktVal.Elem()
 
 	// Iterate the fields of the struct
 	for k, v := range mp {
@@ -71,6 +74,7 @@ func mapToStruct(mp map[string]any, strukt any, ignore MapStructIgnoreMode) erro
 	    fieldName = funcs.SnakeToCamelCase(k)
       mapVal    = goreflect.ValueOf(v)
     )
+
 		if fieldVal := struktVal.FieldByName(fieldName); !fieldVal.IsValid() {
 			if !ignore {
 				// The field does not exist in the struct, and we are not ignoring unmapped fields
@@ -78,34 +82,48 @@ func mapToStruct(mp map[string]any, strukt any, ignore MapStructIgnoreMode) erro
 			}
 			// We are ignoring unmapped fields, do nothing
 		} else if subMap, isa := v.(map[string]any); isa {
-			// The field may be a substruct, which can be any of Struct, *Struct, or Maybe[Struct]
-			if maybeTyp := unionreflect.GetMaybeType(fieldVal.Type()); ((maybeTyp != nil) && (maybeTyp.Kind() == goreflect.Struct)) ||
-				(fieldVal.Kind() == goreflect.Struct) ||
-				((fieldVal.Kind() == goreflect.Pointer) && (fieldVal.Type().Elem().Kind() == goreflect.Struct)) {
-				switch {
-				case maybeTyp != nil:
-					// Recurse the subMap into the substruct inside the Maybe
-					if err := mapToStruct(subMap, unionreflect.GetMaybeValue(fieldVal).Interface(), ignore); err != nil {
-						return err
-					}
+			// The field must be a substruct, which can be any of Struct, *Struct, Maybe[Struct], or Maybe[*Struct]
+      if fieldVal.Kind() == goreflect.Struct {
+        // Case Struct
+        // Recurse the subMap into the substruct value address, overwriting the fields
+        if err := mapToStruct(subMap, fieldVal.Addr().Interface(), ignore); err != nil {
+          return err
+        }
+      } else if (fieldVal.Kind() == goreflect.Pointer) && (fieldVal.Type().Elem().Kind() == goreflect.Struct)) {
+        // Case *Struct
+        // If the field is nil, allocate a new struct and set the field to a copy of the pointer
+        if fieldVal.IsNil() {
+          fieldVal.Addr().Set(goreflect.New(fieldVal.Type().Elem()))
+        }
 
-				case fieldVal.Kind() == goreflect.Struct:
-					// Recurse the subMap into the substruct value
-					if err := mapToStruct(subMap, fieldVal.Interface(), ignore); err != nil {
-						return err
-					}
+        // Recurse the subMap into the substruct value pointer
+        if err := mapToStruct(subMap, fieldVal.Interface(), ignore); err != nil {
+          return err
+        }
+      } else if maybeTyp := unionreflect.GetMaybeType(fieldVal.Type()); (maybeTyp != nil) && (maybeTyp.Kind() == goreflect.Struct) {
+        // Case Maybe[Struct]
+        // Get a copy the Struct value - it may be initialized to a desired state with defaults
+        maybeVal := unionreflect.GetMaybeValue(fieldVal)
 
-				default:
-					if fieldVal.IsNil() {
-            // Allocate a new struct and set pointer to it
-            fieldVal.Set(goreflect.New(fieldVal.Type().Elem()))
-					}
+        // Recurse into a pointer to the copied value
+        if err := mapToStruct(subMap, maybeVal.Addr().Interface(), ignore); err != nil {
+          return err
+        }
 
-            // Recurse the subMap into the *substruct value
-					if err := mapToStruct(subMap, fieldVal.Elem().Interface(), ignore); err != nil {
-						return err
-					}
-				}
+        // Copy the modified Struct value into the Maybe
+        unionreflect.SetMaybeValue(fieldVal.Addr(), maybeVal)
+      } else if (maybeTyp != nil) && (maybeTyp.Kind() == goreflect.Pointer) && (maybeTyp.Elem().Kind() == goreflect.Struct) {
+        // Case Maybe[*Struct]
+        // If the Maybe value is nil, allocate a new struct and set the value to a copy of the pointer
+        maybeVal := unionreflect.GetMaybeValue(fieldVal)
+        if (! maybeVal.IsValid()) {
+          unionreflect.SetMaybeValue(maybeVal, reflect.New(maybeTyp))
+        }
+
+        // Recurse the subMap into the substruct pointed to inside the Maybe
+        if err := mapToStruct(subMap, maybeVal.Elem().Interface(), ignore); err != nil {
+          return err
+        }
       } else if fieldVal.Type() == goreflect.TypeOf((map[string]any)(nil)) {
         // Just copy map directly into struct
         fieldVal.Set(goreflect.ValueOf(subMap))
