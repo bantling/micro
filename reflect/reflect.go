@@ -240,6 +240,16 @@ func MustTypeAssert(val goreflect.Value, typ goreflect.Type, msg ...string) {
 	funcs.Must(TypeAssert(val, typ, msg...))
 }
 
+// TypeOf returns the string type of the wrapped value.
+// If val is invalid, the String() is returned, else Type().String() is returned.
+func TypeOf(val goreflect.Value) string {
+  if !val.IsValid() {
+    return val.String()
+  }
+
+  return val.Type().String()
+}
+
 // TypeToBaseType converts a reflect.Type that may be a primitive subtype (eg type foo uint8) to the underlying type (eg uint8).
 // If the given type is not a primitive subtype, nil is returned.
 func TypeToBaseType(typ goreflect.Type) goreflect.Type {

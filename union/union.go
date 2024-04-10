@@ -394,10 +394,10 @@ func (m *Maybe[T]) SetEmpty() {
 	m.present = false
 }
 
-// SetOrError sets the current value with val if empty, else panics if a present val has already been set
-func (m *Maybe[T]) SetOrError(val T) {
+// SetOrError sets the current value with val if empty, else returns an error if a present val has already been set
+func (m *Maybe[T]) SetOrError(val T) error {
 	if m.present {
-		panic(errPresentMaybe)
+		return errPresentMaybe
 	}
 
 	m.v = val

@@ -63,11 +63,13 @@ func TestMaybeValueIsPresent_(t *testing.T) {
 }
 
 func TestGetMaybeValue_(t *testing.T) {
-	val := GetMaybeValue(goreflect.ValueOf(union.Of(1)))
-	assert.Equal(t, 1, GetMaybeValue(goreflect.ValueOf(union.Of(1))).Interface())
+	val, err := GetMaybeValue(goreflect.ValueOf(union.Of(1)))
+	assert.Equal(t, 1, val.Interface())
+  assert.Nil(t, err)
 
-	val = GetMaybeValue(goreflect.ValueOf(union.Empty[int]()))
+	val, err = GetMaybeValue(goreflect.ValueOf(union.Empty[int]()))
 	assert.False(t, val.IsValid())
+  assert.Nil(t, err)
 }
 
 func TestSetMaybeValue_(t *testing.T) {

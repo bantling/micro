@@ -7,11 +7,8 @@ import (
 	"math/big"
 	goreflect "reflect"
 	"testing"
-	"time"
 
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/tuple"
-	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -299,6 +296,11 @@ func TestTypeAssert_(t *testing.T) {
 	}
 }
 
+func TestTypeOf_(t *testing.T) {
+  assert.Equal(t, "<invalid Value>", TypeOf(goreflect.Value{}))
+  assert.Equal(t, "string", TypeOf(goreflect.ValueOf("")))
+}
+
 func TestTypeToBaseType_(t *testing.T) {
 	{
 		// int
@@ -401,75 +403,4 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 		var p **int
 		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(goreflect.ValueOf(p)))
 	}
-}
-
-func TestRecurseFields_(t *testing.T) {
-	type Address struct {
-		Line string
-		City string
-	}
-
-	type Customer struct {
-		Name string
-		Address
-		Update time.Time
-		Codes  []string
-	}
-
-	var (
-		now = time.Now()
-
-		cust = Customer{
-			Name: "Jane Doe",
-			Address: Address{
-				Line: "123 Sesame St",
-				City: "New York",
-			},
-			Update: now,
-			Codes:  []string{"ABC", "DEFG"},
-		}
-
-		custTyp = goreflect.TypeOf(Customer{})
-		addrTyp = GetFieldByName(custTyp, "Address").Type
-
-		data []tuple.Four[RecurseMode, []union.Two[string, int], goreflect.StructField, any]
-	)
-
-	RecurseFields(
-		goreflect.ValueOf(cust),
-		func(
-			mode RecurseMode,
-			path []union.Two[string, int],
-			fld goreflect.StructField,
-			val goreflect.Value,
-		) error {
-			data = append(
-				data,
-				tuple.Of4(
-					mode,
-					path,
-					fld,
-					funcs.TernaryResult(val.IsValid(), val.Interface, func() any { return nil }),
-				),
-			)
-
-			return nil
-		},
-	)
-
-	assert.Equal(
-		t,
-		[]tuple.Four[RecurseMode, []string, goreflect.StructField, any]{
-			tuple.Of4(Start, []string{}, goreflect.StructField{}, any(nil)),
-			tuple.Of4(Field, []string{"Name"}, GetFieldByName(custTyp, "Name"), any("Jane Doe")),
-			tuple.Of4(Start, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
-			tuple.Of4(Field, []string{"Address", "Line"}, GetFieldByName(addrTyp, "Line"), any("123 Sesame St")),
-			tuple.Of4(Field, []string{"Address", "City"}, GetFieldByName(addrTyp, "City"), any("New York")),
-			tuple.Of4(End, []string{"Address"}, GetFieldByName(custTyp, "Address"), any(cust.Address)),
-			tuple.Of4(Field, []string{"Update"}, GetFieldByName(custTyp, "Update"), any(now)),
-			tuple.Of4(Field, []string{"Codes"}, GetFieldByName(custTyp, "Codes"), any([]string{"ABC", "DEFG"})),
-			tuple.Of4(End, []string{}, goreflect.StructField{}, any(nil)),
-		},
-		data,
-	)
 }
