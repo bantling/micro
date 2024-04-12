@@ -311,7 +311,7 @@ func ValueMaxOnePtrType(val goreflect.Value) goreflect.Type {
 	return typ
 }
 
-// StructFieldByName is a more convenient version of reflect.Type.FieldByName - it only returns a reflect.StructField.
+// GetFieldByName is a more convenient version of reflect.Type.FieldByName - it only returns a reflect.StructField.
 // If the field does not exist, it panics.
 // Mostly useful in unit testing.
 func GetFieldByName(typ goreflect.Type, name string) goreflect.StructField {

@@ -3,6 +3,7 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "fmt"
 	"math/big"
 	goreflect "reflect"
 	"testing"
@@ -63,13 +64,8 @@ func TestMaybeValueIsPresent_(t *testing.T) {
 }
 
 func TestGetMaybeValue_(t *testing.T) {
-	val, err := GetMaybeValue(goreflect.ValueOf(union.Of(1)))
-	assert.Equal(t, 1, val.Interface())
-  assert.Nil(t, err)
-
-	val, err = GetMaybeValue(goreflect.ValueOf(union.Empty[int]()))
-	assert.False(t, val.IsValid())
-  assert.Nil(t, err)
+	assert.Equal(t, 1, GetMaybeValue(goreflect.ValueOf(union.Of(1))).Interface())
+	assert.False(t, GetMaybeValue(goreflect.ValueOf(union.Empty[int]())).IsValid())
 }
 
 func TestSetMaybeValue_(t *testing.T) {
@@ -77,7 +73,7 @@ func TestSetMaybeValue_(t *testing.T) {
   {
   	m := union.Maybe[int]{}
     assert.False(t, MaybeValueIsPresent(goreflect.ValueOf(m)))
-  	SetMaybeValue(goreflect.ValueOf(&m), goreflect.ValueOf(1))
+  	assert.Nil(t, SetMaybeValue(goreflect.ValueOf(&m), goreflect.ValueOf(1)))
   	assert.True(t, m.Present())
   	assert.Equal(t, 1, m.Get())
   }
@@ -88,7 +84,7 @@ func TestSetMaybeValue_(t *testing.T) {
     }
     f := Foo{}
 
-    SetMaybeValue(goreflect.ValueOf(&f).Elem().FieldByName("Bar").Addr(), goreflect.ValueOf(2))
+    assert.Nil(t, SetMaybeValue(goreflect.ValueOf(&f).Elem().FieldByName("Bar").Addr(), goreflect.ValueOf(2)))
     assert.True(t, f.Bar.Present())
     assert.Equal(t, 2, f.Bar.Get())
   }
@@ -99,7 +95,7 @@ func TestSetMaybeValue_(t *testing.T) {
     }
     f := Foo{}
     i := 3
-    SetMaybeValue(goreflect.ValueOf(&f).Elem().FieldByName("Bar").Addr(), goreflect.ValueOf(&i))
+    assert.Nil(t, SetMaybeValue(goreflect.ValueOf(&f).Elem().FieldByName("Bar").Addr(), goreflect.ValueOf(&i)))
     assert.True(t, f.Bar.Present())
     assert.Equal(t, union.Of(&i), f.Bar)
   }
@@ -121,12 +117,11 @@ func TestSetMaybeValue_(t *testing.T) {
 
     // Copy Fld to get preinitialized object with Int = 1 and Str = ""
     barAddrVal := goreflect.ValueOf(&f).Elem().FieldByName("Fld").Addr()
-    assert.False(t, MaybeValueIsPresent(barAddrVal.Elem()))
+    assert.True(t, MaybeValueIsPresent(barAddrVal))
 
-
-    SetMaybeValue(barAddrVal, goreflect.ValueOf(Bar{Int: 1}))
-    assert.True(t, MaybeValueIsPresent(barAddrVal.Elem()))
-    assert.Equal(t, Bar{Int: 1}, GetMaybeValue(barAddrVal.Elem()).Interface())
+    assert.Nil(t, SetMaybeValue(barAddrVal, goreflect.ValueOf(Bar{Int: 1})))
+    assert.True(t, MaybeValueIsPresent(barAddrVal))
+    assert.Equal(t, Bar{Int: 1}, GetMaybeValue(barAddrVal).Interface())
     assert.Equal(t, Bar{Int: 1}, f.Fld.Get())
     assert.True(t, barAddr == &f.Fld)
   }
@@ -146,17 +141,43 @@ func TestSetMaybeValue_(t *testing.T) {
     )
 
     barAddrVal := goreflect.ValueOf(&f).Elem().FieldByName("Fld").Addr()
-    assert.False(t, MaybeValueIsPresent(barAddrVal.Elem()))
-    SetMaybeValue(barAddrVal, goreflect.ValueOf(Bar{Int: 1}))
-    assert.True(t, MaybeValueIsPresent(barAddrVal.Elem()))
-    assert.Equal(t, Bar{Int: 1}, GetMaybeValue(barAddrVal.Elem()).Interface())
-    assert.Equal(t, Bar{Int: 1}, f.Fld.Get())
+    assert.False(t, MaybeValueIsPresent(barAddrVal))
+    assert.Nil(t, SetMaybeValue(barAddrVal, goreflect.ValueOf(&Bar{Int: 1})))
+    assert.True(t, MaybeValueIsPresent(barAddrVal))
+    assert.Equal(t, Bar{Int: 1}, GetMaybeValue(barAddrVal).Elem().Interface())
+    assert.Equal(t, Bar{Int: 1}, *f.Fld.Get())
     assert.True(t, barAddr == &f.Fld)
   }
+
+  // Failures
+  assert.Equal(
+    t,
+    fmt.Errorf("Cannot set the Maybe value of type <invalid Value>"),
+    SetMaybeValue(goreflect.Value{}, goreflect.Value{}),
+  )
+
+  assert.Equal(
+    t,
+    fmt.Errorf("Cannot set the Maybe value of type union.Maybe[int] as it is not a pointer and not addressable"),
+    SetMaybeValue(goreflect.ValueOf(union.Of(1)), goreflect.Value{}),
+  )
 }
 
 func TestSetMaybeValueEmpty_(t *testing.T) {
 	m := union.Of(1)
 	SetMaybeValueEmpty(goreflect.ValueOf(&m))
 	assert.False(t, m.Present())
+
+  // Failures
+  assert.Equal(
+    t,
+    fmt.Errorf("Cannot set the Maybe value of type <invalid Value>"),
+    SetMaybeValueEmpty(goreflect.Value{}),
+  )
+
+  assert.Equal(
+    t,
+    fmt.Errorf("Cannot set the Maybe value of type union.Maybe[int] as it is not a pointer and not addressable"),
+    SetMaybeValueEmpty(goreflect.ValueOf(union.Of(1))),
+  )
 }

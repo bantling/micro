@@ -395,13 +395,16 @@ func (m *Maybe[T]) SetEmpty() {
 }
 
 // SetOrError sets the current value with val if empty, else returns an error if a present val has already been set
-func (m *Maybe[T]) SetOrError(val T) error {
+func (m *Maybe[T]) SetOrError(newVal T) error {
+  // Error if present
 	if m.present {
 		return errPresentMaybe
 	}
 
-	m.v = val
-	m.present = true
+  // Set the value
+  m.Set(newVal)
+
+  return nil
 }
 
 // String is the Stringer interface

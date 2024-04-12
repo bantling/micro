@@ -437,17 +437,7 @@ func TestMaybe_(t *testing.T) {
 		res := Empty[int]()
 		res = Of(1)
 
-		var e error
-		funcs.TryTo(
-			func() {
-				res.SetOrError(2)
-				assert.Fail(t, "Must die")
-			},
-			func(r any) {
-				e = r.(error)
-			},
-		)
-		assert.Equal(t, errPresentMaybe, e)
+    assert.Equal(t, errPresentMaybe, res.SetOrError(2))
 	}
 
 	// Empty

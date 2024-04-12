@@ -30,43 +30,43 @@ const (
 // MapToStruct recurses through a map[string]any, populating the provided struct instance.
 // conv.To is used to convert a map key value into a struct field value.
 // The provided struct instance cannot be nil.
-// The map key is converted from snake_case to CamelCase, so that only exported fields can be populated.
+// The map key is converted from snake_case to CamelCase, as only exported fields can be populated.
 //
-// If the map key is a sub map, then the related struct field must be a struct, maybe[struct], or pointer(s) to struct.
-// If the map key value is an array/sliceof type T, then the related struct field must be an array/slice of type T.
-// If any map key value cannot be converted, an error is returned.
-// If the submap is empty, a struct value is set to the zero value, a struct * is set to nil.
-// If the submap is not empty, a struct value is populated and if needed, pointers are allocated or it is wrapped in a Maybe.
+// If the map key is a sub map, then the related struct field must be a (*)struct or Maybe[(*)struct].
+// If the map key value is an array/slice of type T, then the related struct field must be an array/slice of type T.
+// If any map key value cannot be converted, an error is returned, and the target struct will be partially populated.
+// If the submap is empty, a (Maybe)struct value is set to the zero value, while a (Maybe)*struct is set to nil.
+// If the submap is not empty, a struct value is populated and if needed, pointers are allocated and/oror it is wrapped in a Maybe.
 //
-// If the ignore flag is set to UnmappedFieldIgnore, then the map may contain values that do not exist in the struct, but
+// If the ignore flag is set to UnmappedFieldIgnore, then the map may contain keys that do not exist in the struct, but
 // it is still an error if the field exists in the struct and the map value cannot be converted.
-// The default ignore flag value is UnmappedFieldError.
+// The default ignore flag value is UnmappedFieldError, which requires every map key to exist in the struct.
 //
 // The following errors can occur:
 // - type T is not a struct type
 // - strukt is a nil pointer
 func MapToStruct[T any](mp map[string]any, strukt *T, ignore ...MapStructIgnoreMode) error {
-	return mapToStruct(mp, strukt, funcs.SliceIndex(ignore, 0))
+	return mapToStruct(mp, goreflect.ValueOf(strukt), funcs.SliceIndex(ignore, 0))
 }
 
-func mapToStruct(mp map[string]any, struktPtr any, ignore MapStructIgnoreMode) error {
-	var (
-		struktVal = goreflect.ValueOf(struktPtr)
-		struktTyp = struktVal.Type().Elem()
-	)
+// mapToStruct is the internal non-generic function that recurses the map and the struct.
+// This function is necessary because you can't recurse a generic function when the value of T for a substruct is not
+// known at compile time.
+func mapToStruct(mp map[string]any, struktPtr goreflect.Value, ignore MapStructIgnoreMode) error {
+	struktTyp := struktPtr.Type().Elem()
 
 	// struktPtr must be a pointer to a struct
 	if struktTyp.Kind() != goreflect.Struct {
-		return fmt.Errorf(errNotAStructPtrMsg, struktVal.Type())
+		return fmt.Errorf(errNotAStructPtrMsg, struktPtr.Type())
 	}
 
-	// strukt * cannot be nil - the top call stores the result in the struct the pointer references
-	if struktVal.IsNil() {
-		return fmt.Errorf(errNilStructPtrMsg, struktVal.Type())
+	// struktPtr cannot be nil - the top call stores the result in the struct the pointer references
+	if struktPtr.IsNil() {
+		return fmt.Errorf(errNilStructPtrMsg, struktPtr.Type())
 	}
 
   // Deref the strukt so we can access fields of it
-  struktVal = struktVal.Elem()
+  struktVal := struktPtr.Elem()
 
 	// Iterate the fields of the struct
 	for k, v := range mp {
@@ -89,7 +89,7 @@ func mapToStruct(mp map[string]any, struktPtr any, ignore MapStructIgnoreMode) e
         if err := mapToStruct(subMap, fieldVal.Addr().Interface(), ignore); err != nil {
           return err
         }
-      } else if (fieldVal.Kind() == goreflect.Pointer) && (fieldVal.Type().Elem().Kind() == goreflect.Struct)) {
+      } else if (fieldVal.Kind() == goreflect.Pointer) && (fieldVal.Type().Elem().Kind() == goreflect.Struct) {
         // Case *Struct
         // If the field is nil, allocate a new struct and set the field to a copy of the pointer
         if fieldVal.IsNil() {
@@ -103,7 +103,7 @@ func mapToStruct(mp map[string]any, struktPtr any, ignore MapStructIgnoreMode) e
       } else if maybeTyp := unionreflect.GetMaybeType(fieldVal.Type()); (maybeTyp != nil) && (maybeTyp.Kind() == goreflect.Struct) {
         // Case Maybe[Struct]
         // Get a copy the Struct value - it may be initialized to a desired state with defaults
-        maybeVal := unionreflect.GetMaybeValue(fieldVal)
+        maybeVal := unionreflect.GetMaybeValue(fieldVal)
 
         // Recurse into a pointer to the copied value
         if err := mapToStruct(subMap, maybeVal.Addr().Interface(), ignore); err != nil {
@@ -117,7 +117,7 @@ func mapToStruct(mp map[string]any, struktPtr any, ignore MapStructIgnoreMode) e
         // If the Maybe value is nil, allocate a new struct and set the value to a copy of the pointer
         maybeVal := unionreflect.GetMaybeValue(fieldVal)
         if (! maybeVal.IsValid()) {
-          unionreflect.SetMaybeValue(maybeVal, reflect.New(maybeTyp))
+          unionreflect.SetMaybeValue(maybeVal, goreflect.New(maybeTyp))
         }
 
         // Recurse the subMap into the substruct pointed to inside the Maybe
@@ -134,13 +134,13 @@ func mapToStruct(mp map[string]any, struktPtr any, ignore MapStructIgnoreMode) e
 		} else if mapVal.Kind() == goreflect.Slice {
       // The field value must be a slice
       if fieldVal.Kind() != goreflect.Slice {
-        return fmt.Errorf(err)
+        return nil //fmt.Errorf(err)
       }
 
       // The slice elements may be map[string]any
       if sliceOfMaps, isa := v.([]map[string]any); isa {
-        for i, v := range sliceOfMaps {
-          if err := mapToStruct(v, strukt, ignore); err != nil {
+        for _, v := range sliceOfMaps {
+          if err := mapToStruct(v, struktVal, ignore); err != nil {
             return fmt.Errorf(errNotASliceMsg, struktTyp, fieldName)
           }
         }

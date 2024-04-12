@@ -404,3 +404,25 @@ func TestValueMaxOnePtrType_(t *testing.T) {
 		assert.Equal(t, goreflect.Type(nil), ValueMaxOnePtrType(goreflect.ValueOf(p)))
 	}
 }
+
+func TestGetFieldByName_(t *testing.T) {
+  type Foo struct {
+    Bar int
+  }
+
+  typ := goreflect.TypeOf(Foo{})
+  sf, _ := typ.FieldByName("Bar")
+  assert.Equal(t, sf, GetFieldByName(typ, "Bar"))
+
+  var failed bool
+  funcs.TryTo(
+    func() {
+      GetFieldByName(typ, "Foo")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("type %s does not have a field named Foo", typ.String()), e)
+      failed = true
+    },
+  )
+  assert.True(t, failed)
+}
