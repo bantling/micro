@@ -65,9 +65,14 @@ endif
 
 ### Targets
 
-# The default target (host, docker, podman)
+# The default target (host, docker, podman), run most targets
 .PHONY: all
 all: vars tidy compile lint format test spdx check-doc-go depgraph.png .readme.html .readme.go.html coverage
+
+# Paginate the results of all with more
+.PHONY: more
+more:
+	make all | more
 
 # Make using docker - the docker image uses all target (host)
 .PHONY: docker
@@ -238,7 +243,7 @@ depgraph.png: .depgraph.png .deplegend.png | have-gm
 # Check if the asciidoc program is installed (host)
 .PHONY: have-asciidoc
 have-asciidoc:
-	@which asciidoc 2>&1 > /dev/null || echo "The asciidoc package must be installed to generate the readme html file"
+	which asciidoc 2>&1 > /dev/null || echo "The asciidoc package must be installed to generate the readme html file"
 
 # Generate .readme.html using asciidoc (host)
 .readme.html: README.adoc | have-asciidoc

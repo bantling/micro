@@ -136,7 +136,11 @@ A dependency graph can be generated anytime by running `make depgraph.png`.
 |Options
 
 |all (default)
-|Builds on host, performs most targets
+|Runs most targets
+|
+
+|more
+|Runs all and paginates the results with more
 |
 
 |docker
