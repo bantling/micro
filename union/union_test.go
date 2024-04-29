@@ -437,7 +437,7 @@ func TestMaybe_(t *testing.T) {
 		res := Empty[int]()
 		res = Of(1)
 
-    assert.Equal(t, errPresentMaybe, res.SetOrError(2))
+		assert.Equal(t, errPresentMaybe, res.SetOrError(2))
 	}
 
 	// Empty

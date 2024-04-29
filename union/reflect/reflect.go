@@ -3,7 +3,7 @@ package reflect
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "fmt"
+	"fmt"
 	goreflect "reflect"
 	"strings"
 
@@ -15,9 +15,9 @@ var (
 )
 
 var (
-  errGetMaybeValueEmptyMsg  = "Cannot get the Maybe value of an empty %s"
-  errSetMaybeValueUnsafeMsg = "Cannot set the Maybe value of type %s"
-  errSetMaybeValueUnaddressableMsg = "Cannot set the Maybe value of type %s as it is not a pointer and not addressable"
+	errGetMaybeValueEmptyMsg         = "Cannot get the Maybe value of an empty %s"
+	errSetMaybeValueUnsafeMsg        = "Cannot set the Maybe value of type %s"
+	errSetMaybeValueUnaddressableMsg = "Cannot set the Maybe value of type %s as it is not a pointer and not addressable"
 )
 
 // GetMaybeType gets the generic type of the value wrapped in a union.Maybe (which may have pointers to it).
@@ -38,9 +38,9 @@ func GetMaybeType(typ goreflect.Type) goreflect.Type {
 // - GetMaybeType(val.Type()) returns a non-nil reflect.Type
 // - The reflect.Value is a non-nil pointer or a value
 func safeMaybeAccess(val goreflect.Value) bool {
-  return val.IsValid() &&
-    (GetMaybeType(val.Type()) != nil) &&
-    ((val.Kind() != goreflect.Pointer) || !val.IsNil())
+	return val.IsValid() &&
+		(GetMaybeType(val.Type()) != nil) &&
+		((val.Kind() != goreflect.Pointer) || !val.IsNil())
 }
 
 // MaybeValueIsPresent indicates if the given reflect.Value wraps a present Maybe. which is true if:
@@ -48,7 +48,7 @@ func safeMaybeAccess(val goreflect.Value) bool {
 // - GetMaybeType(val.Type()) returns a non-nil reflect.Type
 // - derefing the reflect.Value to at most one pointer and calling the Present method returns true
 func MaybeValueIsPresent(val goreflect.Value) bool {
-  return safeMaybeAccess(val) && reflect.DerefValueMaxOnePtr(val).MethodByName("Present").Call(nil)[0].Bool()
+	return safeMaybeAccess(val) && reflect.DerefValueMaxOnePtr(val).MethodByName("Present").Call(nil)[0].Bool()
 }
 
 // GetMaybeValue gets the value of a Maybe, returning reflect.Value of present value.
@@ -59,38 +59,38 @@ func MaybeValueIsPresent(val goreflect.Value) bool {
 // When an error ocurs, (invalid reflect.Value, error) is returned
 func GetMaybeValue(val goreflect.Value) goreflect.Value {
 	if !MaybeValueIsPresent(val) {
-  	return goreflect.Value{}
+		return goreflect.Value{}
 	}
 
-  return reflect.DerefValueMaxOnePtr(val).MethodByName("Get").Call(nil)[0]
+	return reflect.DerefValueMaxOnePtr(val).MethodByName("Get").Call(nil)[0]
 }
 
 // SetMaybeValue copies the value of val into dst.
 // Dst must be zero or more pointers to an addressable Maybe[T], and val must be a T, otherwise an error will occur.
 func SetMaybeValue(dst, val goreflect.Value) error {
-  if !safeMaybeAccess(dst) {
-    return fmt.Errorf(errSetMaybeValueUnsafeMsg, reflect.TypeOf(dst))
-  }
+	if !safeMaybeAccess(dst) {
+		return fmt.Errorf(errSetMaybeValueUnsafeMsg, reflect.TypeOf(dst))
+	}
 
-  if (dst.Kind() != goreflect.Pointer) && (!dst.CanAddr()) {
-    return fmt.Errorf(errSetMaybeValueUnaddressableMsg, reflect.TypeOf(dst))
-  }
+	if (dst.Kind() != goreflect.Pointer) && (!dst.CanAddr()) {
+		return fmt.Errorf(errSetMaybeValueUnaddressableMsg, reflect.TypeOf(dst))
+	}
 
 	reflect.DerefValue(dst).Addr().MethodByName("Set").Call([]goreflect.Value{val})
-  return nil
+	return nil
 }
 
 // SetMaybeValueEmpty sets a Maybe to empty. If the Maybe is already Empty, it is effectively a non operation.
 // Dst must be a Maybe, otherwise an error will occur
 func SetMaybeValueEmpty(dst goreflect.Value) error {
-  if !safeMaybeAccess(dst) {
-    return fmt.Errorf(errSetMaybeValueUnsafeMsg, reflect.TypeOf(dst))
-  }
+	if !safeMaybeAccess(dst) {
+		return fmt.Errorf(errSetMaybeValueUnsafeMsg, reflect.TypeOf(dst))
+	}
 
-  if (dst.Kind() != goreflect.Pointer) && (!dst.CanAddr()) {
-    return fmt.Errorf(errSetMaybeValueUnaddressableMsg, reflect.TypeOf(dst))
-  }
+	if (dst.Kind() != goreflect.Pointer) && (!dst.CanAddr()) {
+		return fmt.Errorf(errSetMaybeValueUnaddressableMsg, reflect.TypeOf(dst))
+	}
 
 	reflect.DerefValue(dst).Addr().MethodByName("SetEmpty").Call(nil)
-  return nil
+	return nil
 }
