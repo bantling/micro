@@ -19,7 +19,7 @@ const (
 	// decimalMaxScale is the maximum decimal scale, which is also the maximum precision
 	decimalMaxScale = 18
 
-	// decimalDefaultScale is the default decimal scale, which is2, since most uses will probably be for money
+	// decimalDefaultScale is the default decimal scale, which is 2, since most uses will probably be for money
 	decimalDefaultScale = 2
 
 	// decimalMaxValue is the maximum decimal value
@@ -257,7 +257,7 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 			return fmt.Errorf(errValueTooSmallToRoundMsg, d2.String())
 		}
 
-		// // Round by manipulating digits directly in string as a []byte
+		// Round by manipulating digits directly in string as a []byte
 		dig1 := []byte(str1)
 
 		// Round by just examining first decimal place, if <= 4 round integer down, else round integer up
@@ -448,17 +448,27 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 
 // Mul multiplies d by o, then sets the result scale to (d scale) + (o scale)
 // Returns an overflow error if the result > 18 9 digits.
+// Returns an underflow error if the result < - 18 9 digits.
 func (d Decimal) Mul(o Decimal) (Decimal, error) {
 	// Start by just multiplying the two 64-bit values together, and adding their scales
 	r := d
 	r.value *= o.value
 	r.scale += o.scale
 
-	// Check if the operation is reversible: if r != 0 and r <= max value, then r / o = d
-	// If not, an overflow or underflow must have occurred
+	// There are two cases of over/under flow:
+	// - operation is not reversible: if r != 0 and r <= max value, then r / o != d
+	// - abs(value) > 18 9's
 	// It is an overflow if the signs are the same, underflow if they differ
-	if (r.value != 0) && ((r.value > decimalMaxValue) || (r.value/o.value != d.value)) {
+	// Note we must do checks in the order shown above:
+	// - The resulting value may be storable in a 64 bit int, but roll over/under, so that it has the opposite sign of what it should be
+	if (r.value != 0) && (r.value/o.value != d.value) {
 		return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+	}
+	if r.value > decimalMaxValue {
+		return Decimal{}, fmt.Errorf(errDecimalOverflowMsg, d, "*", o)
+	}
+	if r.value < decimalMinValue {
+		return Decimal{}, fmt.Errorf(errDecimalUnderflowMsg, d, "*", o)
 	}
 
 	return r, nil
@@ -484,7 +494,7 @@ func (d Decimal) DivIntQuoRem(o uint) (Decimal, Decimal, error) {
 	}
 
 	// If o > d, return divisor too large
-	// To tell if o > d, we have to convert o to integer part only by dividing o.value by 10 ^ o.scale
+	// To tell if o > d, we have to convert d to integer part only by dividing d.value by 10 ^ d.scale
 	var intPartOfD int64 = funcs.Ternary(d.value >= 0, d.value, -d.value)
 	for i := uint(0); i < d.scale; i++ {
 		intPartOfD /= 10
@@ -535,3 +545,116 @@ func (d Decimal) DivIntAdd(o uint) ([]Decimal, error) {
 func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 	return funcs.MustValue(d.DivIntAdd(o))
 }
+
+// Div is division
+//
+// Examples:
+//
+// 1. 5000 / 200
+// 5000 / 200 = 25
+//
+// 2. 500.0 / -200
+// 5000 / -200 = -25
+// Scale 1 - scale 0 = 1 -> Set scale to 1
+// Result is -2.5
+//
+// 3. -500.0 / 2.00
+// -5000 / 200 = -25
+// Scale 1 - scale 2 = -1 -> Multiply by 10^1
+// Result is -250
+//
+// 4. 5001 / -200
+// 5001 / -200 = -25 r 1
+// 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale 3 = 0.005
+// Result is -25 - 0.005 = -25.005
+//
+// 5. -500.1 / 200
+// -5001 / 200 = -25 r 1
+// Scale 1 - scale 0 = 1 -> 25 scale 1 = 2.5
+// 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale (1 + 3) = 0.0005
+// Result is 2.5 + 0.0005 = 2.5005
+//
+// 6. 5.123 / 0.021
+// 5123 / 21 = 243 r 20
+//   20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 r 11     = 0.9         r 11
+//   11 / 21 = 110 (11 * 10^1) / 21 = 5 scale 1 + 1 r 5  = 0.05        r 5
+//    5 / 21 = 50 (5 * 10^1) / 21   = 2 scale 1 + 2 r 8  = 0.002       r 8
+//    8 / 21 = 80 (8 * 10^1) / 21   = 3 scale 1 + 3 r 17 = 0.000_3     r 17
+//   17 / 21 = 170 (17 * 10^1) / 21 = 8 scale 1 + 4 r 2  = 0.000_08    r 2
+//    2 / 21 = 200 (2 * 10^2) / 21  = 9 scale 2 + 5 r 11 = 0.000_000_9 r 11
+// So a repeating decimal sequence of 952380 -> 243.952380952380952
+//
+// 7. 1.03075 / 0.25
+// 103075 / 25 = 4123
+// Scale 5 - scale 2 = 3
+// Result is 4.123
+//
+// 8. 1234567890123456.78 / 2.5
+// 123456789012345678 / 25 = 4938271560493827 r 3 
+// Scale 2 - scale 1 = 1 -> 4938271560493827 scale 1 = 493827156049382.7
+// 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 + 1 = 0.012
+// Result is 493827156049382.7 + 0.012 = 493827156049382.712
+//
+// 9. 1234567890123456.78 / 0.25
+// 123456789012345678 / 25 = 4938271560493827 r 3
+// Scale 2 - scale 2 = scale 0 -> 4938271560493827
+// 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 = 0.12
+// Result is 4938271560493827 + 0.12 = 4938271560493827.12
+//
+// 10. 1234567890123456.78 / 0.00025
+// 123456789012345678 / 25 = 4938271560493827 r 3
+// Scale 2 - scale 5 = -3 -> Multiply by 10^3
+// 4938271560493827000 = 19 digits = overflow
+//
+// 11. 1 / 100_000_000_000_000_000
+// 1 / 100_000_000_000_000_000
+// = 100_000_000_000_000_000 (1 * 10^17) / 100_000_000_000_000_000
+// = 1 scale 17
+// = 0.00000000000000001
+//
+// 12. 1 / 200_000_000_000_000_000
+// 1 / 200_000_000_000_000_000
+// = 1_000_000_000_000_000_000 (1 * 10^18) / 200_000_000_000_000_000
+// = underflow, as 1 * 10^18 is 19 digits
+// Note the answer is storable (0.000_000_000_000_000_005) = 5 * 10^-18 = 5 scale 18
+//
+// 13. 100_000_000_000_000_000 / 0.1
+// = 100_000_000_000_000_000 / 1
+// = 100_000_000_000_000_000
+// Scale 0 - 1 = -1 = Multiply by 10^1
+// = 1_000_000_000_000_000_000
+// = overflow
+//
+// Algorithm:
+//
+// 1. Divide dividend by divisor
+//    Scale = dividend scale - divisor scale
+//    
+//
+// 1. While divisor scale > 1 and divisor % 10 = 0 (divisor has trailing zero fractional digits)
+//    (eliminate all divisor trailing zero fractional digits)
+//    divisor = divisor / 10
+//    divisor scale = divisor scale - 1
+//
+// 2. If divisor scale > 1 (dividend and divisor both have fractional digits)
+//    adjustment = min(dividend scale, divisor scale)
+//    dividend scale = dividend scale - adjustment
+//    divisor scale = divisor scale - adjustment
+//
+// 3.
+//
+// 1. while dividend < divisor, multiply dividend by 10, counting as int scale
+// 2. int, frac = dividend / divisor, dividend % divisor
+// 3. while
+// func (d Decimal) Div(o Decimal) (Decimal, error) {
+//   // Division by zero is an error
+//   if o.value == 0 {
+//     return fmt.Errorf(errDecimalDivisionByZeroMsg, d)
+//   }
+// 
+//   // Start with integer division, ignoring scale
+//   quo, rem := d.value / o.value, d.value % o.value
+// 
+//   // Adjust scale of quo if necessary
+// //   if
+// }

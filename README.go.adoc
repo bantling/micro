@@ -254,6 +254,10 @@ A dependency graph can be generated anytime by running `make depgraph.png`.
 
 === TODO
 
+* I don't think decimal rounding is correct in AdjustDecimalScale
+** Appears to just examine most significant decimal place for >= 5
+** Instead, round starting at last decimal place
+** If resulting most significant decimal place >= 5, then round integer portion
 * add a reflect func to take a map[string]any and populate a struct with it
 ** consider pointers, Maybe, and JSON
 ** use conv.To to convert individual map key values into struct fields

@@ -291,23 +291,40 @@ func TestDecimalMul_(t *testing.T) {
 	assert.Equal(t, MustDecimal(375, 2), d1.MustMul(d2))
 
 	// Overflow
-	// - Within bounds of binary, but beyond bounds of 18 decimals
+	// - Within bounds of signed 64 bit int, but beyond bounds of 18 decimals
 	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(2, 1)
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 0.2 overflowed")), tuple.Of2(d1.Mul(d2)))
 
-	// - Beyond bounds of binary, but only a little
+	// - Beyond bounds of signed 64 bit int, but only a little
 	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(16, 0)
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 16 overflowed")), tuple.Of2(d1.Mul(d2)))
 
-	// - Way beyond bounds of binary
+	// - Way beyond bounds of signed 64 bit int
 	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(999_999_999_999_999_999, 1)
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 99999999999999999.9 overflowed")), tuple.Of2(d1.Mul(d2)))
+
+	// Underflow
+	// - Within bounds of signed 64 bit int, but beyond bounds of 18 decimals
+	d1, d2 = MustDecimal(-999_999_999_999_999_999, 0), MustDecimal(2, 1)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -999999999999999999 * 0.2 underflowed")), tuple.Of2(d1.Mul(d2)))
+
+	// - Beyond bounds of signed 64 bit int, but only a little
+	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(-16, 0)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * -16 underflowed")), tuple.Of2(d1.Mul(d2)))
+
+	// - Way beyond bounds of signed 64 bit int
+	d1, d2 = MustDecimal(-999_999_999_999_999_999, 0), MustDecimal(999_999_999_999_999_999, 1)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -999999999999999999 * 99999999999999999.9 underflowed")), tuple.Of2(d1.Mul(d2)))
 }
 
 func TestDecimalDivIntQuoRem_(t *testing.T) {
 	// 100.00 / 3 = 33.33 r 00.01
 	de, dv := MustDecimal(100_00), uint(3)
 	assert.Equal(t, tuple.Of3(MustDecimal(3333), MustDecimal(1), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
+	
+	// -100.00 / 3 = -33.33 r -00.01
+	de, dv = MustDecimal(-100_00), uint(3)
+	assert.Equal(t, tuple.Of3(MustDecimal(-3333), MustDecimal(-1), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
 
 	// 100.00 / 100 = 1.00 r 0.00
 	de, dv = MustDecimal(100_00), uint(100)
