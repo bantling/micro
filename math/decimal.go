@@ -155,7 +155,7 @@ func (d Decimal) String() (str string) {
 	case d.scale == 0:
 		break
 
-		// The number of significant digits is <= the number of decimals. Add leading "0." + (scale - digits) zeros.
+	// The number of significant digits is <= the number of decimals. Add leading "0." + (scale - digits) zeros.
 	case numSig <= d.scale:
 		str = "0." + strings.Repeat("0", int(d.scale-numSig)) + str
 
@@ -213,6 +213,7 @@ func (d Decimal) Sign() (sgn int) {
 // 1.5 and 1.25 -> 1.50 and 1.25
 // 1.5 and 18 digits with no decimals -> 18 digits cannot increase scale, so round 1.5 to 2
 // 99_999_999_999_999_999.5 and 1 -> the 18 digits round to a 19 digit value, an error occurs
+// 
 func AdjustDecimalScale(d1, d2 *Decimal) error {
 	if d1.scale == d2.scale {
 		return nil
@@ -295,11 +296,13 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 	return nil
 }
 
-// AdjustDecimalFormat adjusts the two decimals strings to have the same number of digits before and the decimal,
+// AdjustDecimalFormat adjusts the two decimals strings to have the same number of digits before the decimal,
 // and the same number of digits after the decimal. Leading and trailing zeros are added as needed.
-// Since minus has a higher ASCII value than plus, a positive number has a leading slash.
+// A positive number has a leading space.
 //
-// The strings returned are almost comparable: "-2" > "-1".
+// The strings returned are not directly comparable:
+// "-1" > " 1"
+// "-2" > "-1"
 //
 // Examples:
 // 30, 5 -> " 30", " 05"
@@ -346,8 +349,8 @@ func AdjustDecimalFormat(d1, d2 Decimal) (string, string) {
 		bld1, bld2 strings.Builder
 	)
 
-	bld1.WriteRune(funcs.Ternary(minus1, '-', '/'))
-	bld2.WriteRune(funcs.Ternary(minus2, '-', '/'))
+	bld1.WriteRune(funcs.Ternary(minus1, '-', ' '))
+	bld2.WriteRune(funcs.Ternary(minus2, '-', ' '))
 
 	bld1.WriteString(lz1)
 	bld1.WriteString(int1)
@@ -375,10 +378,19 @@ func (d Decimal) Cmp(o Decimal) int {
 	// Simplest way is to compare adjusted format strings with plain old string comparison
 	da, oa := AdjustDecimalFormat(d, o)
 
-	// Have to account for fact that "-2" > "-1"
-	compare := CmpOrdered(AdjustDecimalFormat(d, o))
+	// Compare the two
+	compare := CmpOrdered(da, oa)
 
-	return funcs.Ternary((da[0] == '-') && (oa[0] == '-'), -compare, compare)
+	// "-1" > " 2" and "-2" > "-1" and " 2" < "-1"
+	// Simple reverse compare in those cases
+	ds, os := da[0], oa[0]
+	if ((ds == '-') && (os == ' ')) ||
+	  ((ds == '-') && (os == '-')) ||
+	  ((ds == ' ') && (os == '-')) {
+	  return -compare
+    }
+	
+	return compare
 }
 
 // Negate returns the negation of d.
@@ -553,28 +565,44 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // 1. 5000 / 200
 // 5000 / 200 = 25
 //
-// 2. 500.0 / -200
-// 5000 / -200 = -25
+// 2. 500.0 / 200
+// 5000 / 200 = -25
 // Scale 1 - scale 0 = 1 -> Set scale to 1
-// Result is -2.5
+// Result is 2.5
 //
-// 3. -500.0 / 2.00
-// -5000 / 200 = -25
+// 3. 500.0 / 2.00
+// 5000 / 200 = -25
 // Scale 1 - scale 2 = -1 -> Multiply by 10^1
-// Result is -250
+// Result is 250
 //
-// 4. 5001 / -200
-// 5001 / -200 = -25 r 1
+// 4. 5001 / 200
+// 5001 / 200 = 25 r 1
 // 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale 3 = 0.005
-// Result is -25 - 0.005 = -25.005
+// Result is 25 + 0.005 = 25.005
 //
-// 5. -500.1 / 200
+// 5. 5001 / -200
+// 5001 / -200 = -25 r 1
+// 1 / -200 -> 1000 (1 * 10^3) / -200 = -5 scale 3 = -0.005
+// Result is -25 + -0.005 = -25.005
+//
+// 6. -5001 / 200
+// -5001 / 200 = -25 r -1
+// -1 / 200 -> -1000 (1 * 10^3) / 200 = -5 scale 3 = -0.005
+// Result is -25 + -0.005 = -25.005
+//
+// 7. -5001 / -200
+// -5001 / -200 = 25 r -1
+// Adjust remainder sign to 1
+// 1 / 200 -> -1000 (1 * 10^3) / 200 = -5 scale 3 = 0.005
+// Result is 25 + 0.005 = 25.005
+//
+// 8. -500.1 / 200
 // -5001 / 200 = -25 r 1
 // Scale 1 - scale 0 = 1 -> 25 scale 1 = 2.5
 // 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale (1 + 3) = 0.0005
 // Result is 2.5 + 0.0005 = 2.5005
 //
-// 6. 5.123 / 0.021
+// 9. 5.123 / 0.021
 // 5123 / 21 = 243 r 20
 //   20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 r 11     = 0.9         r 11
 //   11 / 21 = 110 (11 * 10^1) / 21 = 5 scale 1 + 1 r 5  = 0.05        r 5
@@ -584,41 +612,41 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //    2 / 21 = 200 (2 * 10^2) / 21  = 9 scale 2 + 5 r 11 = 0.000_000_9 r 11
 // So a repeating decimal sequence of 952380 -> 243.952380952380952
 //
-// 7. 1.03075 / 0.25
+// 10. 1.03075 / 0.25
 // 103075 / 25 = 4123
 // Scale 5 - scale 2 = 3
 // Result is 4.123
 //
-// 8. 1234567890123456.78 / 2.5
+// 11. 1234567890123456.78 / 2.5
 // 123456789012345678 / 25 = 4938271560493827 r 3 
 // Scale 2 - scale 1 = 1 -> 4938271560493827 scale 1 = 493827156049382.7
 // 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 + 1 = 0.012
 // Result is 493827156049382.7 + 0.012 = 493827156049382.712
 //
-// 9. 1234567890123456.78 / 0.25
+// 12. 1234567890123456.78 / 0.25
 // 123456789012345678 / 25 = 4938271560493827 r 3
 // Scale 2 - scale 2 = scale 0 -> 4938271560493827
 // 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 = 0.12
 // Result is 4938271560493827 + 0.12 = 4938271560493827.12
 //
-// 10. 1234567890123456.78 / 0.00025
+// 13. 1234567890123456.78 / 0.00025
 // 123456789012345678 / 25 = 4938271560493827 r 3
 // Scale 2 - scale 5 = -3 -> Multiply by 10^3
 // 4938271560493827000 = 19 digits = overflow
 //
-// 11. 1 / 100_000_000_000_000_000
+// 14. 1 / 100_000_000_000_000_000
 // 1 / 100_000_000_000_000_000
 // = 100_000_000_000_000_000 (1 * 10^17) / 100_000_000_000_000_000
 // = 1 scale 17
 // = 0.00000000000000001
 //
-// 12. 1 / 200_000_000_000_000_000
+// 15. 1 / 200_000_000_000_000_000
 // 1 / 200_000_000_000_000_000
 // = 1_000_000_000_000_000_000 (1 * 10^18) / 200_000_000_000_000_000
 // = underflow, as 1 * 10^18 is 19 digits
 // Note the answer is storable (0.000_000_000_000_000_005) = 5 * 10^-18 = 5 scale 18
 //
-// 13. 100_000_000_000_000_000 / 0.1
+// 16. 100_000_000_000_000_000 / 0.1
 // = 100_000_000_000_000_000 / 1
 // = 100_000_000_000_000_000
 // Scale 0 - 1 = -1 = Multiply by 10^1
