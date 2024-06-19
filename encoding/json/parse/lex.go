@@ -36,7 +36,7 @@ var (
 	errOneSurrogateEscapeMsg          = "The surrogate string escape %s must be followed by another surrogate escape to form valid UTF-16"
 	errSurrogateNonSurrogateEscapeMsg = "The surrogate string escape %s cannot be followed by the non-surrogate escape %s"
 	errSurrogateDecodeEscapeMsg       = "The surrogate string escape pair %s is not a valid UTF-16 surrogate pair"
-	errInvalidNumberMsg               = "Invalid number %s: a number must satisfy the regex -?[0-9]+([.][0-9]+)?([eE][0-9]+)?"
+	errInvalidNumberMsg               = "Invalid number %s: a number must satisfy the regex -?(0|[1-9][0-9]+)([.][0-9]+)?([eE][0-9]+)?"
 	errInvalidBooleanNullMsg          = "Invalid sequence %s: an array, object, string, number, boolean, or null was expected"
 	errInvalidCharMsg                 = "Invalid character %s: an array, object, string, number, boolean, or null was expected"
 )
@@ -218,10 +218,11 @@ func lexNumber(it iter.Iter[rune]) (token, error) {
 	// There must be first char, it may be a - or digit
 	val, err := it.Next()
 	var (
-		str       []rune
-		zv        token
-		haveDigit = val != '-'
-		die       = func() (token, error) {
+		str         []rune
+		zv          token
+		haveDigit   = val != '-'
+		leadingZero = val == '0'
+		die         = func() (token, error) {
 			if (err != nil) && (err != iter.EOI) {
 				// A problem
 				return zv, err
@@ -237,6 +238,7 @@ func lexNumber(it iter.Iter[rune]) (token, error) {
 			return token{tNumber, string(str)}, nil
 		}
 	)
+
 	str = append(str, val)
 
 	// Read digits until dot or e or non-dot non-e non-digit
@@ -256,6 +258,9 @@ func lexNumber(it iter.Iter[rune]) (token, error) {
 		if (val >= '0') && (val <= '9') {
 			haveDigit = true
 			str = append(str, val)
+			if leadingZero {
+				return die()
+			}
 		} else if val == '.' {
 			str = append(str, val)
 			if haveDigit {

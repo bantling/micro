@@ -213,7 +213,6 @@ func (d Decimal) Sign() (sgn int) {
 // 1.5 and 1.25 -> 1.50 and 1.25
 // 1.5 and 18 digits with no decimals -> 18 digits cannot increase scale, so round 1.5 to 2
 // 99_999_999_999_999_999.5 and 1 -> the 18 digits round to a 19 digit value, an error occurs
-// 
 func AdjustDecimalScale(d1, d2 *Decimal) error {
 	if d1.scale == d2.scale {
 		return nil
@@ -385,11 +384,11 @@ func (d Decimal) Cmp(o Decimal) int {
 	// Simple reverse compare in those cases
 	ds, os := da[0], oa[0]
 	if ((ds == '-') && (os == ' ')) ||
-	  ((ds == '-') && (os == '-')) ||
-	  ((ds == ' ') && (os == '-')) {
-	  return -compare
-    }
-	
+		((ds == '-') && (os == '-')) ||
+		((ds == ' ') && (os == '-')) {
+		return -compare
+	}
+
 	return compare
 }
 
@@ -618,7 +617,7 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // Result is 4.123
 //
 // 11. 1_234_567_890_123_456.78 / 2.5
-// 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3 
+// 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 1 = 1 -> 4_938_271_560_493_827 scale 1 = 493_827_156_049_382.7
 // 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 + 1 = 0.012
 // Result is 493_827_156_049_382.7 + 0.012 = 493_827_156_049_382.712
@@ -653,8 +652,8 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // = 1 / 200_000_000_001 * 10^6
 // = 1_000_000_000_000 / 200_000_000_001 * 10^18
 // = 4 r 199_999_999_996
-// = 4_000_000_000_000 / 199_999_999_996 = 
-//= 
+// = 4_000_000_000_000 / 199_999_999_996 =
+//=
 // = 5 scale 18 = 0.000_000_000_000_000_005
 //
 // 16. 100_000_000_000_000_000 / 0.1
@@ -668,7 +667,7 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //
 // 1. Divide dividend by divisor
 //    Scale = dividend scale - divisor scale
-//    
+//
 //
 // 1. While divisor scale > 1 and divisor % 10 = 0 (divisor has trailing zero fractional digits)
 //    (eliminate all divisor trailing zero fractional digits)
@@ -690,10 +689,10 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //   if o.value == 0 {
 //     return fmt.Errorf(errDecimalDivisionByZeroMsg, d)
 //   }
-// 
+//
 //   // Start with integer division, ignoring scale
 //   quo, rem := d.value / o.value, d.value % o.value
-// 
+//
 //   // Adjust scale of quo if necessary
 // //   if
 // }

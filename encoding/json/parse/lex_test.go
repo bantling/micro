@@ -69,6 +69,8 @@ func TestLexString_(t *testing.T) {
 }
 
 func TestLexNumber_(t *testing.T) {
+	assert.Equal(t, union.OfResult(token{tNumber, "0"}), union.OfResultError(lexNumber(iter.OfStringAsRunes("0"))))
+	assert.Equal(t, union.OfResult(token{tNumber, "-0"}), union.OfResultError(lexNumber(iter.OfStringAsRunes("-0"))))
 	assert.Equal(t, union.OfResult(token{tNumber, "1"}), union.OfResultError(lexNumber(iter.OfStringAsRunes("1"))))
 	assert.Equal(t, union.OfResult(token{tNumber, "1"}), union.OfResultError(lexNumber(iter.OfStringAsRunes("1a"))))
 	assert.Equal(t, union.OfResult(token{tNumber, "-1"}), union.OfResultError(lexNumber(iter.OfStringAsRunes("-1"))))
@@ -103,6 +105,7 @@ func TestLexNumber_(t *testing.T) {
 
 	for _, strs := range [][]string{
 		{"-", "-"},
+		{"01", "01"},
 		{"-.", "-."},
 		{"-e", "-e"},
 		{"-a", "-"},
@@ -118,7 +121,7 @@ func TestLexNumber_(t *testing.T) {
 		{"1.2e+", "1.2e+"},
 		{"1.2e-a", "1.2e-"},
 	} {
-		assert.Equal(t, union.OfError[token](fmt.Errorf("Invalid number %s: a number must satisfy the regex -?[0-9]+([.][0-9]+)?([eE][0-9]+)?", strs[1])), union.OfResultError(lexNumber(iter.OfStringAsRunes(strs[0]))))
+		assert.Equal(t, union.OfError[token](fmt.Errorf("Invalid number %s: a number must satisfy the regex -?(0|[1-9][0-9]+)([.][0-9]+)?([eE][0-9]+)?", strs[1])), union.OfResultError(lexNumber(iter.OfStringAsRunes(strs[0]))))
 	}
 
 	// Problem errors

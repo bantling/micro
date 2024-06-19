@@ -130,7 +130,7 @@ func TestAdjustDecimalScale_(t *testing.T) {
 	// the second cannot be multiplied by 10, so the 1.5 is rounded to 2
 	d1, d2 = MustDecimal(15, 1), MustDecimal(199_999_999_999_999_995, 0)
 	funcs.Must(AdjustDecimalScale(&d1, &d2))
-	assert.Equal(t, MustDecimal(2,0), d1)
+	assert.Equal(t, MustDecimal(2, 0), d1)
 	assert.Equal(t, MustDecimal(199_999_999_999_999_995, 0), d2)
 
 	d1, d2 = MustDecimal(15, 1), MustDecimal(999_999_999_999_999_995, 0)
@@ -179,7 +179,7 @@ func TestDecimalCmp_(t *testing.T) {
 
 	assert.Equal(t, -1, MustDecimal(-2).Cmp(MustDecimal(-1)))
 	assert.Equal(t, 0, MustDecimal(-2).Cmp(MustDecimal(-2)))
-	assert.Equal(t, 1, MustDecimal(-1).Cmp(MustDecimal(-2)))	
+	assert.Equal(t, 1, MustDecimal(-1).Cmp(MustDecimal(-2)))
 }
 
 func TestDecimalNegate_(t *testing.T) {
@@ -328,7 +328,7 @@ func TestDecimalDivIntQuoRem_(t *testing.T) {
 	// 100.00 / 3 = 33.33 r 00.01
 	de, dv := MustDecimal(100_00), uint(3)
 	assert.Equal(t, tuple.Of3(MustDecimal(3333), MustDecimal(1), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
-	
+
 	// -100.00 / 3 = -33.33 r -00.01
 	de, dv = MustDecimal(-100_00), uint(3)
 	assert.Equal(t, tuple.Of3(MustDecimal(-3333), MustDecimal(-1), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
