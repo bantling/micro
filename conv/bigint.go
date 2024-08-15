@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	goreflect "reflect"
 
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/reflect"
 )
 
 // IntToBigInt converts any signed int type into a *big.Int
@@ -20,6 +22,17 @@ func IntToBigInt[T constraint.SignedInteger](ival T, oval **big.Int) {
 func UintToBigInt[T constraint.UnsignedInteger](ival T, oval **big.Int) {
 	*oval = big.NewInt(0)
 	(*oval).SetUint64(uint64(ival))
+}
+
+// IntegerToBigInt converts and signed or unsigned int type into a *big.int
+func IntegerToBigInt[T constraint.Integer](ival T, oval **big.Int) {
+	rval := goreflect.ValueOf(ival)
+
+	if reflect.IsSignedInteger(rval.Type()) {
+		IntToBigInt(rval.Int(), oval)
+	} else {
+		UintToBigInt(rval.Uint(), oval)
+	}
 }
 
 // FloatToBigInt converts any float type to a *big.Int

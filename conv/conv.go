@@ -11,22 +11,17 @@ import (
 	"github.com/bantling/micro/constraint"
 	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/reflect"
-	unionreflect "github.com/bantling/micro/union/reflect"
 )
 
 var (
-	errLookupMsg                    = "%v cannot be converted to %v"
-	errCopyNilSourceMsg             = "A nil %s cannot be copied to a(n) %s"
-	errConvertNilSourceMsg          = "A nil %s cannot be converted to a(n) %s"
-	errCopyNilTargetMsg             = "A(n) %s cannot be copied to a nil %s"
-	errEmptyMaybeMsg                = "An empty %s cannot be converted to a(n) %s"
-	errMsg                          = "The %T value of %s cannot be converted to %s"
-	errRegisterMultiplePointersMsg  = "The %s type %s has too many pointers"
-	errRegisterExistsMsg            = "The conversion from %s to %s has already been registered"
-	errRegisterNilFuncMsg           = "The conversion from %s to %s requires a non-nil conversion function"
-	errRegisterWrapperInfoExistsMsg = "The wrapper type %s has already been registered"
-	errReflectToInvalidSrc          = fmt.Errorf("The src Value is Invalid")
-	errReflectToInvalidTgt          = fmt.Errorf("The tgt Value is Invalid")
+	errMsg        = "The %T value of %s cannot be converted to %s"
+	errONonNilMsg = "The target value of type %T cannot be nil"
+	errAnyToInvalidIMsg = "AnyTo cannot convert the input type %s"
+	errReflectToInvalidSrc = fmt.Errorf("ReflectTo source cannot be Invalid")
+  errReflectToInvalidTgt = fmt.Errorf("ReflectTo target cannot be Invalid")
+  errReflectToTgtMustBePtr = fmt.Errorf("ReflectTo target must be be a pointer")
+  errReflectToTgtBigTypeMsg = "The target value of type %T is invalid: big types have to be a **"
+  errReflectToLookupMsg = "There is no conversion function from %s to %s"
 
 	log2Of10 = math.Log2(10)
 
@@ -1012,465 +1007,205 @@ var (
 			return nil
 		},
 	}
-
-	badConversionKinds = map[goreflect.Kind]bool{
-		goreflect.Uintptr:       true,
-		goreflect.Chan:          true,
-		goreflect.Func:          true,
-		goreflect.UnsafePointer: true,
-	}
 )
 
-// ==== To and functions that support it
+// To converts any Numeric type or string to any Numeric type or string
+// If the types are the same, a copy by value is performed, unless they are big types.
+// For big type copies, a new pointer is constructed with a copy of the input value.
+// This allows the big copy to be modified without affecting the original big value.
+//
+// Note that subtypes are handled automatically by the generic constraints.
+func To[I, O constraint.Numeric | string](i I, o *O) error {
+	// Target cannot be nil
+	if o == nil {
+		return fmt.Errorf(errONonNilMsg, o)
+	}
 
-// RegisterConversion registers a conversion from a value of type S to a value of type T.
-// Note the conversion function must accept a pointer type for the target.
-// If the target is already a pointer type, an additional level of pointer is required.
-//
-// Examples:
-// RegisterConversion(0, Foo{}, func(int, *Foo) error {...})
-// RegisterConversion((*int)(nil), (*Foo)(nil), func(*int, **Foo) error {...})
-//
-// See LookupConversion for details
-func RegisterConversion[S, T any](convFn func(S, *T) error) error {
+	// Get reflection info on i and o
 	var (
-		zvs        S
-		zvt        T
-		sTyp, tTyp = goreflect.TypeOf(zvs), goreflect.TypeOf(zvt)
-		convKey    = sTyp.String() + tTyp.String()
+		ival = goreflect.ValueOf(i)
+		ityp = ival.Type()
+		oval = goreflect.ValueOf(o) // o cannot be nil, but o.Elem() can be nil
+		otyp = oval.Type().Elem()   // o.Type().Elem() cannot be nil
 	)
 
-	// Error if the conversion func is nil
-	if convFn == nil {
-		return fmt.Errorf(errRegisterNilFuncMsg, sTyp, tTyp)
-	}
-
-	// See if a conversion exists for the exact types given.
-	// If not, register it without bothering to use LookupConversion.
-	// This allows registering functions when the types or the same, or a similar conversion exists for convertible type(s).
-	if _, haveIt := convertFromTo[convKey]; haveIt {
-		// Return error that the conversion already exists
-		return fmt.Errorf(errRegisterExistsMsg, sTyp, tTyp)
-	}
-
-	// Store the conversion in the map - we have to store a func(any, any), so generate one
-	convertFromTo[convKey] = func(src, tgt any) error {
-		return convFn(src.(S), tgt.(*T))
-	}
-
-	return nil
-}
-
-// MustRegisterConversion is a must version of RegisterConversion
-func MustRegisterConversion[S, T any](convFn func(S, *T) error) {
-	funcs.Must(RegisterConversion(convFn))
-}
-
-// LookupConversion looks for a conversion from a source type to a target type.
-//
-// It is an error if either type is more than one pointer, or a uintptr, chan, func, or unsafe pointer.
-// If the source and target types are the same, a conversion function that just copies the source to the target is returned.
-// The source type may be of the following forms, where T represents any accepted value type:
-// - T
-// - *T
-// - Maybe[T]
-// - Maybe[*T]
-//
-// The target types are the same as the source types.
-// For any of the above forms, T may be a primitive sub type (eg, type subint int).
-// In such cases, up to four lookups are performed (first match is used):
-// - A conversion using the src sub  type and tgt sub  type
-// - A conversion using the src base type and tgt sub  type
-// - A conversion using the src sub  type and tgt base type
-// - A conversion using the src base type and tgt base type
-//
-// Example lookups, listing possible conversions in search order (shown without the extra * the target type has to have):
-// - int to string -> int to string
-// - subint to *string -> subint to string, int to string
-// - Maybe[int] to string -> int to string
-// - int to int -> copy
-// - subint to Maybe[*int] -> subint to *int, subint to int, copy
-//
-// Additionally, other packages can register custom functions to test if an instance of a type is effectively nil, similar
-// to an empty Maybe. The returned conversion will do a precheck to see if the src value is effectively nil, and if so,
-// proceed as if it is nil.
-//
-// This function returns func, error:
-// If a conversion is found (or it is a copy) : returns func, nil
-// If a conversion is not found               : returns nil,  nil
-// Conversion is not allowed                  : returns nil,  err
-func LookupConversion(src, tgt goreflect.Type) (func(any, any) error, error) {
-	// Verify src and tgt are not nil
-	if (src == nil) || (tgt == nil) {
-		return nil, fmt.Errorf(errLookupMsg, src, tgt)
-	}
-
-	// Verify the types are not more than one pointer
-	if (reflect.NumPointers(src) > 1) || (reflect.NumPointers(tgt) > 1) {
-		// A conversion CANNOT be registered for multiple pointers
-		return nil, fmt.Errorf(errLookupMsg, src, tgt)
-	}
-
-	// Verify the types are not uintptr, chan, func, or unsafe pointer
-	for _, check := range []goreflect.Type{src, tgt} {
-		if badConversionKinds[check.Kind()] {
-			// A conversion CANNOT be registered for these kinds
-			return nil, fmt.Errorf(errLookupMsg, src, tgt)
-		}
-	}
-
-	// Check for conversion from src to tgt as is, most common case
-	if conv, haveIt := convertFromTo[src.String()+tgt.String()]; haveIt {
-		return conv, nil
-	}
-
-	// Search every valid combination of src, tgt = val/subtype, *val/subtype, maybe val/subtype, maybe *val/subtype.
-	// Ensure we do not allow invalid combinations, such as *Maybe.
-	// If a conversion is found:
-	// - create a wrapper func that deals with conversions, *, maybe for both src and tgt
-	// - register it so future calls don't have to do same search
-	// - return it to caller
-	// If no converison found, return nil, error
-
-	var (
-		srcVal, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase goreflect.Type
-		tgtVal, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase goreflect.Type
-		convFn                                                                                    func(any, any) error
-		haveIt                                                                                    bool
-	)
-
-	srcVal = src
-	srcBase = reflect.TypeToBaseType(src)
-
-	if srcPtr = funcs.TernaryResult(src.Kind() == goreflect.Pointer, src.Elem, nil); srcPtr != nil {
-		srcVal = nil
-		srcPtrBase = reflect.TypeToBaseType(srcPtr)
-
-		if unionreflect.GetMaybeType(srcPtr) != nil {
-			// Cannot have a *Maybe, that makes no sense
-			return nil, fmt.Errorf(errLookupMsg, src, tgt)
-		}
-	}
-
-	if srcMaybe = unionreflect.GetMaybeType(src); srcMaybe != nil {
-		srcVal = nil
-		srcMaybeBase = reflect.TypeToBaseType(srcMaybe)
-
-		if srcMaybePtr = funcs.TernaryResult(srcMaybe.Kind() == goreflect.Pointer, srcMaybe.Elem, nil); srcMaybePtr != nil {
-			srcMaybePtrBase = reflect.TypeToBaseType(srcMaybePtr)
-		}
-	}
-
-	tgtVal = tgt
-	tgtBase = reflect.TypeToBaseType(tgt)
-
-	if tgtPtr = funcs.TernaryResult(tgt.Kind() == goreflect.Pointer, tgt.Elem, nil); tgtPtr != nil {
-		tgtVal = nil
-		tgtPtrBase = reflect.TypeToBaseType(tgtPtr)
-
-		if unionreflect.GetMaybeType(tgtPtr) != nil {
-			// Cannot have a *Maybe, that makes no sense
-			return nil, fmt.Errorf(errLookupMsg, src, tgt)
-		}
-	}
-
-	if tgtMaybe = unionreflect.GetMaybeType(tgt); tgtMaybe != nil {
-		tgtVal = nil
-		tgtMaybeBase = reflect.TypeToBaseType(tgtMaybe)
-
-		if tgtMaybePtr = funcs.TernaryResult(tgtMaybe.Kind() == goreflect.Pointer, tgtMaybe.Elem, nil); tgtMaybePtr != nil {
-			tgtMaybePtrBase = reflect.TypeToBaseType(tgtMaybePtr)
-		}
-	}
-
-	for _, srcTyp := range []goreflect.Type{
-		srcVal, srcBase, srcPtr, srcPtrBase, srcMaybe, srcMaybeBase, srcMaybePtr, srcMaybePtrBase,
-	} {
-		for _, tgtTyp := range []goreflect.Type{
-			tgtVal, tgtBase, tgtPtr, tgtPtrBase, tgtMaybe, tgtMaybeBase, tgtMaybePtr, tgtMaybePtrBase,
-		} {
-			// Cannot lookup conversions for types that don't exist
-			if (srcTyp != nil) && (tgtTyp != nil) {
-				convFn, haveIt = nil, srcTyp == tgtTyp
-				if !haveIt {
-					convFn, haveIt = convertFromTo[srcTyp.String()+tgtTyp.String()]
+	// If the types are the same, then a simple copy will suffice
+	if ityp == otyp {
+		// Are they big types?
+		if reflect.IsBigPtr(ityp) {
+			// If the input is nil, make the output nil
+			if ival.IsNil() {
+				oval.Elem().Set(ival)
+			} else {
+				// If the oval is the same pointer as ival or nil, allocate it
+				if (ival.Interface() == oval.Elem().Interface()) || oval.Elem().IsNil() {
+					oval.Elem().Set(goreflect.New(otyp.Elem()))
 				}
 
-				if haveIt {
-					// Generate a function to unwrap the src type and read it
-					var srcFn func(goreflect.Value) goreflect.Value
-					switch srcTyp {
-					case src:
-						srcFn = func(s goreflect.Value) goreflect.Value { return s }
-					case srcBase:
-						srcFn = func(s goreflect.Value) goreflect.Value { return s.Convert(srcBase) }
-					case srcPtr:
-						srcFn = func(s goreflect.Value) goreflect.Value {
-							if s.IsValid() {
-								return s.Elem()
-							}
-							return s
-						}
-					case srcPtrBase:
-						srcFn = func(s goreflect.Value) goreflect.Value {
-							if s.IsValid() && (!s.IsNil()) {
-								return s.Elem().Convert(srcPtrBase)
-							}
-							return s
-						}
-					case srcMaybe:
-						srcFn = func(s goreflect.Value) goreflect.Value { return unionreflect.GetMaybeValue(s) }
-					case srcMaybeBase:
-						srcFn = func(s goreflect.Value) goreflect.Value {
-							if temp := unionreflect.GetMaybeValue(s); temp.IsValid() {
-								return temp.Convert(srcMaybeBase)
-							} else {
-								return temp
-							}
-						}
-					case srcMaybePtr:
-						srcFn = func(s goreflect.Value) goreflect.Value {
-							if temp := unionreflect.GetMaybeValue(s); temp.IsValid() {
-								return temp.Elem()
-							} else {
-								return temp
-							}
-						}
-					case srcMaybePtrBase:
-						srcFn = func(s goreflect.Value) goreflect.Value {
-							if temp := unionreflect.GetMaybeValue(s); temp.IsValid() {
-								return temp.Elem().Convert(srcMaybePtrBase)
-							} else {
-								return temp
-							}
-						}
-					}
-
-					// Generate a function to wrap the tgt type
-					var tgtFn func(temp, t goreflect.Value)
-					switch tgtTyp {
-					case tgt:
-						tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem()) }
-					case tgtBase:
-						tgtFn = func(temp, t goreflect.Value) { t.Elem().Set(temp.Elem().Convert(tgt)) }
-					case tgtPtr:
-						tgtFn = func(temp, t goreflect.Value) {
-							if t.Elem().IsNil() {
-								t.Elem().Set(temp)
-							} else {
-								t.Elem().Elem().Set(temp.Elem())
-							}
-						}
-					case tgtPtrBase:
-						tgtFn = func(temp, t goreflect.Value) {
-							if t.Elem().IsNil() {
-								t.Elem().Set(temp.Convert(t.Elem().Type()))
-							} else {
-								t.Elem().Elem().Set(temp.Elem().Convert(tgt.Elem()))
-							}
-						}
-					case tgtMaybe:
-						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp.Elem()) }
-					case tgtMaybeBase:
-						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp.Elem().Convert(tgtMaybe)) }
-					case tgtMaybePtr:
-						tgtFn = func(temp, t goreflect.Value) { unionreflect.SetMaybeValue(t, temp) }
-					case tgtMaybePtrBase:
-						tgtFn = func(temp, t goreflect.Value) {
-							unionreflect.SetMaybeValue(t, temp.Convert(goreflect.PtrTo(tgtMaybePtr)))
-						}
-					}
-
-					// If convFn is nil and the types are the same, generate a copy function
-					if (convFn == nil) && (srcTyp == tgtTyp) {
-						convFn = func(s, t any) error {
-							goreflect.ValueOf(t).Elem().Set(goreflect.ValueOf(s))
-							return nil
-						}
-					}
-
-					// Return a conversion function that unwraps the source as needed, and wraps the target value as needed
-					return func(s, t any) error {
-						// Use reflection to do runtime type assertion exactly like a provided conversion function would
-						// This ensure two things:
-						// - A copy conversion does not inadvertently allow copying any random types that happen to be the same
-						// - Registered conversions panic with errors that indicate if the source or target type is the problem
-						srcVal, tgtVal := goreflect.ValueOf(s), goreflect.ValueOf(t)
-
-						// The source may be an untyped nil
-						if srcVal.IsValid() {
-							// If not, then assert types match
-							reflect.MustTypeAssert(srcVal, src, "source")
-						}
-
-						// The target cannot be an untyped nil:
-						// - conv.To accepts *T, which camn only be a typed nil
-						// - reflect.Value.Call requires all arguments to be a valid Value object
-
-						// The target may be a typed nil
-						if reflect.IsNil(tgtVal) {
-							return fmt.Errorf(errCopyNilTargetMsg, src, tgt)
-						}
-						// If the target is not nil, then assert types match
-						reflect.MustTypeAssert(tgtVal, goreflect.PtrTo(tgt), "target")
-
-						// Unwrap src value, which will be invalid for nil ptr or empty maybe
-						srcVal = srcFn(srcVal)
-
-						if reflect.IsNil(srcVal) {
-							// Tgt must be nillable or maybe
-							if reflect.IsNillable(tgt) {
-								// Tgt is nillable)
-								tgtVal.Elem().SetZero()
-							} else if tgtMaybe != nil {
-								// Tgt is a Maybe
-								unionreflect.SetMaybeValueEmpty(tgtVal)
-							} else if srcMaybe == nil {
-								// Tgt cannot be nil, src is a nil Ptr
-								return fmt.Errorf(errConvertNilSourceMsg, src, tgt)
-							} else {
-								// Tgt cannot be nil, src is an empty Maybe
-								return fmt.Errorf(errEmptyMaybeMsg, src, tgt)
-							}
-
-							return nil
-						}
-
-						// Create a pointer to the target unwrapped type for the conversion to write to
-						temp := goreflect.New(tgtTyp)
-
-						// Convert source -> unwrapped target
-						err := convFn(funcs.TernaryResult(srcVal.IsValid(), srcVal.Interface, nil), temp.Interface())
-
-						// Wrap target value only if no error occurred - the target is unmodified if the conversion fails
-						if err == nil {
-							tgtFn(temp, tgtVal)
-						}
-
-						// Return any error
-						return err
-					}, nil
-				}
+				// ival is non-nil, oval is non-nil and not the same pointer as ival
+				// Copy the value
+				oval.Elem().Elem().Set(ival.Elem())
 			}
+		} else {
+			// All non-big types are value types, just copy the value
+			oval.Set(ival)
 		}
-	}
 
-	return nil, nil
-}
-
-// To converts any supported combination of source and target types.
-//
-// The actual conversion is performed by:
-// - functions declared in this source file
-// - functions registered by other packages in this library
-// - functions registered by other packages outside this library
-//
-// The source is typed any for two reasons:
-// - to allow for cases where the caller accepts type any
-// - arbitrary new conversions can be registered (ideally via an init function)
-//
-// The target is a *T because Go can infer generic parameters, but not generic return types.
-// So instead of writing this:
-//
-//	var str = conv.To[int, string](0)
-//
-// We write this:
-//
-//	var str string
-//	conv.To(0, &str)
-//
-// It is a design choice to not make the user constantly repeat generic types for every conversion.
-//
-// See LookupConversion for the algorithm to find a registered conversion function.
-// There are 4 cases:
-// 1. LookupConversion does not find a conversion, the conversion is allowable, the types are the same
-//   - The source value is copied to the target
-//   - If the source is a pointer, the target gets a copy of the pointer, so source and target point to same address
-//
-// 2. LookupConversion does not find a conversion, the conversion is allowable, the types are different
-//   - Returns error that source cannot be converted to target
-//
-// 3. LookupConversion returns an error
-//   - The error is returned as is
-//
-// 4. LookupConversion finds a conversion:
-//   - The conversion is applied
-func To[T any](src any, tgt *T) error {
-	var (
-		valsrc = goreflect.ValueOf(src)
-		valtgt = goreflect.ValueOf(tgt)
-		srcTyp = valsrc.Type()
-		tgtTyp = valtgt.Type().Elem()
-	)
-
-	// Use LookupConversion to find the conversion function, if it exists
-	fn, err := LookupConversion(srcTyp, tgtTyp)
-	switch {
-	case (fn == nil) && (err == nil):
-		// No conversion exists, but could be registered
-		return fmt.Errorf(errLookupMsg, srcTyp, tgtTyp)
-
-	case err != nil:
-		// Conversion will never be possible
-		return err
-
-	default:
-		// Conversion exists
-		return fn(src, tgt)
-	}
-}
-
-// MustTo is a Must version of To
-func MustTo[T any](src any, tgt *T) {
-	funcs.Must(To(src, tgt))
-}
-
-// ToBigOps is the BigOps version of To
-func ToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) error {
-	var (
-		valsrc = goreflect.ValueOf(src)
-		valtgt = goreflect.ValueOf(tgt)
-	)
-
-	// Convert source to base type
-	valsrc = reflect.ValueToBaseType(valsrc)
-
-	// No conversion function exists if src and *tgt are the same type
-	if valsrc.Type() == valtgt.Elem().Type() {
-		valtgt.Elem().Set(valsrc)
 		return nil
 	}
 
-	// Types differ, lookup conversion using base types and execute it, returning result
-	return convertFromTo[valsrc.Type().String()+valtgt.Type().Elem().String()](valsrc.Interface(), valtgt.Interface())
+	// Oval is non-nil
+	oval = oval.Elem()
+
+	// Construct a string of the input and output types (eg "int8int" means int8 -> int)
+	// Use the string as an index into the convertFromTo map
+	return convertFromTo[ityp.String()+otyp.String()](any(ival.Interface()), any(oval.Interface()))
+}
+
+// MustTo is a Must version of To
+func MustTo[I, O constraint.Numeric | string](i I, o *O) {
+	funcs.Must(To(i, o))
+}
+
+// AnyTo is a version of To that accepts input values of type any
+// The input value must still satisfy constraint.Numeric | string
+func AnyTo[O constraint.Numeric | string](i any, o *O) error {
+  var (
+    iv   =  goreflect.ValueOf(i)
+    ival = reflect.ValueToBaseType(iv).Interface()
+  )
+  
+	switch iv.Kind() {
+	case goreflect.Int:
+		return To(ival.(int), o)
+	case goreflect.Int8:
+		return To(ival.(int8), o)
+	case goreflect.Int16:
+		return To(ival.(int16), o)
+	case goreflect.Int32:
+		return To(ival.(int32), o)
+	case goreflect.Int64:
+		return To(ival.(int64), o)
+	case goreflect.Uint:
+		return To(ival.(uint), o)
+	case goreflect.Uint8:
+		return To(ival.(uint8), o)
+	case goreflect.Uint16:
+		return To(ival.(uint16), o)
+	case goreflect.Uint32:
+		return To(ival.(uint32), o)
+	case goreflect.Uint64:
+		return To(ival.(uint64), o)
+	case goreflect.Float32:
+		return To(ival.(float32), o)
+	case goreflect.Float64:
+		return To(ival.(float64), o)
+  case goreflect.String:
+    return To(ival.(string), o)
+	case goreflect.Ptr:
+		if bi, isa := i.(*big.Int); isa {
+			return To(bi, o)
+		} else if bf, isa := i.(*big.Float); isa {
+			return To(bf, o)
+		} else if br, isa := i.(*big.Rat); isa {
+			return To(br, o)
+		}
+	}
+
+	return fmt.Errorf(errAnyToInvalidIMsg, iv.Type())
+}
+
+// ToBigOps is the BigOps version of To
+func ToBigOps[I constraint.Numeric | string, O constraint.BigOps[O]](i I, o *O) error {
+	// Target cannot be nil
+	if o == nil {
+		return fmt.Errorf(errONonNilMsg, o)
+	}
+
+	var (
+		ival = goreflect.ValueOf(i)
+		ityp = ival.Type()
+		oval = goreflect.ValueOf(o) // o cannot be nil, but o.Elem() can be nil
+		otyp = oval.Type().Elem()   // o.Type().Elem() cannot be nil
+	)
+
+	// If the types are the same, then a simple copy will suffice
+	if ityp == otyp {
+		// If the input is nil, make the output nil
+		if ival.IsNil() {
+			oval.Elem().Set(ival)
+		} else {
+			// If the oval is the same pointer as ival or nil, allocate it
+			if (ival.Interface() == oval.Elem().Interface()) || oval.Elem().IsNil() {
+				oval.Elem().Set(goreflect.New(otyp.Elem()))
+			}
+
+			// ival is non-nil, oval is non-nil and not the same pointer as ival
+			// Copy the value
+			oval.Elem().Elem().Set(ival.Elem())
+		}
+
+		return nil
+	}
+
+	// Types differ, lookup conversion using types and execute it, returning result
+	return convertFromTo[ityp.String()+otyp.String()](ival.Interface(), oval.Interface())
 }
 
 // MustToBigOps is a Must version of ToBigOps
-func MustToBigOps[S constraint.Numeric | ~string, T constraint.BigOps[T]](src S, tgt *T) {
-	funcs.Must(ToBigOps(src, tgt))
+func MustToBigOps[I constraint.Numeric | string, O constraint.BigOps[O]](i I, o *O) {
+	funcs.Must(ToBigOps(i, o))
 }
 
 // ReflectTo uses reflection objects to convert from source to target.
 // This function is useful for reflection algorithms that need to do conversions.
 // The tgt must wrap a pointer.
-func ReflectTo(src, tgt goreflect.Value) error {
-	// Die if src is invalid
-	if !src.IsValid() {
-		return errReflectToInvalidSrc
-	}
+func ReflectTo(i, o goreflect.Value) error {
+  // Die if i is invalid
+  if !i.IsValid() {
+    return errReflectToInvalidSrc
+  }
 
-	// Die if tgt is invalid
-	if !tgt.IsValid() {
-		return errReflectToInvalidTgt
-	}
+  // Die if o is invalid
+  if !o.IsValid() {
+    return errReflectToInvalidTgt
+  }
+  
+  // Die if o is not a pointer
+  if o.Kind() != goreflect.Pointer {
+    return errReflectToTgtMustBePtr
+  }
+  
+  var (
+   ityp = i.Type()
+   otyp = o.Type()
+  )
+  
+  // Die if o is nil
+  if o.IsNil() {
+    return fmt.Errorf(errONonNilMsg, otyp)
+  }
+  
+  // Die if o is a big type that is a value or only one pointer
+  if (
+    ((otyp.Kind() == goreflect.Struct) && reflect.IsBigPtr(goreflect.PointerTo(otyp))) ||
+    reflect.IsBigPtr(otyp)) {
+    return fmt.Errorf(errReflectToTgtBigTypeMsg, otyp)
+  }
 
-	// Try to convert src into tgt using LookupConversion to find a conversion based on their types
-	// Note that To expects a target pointer, but derefs the type when calling LookupConversion
-	if convFn, err := LookupConversion(src.Type(), tgt.Type().Elem()); err != nil {
-		return err
-	} else if convFn == nil {
-		return fmt.Errorf(errLookupMsg, src.Type(), tgt.Type())
-	} else {
-		return convFn(src.Interface(), tgt.Interface())
-	}
+  // Convert output to a base type
+  ob := reflect.ValueToBaseType(o)
+
+  // Locate a conversion function in convertFromTo map  
+  convFn := convertFromTo[(ityp.String()+ob.Type().Elem().String())]
+  if convFn == nil {
+    return fmt.Errorf(errReflectToLookupMsg, ityp, otyp)
+  }
+  
+  return convFn(i.Interface(), ob.Interface())
+}
+
+// MustReflectTo is a Must version of ReflectTo
+func MustReflectTo(i, o goreflect.Value) {
+  funcs.Must(ReflectTo(i, o))
 }

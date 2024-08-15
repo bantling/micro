@@ -475,8 +475,8 @@ func SubUint[T constraint.UnsignedInteger](me T, sed *T) error {
 // Unsigned types can only overflow.
 func Mul[T constraint.Integer](mp T, ma *T) error {
 	var mpBI, maBI *big.Int
-	conv.To(mp, &mpBI)
-	conv.To(*ma, &maBI)
+	conv.IntegerToBigInt(mp, &mpBI)
+	conv.IntegerToBigInt(*ma, &maBI)
 	maBI.Mul(mpBI, maBI)
 
 	if err := conv.To(maBI, ma); err != nil {

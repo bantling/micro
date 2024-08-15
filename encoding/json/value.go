@@ -222,8 +222,8 @@ func numberToValue(val any) (nval Value, err error) {
 		// *big.Rat must be converted to a normalized string.
 		str = conv.BigRatToNormalizedString(br)
 	} else {
-		// All other numeric types that remain are convertible to string by conv.To
-		if err = conv.To(val, &str); err != nil {
+		// All other numeric types that remain are convertible to string by conv.AnyTo
+		if err = conv.AnyTo(val, &str); err != nil {
 			return
 		}
 

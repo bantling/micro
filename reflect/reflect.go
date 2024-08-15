@@ -166,6 +166,20 @@ func IsBigPtr(typ goreflect.Type) bool {
 	return isBig
 }
 
+// IsSignedInteger returns true if the given type satisfies constraint.SignedInteger
+// Useful if you accept constraint.Integer and need to handle SignedInteger and UnsignedInteger separately
+func IsSignedInteger(typ goreflect.Type) bool {
+	knd := typ.Kind()
+	return (knd >= goreflect.Int) && (knd <= goreflect.Int64)
+}
+
+// IsUnsignedInteger returns true if the given type satisfies constraint.UnsignedInteger
+// Useful if you accept constraint.Integer and need to handle SignedInteger and UnsignedInteger separately
+func IsUnsignedInteger(typ goreflect.Type) bool {
+	knd := typ.Kind()
+	return (knd >= goreflect.Uint) && (knd <= goreflect.Uint64)
+}
+
 // IsNumeric returns true if the given type satisfies constraint.Numeric
 func IsNumeric(typ goreflect.Type) bool {
 	knd := typ.Kind()

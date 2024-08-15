@@ -14,6 +14,8 @@ import (
 )
 
 var (
+	errToNilMsg = "To[%s, %s] cannot be called with a nil output pointer"
+
 	minIntValue = map[int]int{
 		8:  math.MinInt8,
 		16: math.MinInt16,

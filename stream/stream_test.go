@@ -540,15 +540,15 @@ func TestAvgInt_(t *testing.T) {
 	assert.Equal(t, union.OfResult(2), iter.Maybe(it))
 	assert.Equal(t, union.OfError[int](iter.EOI), iter.Maybe(it))
 
-	it = AvgInt(iter.Of(1, gomath.MaxInt))
-	assert.Equal(t, union.OfError[int](math.OverflowErr), iter.Maybe(it))
+   it = AvgInt(iter.Of(1, gomath.MaxInt))
+   assert.Equal(t, union.OfError[int](math.OverflowErr), iter.Maybe(it))
 
-	it = AvgInt(iter.OfEmpty[int]())
-	assert.Equal(t, union.OfError[int](iter.EOI), iter.Maybe(it))
+   it = AvgInt(iter.OfEmpty[int]())
+   assert.Equal(t, union.OfError[int](iter.EOI), iter.Maybe(it))
 
-	err := fmt.Errorf("An err")
-	it = AvgInt(iter.SetError(iter.Of(1), err))
-	assert.Equal(t, union.OfError[int](err), iter.Maybe(it))
+   err := fmt.Errorf("An err")
+   it = AvgInt(iter.SetError(iter.Of(1), err))
+   assert.Equal(t, union.OfError[int](err), iter.Maybe(it))
 }
 
 func TestAvgUint_(t *testing.T) {

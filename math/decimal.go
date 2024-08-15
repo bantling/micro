@@ -132,7 +132,7 @@ func StringToDecimal(value string) (d Decimal, err error) {
 	d.scale = uint(len(parts[3]))
 
 	// Combine digits before and after decimal into a single string, and convert it to the int64 value
-	conv.To(parts[2]+parts[3], &d.value)
+	conv.StringToInt64(parts[2]+parts[3], &d.value)
 
 	// If there is a leading minus sign, negate the value
 	if len(parts[1]) > 0 {
@@ -145,7 +145,7 @@ func StringToDecimal(value string) (d Decimal, err error) {
 // String is the Stringer interface
 func (d Decimal) String() (str string) {
 	// Convert the abs value of the int to a string to start
-	conv.To(funcs.Ternary(d.value < 0, -d.value, d.value), &str)
+	str = conv.IntToString(funcs.Ternary(d.value < 0, -d.value, d.value))
 
 	// Get number of significant digits (length of string)
 	numSig := uint(len(str))
@@ -227,8 +227,8 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 
 	// Convert d1 and d2 to strings of digits only, to see how many significant digits they possess
 	var str1, str2 string
-	conv.To(funcs.Ternary(d1.value >= 0, d1.value, -d1.value), &str1)
-	conv.To(funcs.Ternary(d2.value >= 0, d2.value, -d2.value), &str2)
+	str1 = conv.IntToString(funcs.Ternary(d1.value >= 0, d1.value, -d1.value))
+	str2 = conv.IntToString(funcs.Ternary(d2.value >= 0, d2.value, -d2.value))
 
 	var (
 		len1       = len(str1)
@@ -286,7 +286,7 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 
 		// Set d1 value (preserving sign)
 		neg := d1.value < 0
-		conv.To(str1, &d1.value)
+		conv.StringToInt64(str1, &d1.value)
 		if neg {
 			d1.value = -d1.value
 		}
