@@ -1184,9 +1184,9 @@ func TestReflectTo_(t *testing.T) {
 		assert.Equal(t, errReflectToInvalidTgt, ReflectTo(goreflect.ValueOf(4), goreflect.Value{}))
 
 		// cannot convert a src type with multiple pointers (failure in LookupConversion)
-		assert.Equal(t, fmt.Errorf("**int cannot be converted to conv.Foo"), ReflectTo(goreflect.ValueOf((**int)(nil)), goreflect.ValueOf(&f)))
+		assert.Equal(t, fmt.Errorf("There is no conversion function from **int to conv.Foo"), ReflectTo(goreflect.ValueOf((**int)(nil)), goreflect.ValueOf(&f)))
 
 		// non-existent conversion from int to struct (LookupConversion returns a nil conversion func)
-		assert.Equal(t, fmt.Errorf("int cannot be converted to *conv.Foo"), ReflectTo(goreflect.ValueOf(3), goreflect.ValueOf(&f)))
+		assert.Equal(t, fmt.Errorf("There is no conversion function from int to conv.Foo"), ReflectTo(goreflect.ValueOf(3), goreflect.ValueOf(&f)))
 	}
 }

@@ -1022,10 +1022,11 @@ func To[I, O constraint.Numeric | string](i I, o *O) error {
 	}
 
 	// Get reflection info on i and o
+  // If i and/or o is a subtype, convert it to the base type, so we can find a conversion function
 	var (
-		ival = goreflect.ValueOf(i)
+		ival = reflect.ValueToBaseType(goreflect.ValueOf(i))
 		ityp = ival.Type()
-		oval = goreflect.ValueOf(o) // o cannot be nil, but o.Elem() can be nil
+		oval = reflect.ValueToBaseType(goreflect.ValueOf(o)) // o cannot be nil, but o.Elem() can be nil
 		otyp = oval.Type().Elem()   // o.Type().Elem() cannot be nil
 	)
 
@@ -1048,14 +1049,11 @@ func To[I, O constraint.Numeric | string](i I, o *O) error {
 			}
 		} else {
 			// All non-big types are value types, just copy the value
-			oval.Set(ival)
+			oval.Elem().Set(ival)
 		}
 
 		return nil
 	}
-
-	// Oval is non-nil
-	oval = oval.Elem()
 
 	// Construct a string of the input and output types (eg "int8int" means int8 -> int)
 	// Use the string as an index into the convertFromTo map
@@ -1199,7 +1197,7 @@ func ReflectTo(i, o goreflect.Value) error {
   // Locate a conversion function in convertFromTo map  
   convFn := convertFromTo[(ityp.String()+ob.Type().Elem().String())]
   if convFn == nil {
-    return fmt.Errorf(errReflectToLookupMsg, ityp, otyp)
+    return fmt.Errorf(errReflectToLookupMsg, ityp, otyp.Elem())
   }
   
   return convFn(i.Interface(), ob.Interface())
