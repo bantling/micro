@@ -154,7 +154,7 @@ func lexString(it iter.Iter[rune]) (token, error) {
 				if utf16.IsSurrogate(hexVal) {
 					temp2 := []rune{}
 
-					// Then we expect another \u sequence to immediately follow that is alao part of a surrogate pair
+					// Then we expect another \u sequence to immediately follow that is also part of a surrogate pair
 					if val, err = it.Next(); err != nil {
 						if err == iter.EOI {
 							return zv, fmt.Errorf(errOneSurrogateEscapeMsg, string(temp))
