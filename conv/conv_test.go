@@ -14,6 +14,11 @@ import (
 )
 
 func TestTo_(t *testing.T) {
+  // Nil target error
+  {
+    assert.Equal(t, fmt.Errorf("The target value of type *int cannot be nil"), To(0, (*int)(nil)))
+  }
+
 	// == int
 	{
 		var i int
@@ -60,20 +65,44 @@ func TestTo_(t *testing.T) {
 		// bigs
 		assert.Nil(t, To(big.NewInt(1), &i))
 		assert.Equal(t, 1, i)
-
-		bi := big.NewInt(math.MaxInt64)
-		bi = bi.Mul(bi, big.NewInt(2))
-		assert.Equal(t, fmt.Errorf("The *big.Int value of 18446744073709551614 cannot be converted to int64"), To(bi, &i))
-
-		funcs.TryTo(
-			func() {
-				MustTo(bi, &i)
-				assert.Fail(t, "Never execute")
-			},
-			func(e any) {
-				assert.Equal(t, "The *big.Int value of 18446744073709551614 cannot be converted to int64", e.(error).Error())
-			},
-		)
+		
+		{
+      // big to big of same type, input is nil
+      var bi *big.Int
+      var bo *big.Int = big.NewInt(0)
+      assert.Nil(t, To(bi, &bo))
+      assert.Nil(t, bo)
+    
+      // big to big of same type, and are same pointer
+      bi = big.NewInt(1)
+      bo = bi
+      assert.Nil(t, To(bi, &bo))
+      assert.False(t, bi == bo)
+      assert.Equal(t, big.NewInt(1), bi)
+      assert.Equal(t, big.NewInt(1), bo)
+      
+      // big to big of same type, output is nil
+      bi = big.NewInt(1)
+      bo = nil
+      assert.Nil(t, To(bi, &bo))
+      assert.False(t, bi == bo)
+      assert.Equal(t, big.NewInt(1), bi)
+      assert.Equal(t, big.NewInt(1), bo)
+    
+  		bi = big.NewInt(math.MaxInt64)
+  		bi = bi.Mul(bi, big.NewInt(2))
+  		assert.Equal(t, fmt.Errorf("The *big.Int value of 18446744073709551614 cannot be converted to int64"), To(bi, &i))
+  
+  		funcs.TryTo(
+  			func() {
+  				MustTo(bi, &i)
+  				assert.Fail(t, "Never execute")
+  			},
+  			func(e any) {
+  				assert.Equal(t, "The *big.Int value of 18446744073709551614 cannot be converted to int64", e.(error).Error())
+  			},
+  		)
+		}
 
 		assert.Nil(t, To(big.NewFloat(2), &i))
 		assert.Equal(t, 2, i)
@@ -1101,16 +1130,112 @@ func TestTo_(t *testing.T) {
 	}
 }
 
+func TestAnyTo_(t *testing.T) {
+  var o int
+  
+  // int
+  assert.Nil(t, AnyTo(1, &o))
+  assert.Equal(t, 1, o)
+  
+  // int8
+  assert.Nil(t, AnyTo(int8(2), &o))
+  assert.Equal(t, 2, o)
+  
+  // int16
+  assert.Nil(t, AnyTo(int16(3), &o))
+  assert.Equal(t, 3, o)
+  
+  // int32
+  assert.Nil(t, AnyTo(int32(4), &o))
+  assert.Equal(t, 4, o)
+  
+  // int64
+  assert.Nil(t, AnyTo(int64(5), &o))
+  assert.Equal(t, 5, o)
+  
+  // uint
+  assert.Nil(t, AnyTo(uint(6), &o))
+  assert.Equal(t, 6, o)
+  
+  // uint8
+  assert.Nil(t, AnyTo(uint8(7), &o))
+  assert.Equal(t, 7, o)
+  
+  // uint16
+  assert.Nil(t, AnyTo(uint16(8), &o))
+  assert.Equal(t, 8, o)
+  
+  // uint32
+  assert.Nil(t, AnyTo(uint32(9), &o))
+  assert.Equal(t, 9, o)
+  
+  // uint64
+  assert.Nil(t, AnyTo(uint64(10), &o))
+  assert.Equal(t, 10, o)
+  
+  // float32
+  assert.Nil(t, AnyTo(float32(11), &o))
+  assert.Equal(t, 11, o)
+  
+  // float64
+  assert.Nil(t, AnyTo(float64(12), &o))
+  assert.Equal(t, 12, o)
+  
+  // string
+  assert.Nil(t, AnyTo("13", &o))
+  assert.Equal(t, 13, o)
+  
+  // *big.Int
+  assert.Nil(t, AnyTo(big.NewInt(14), &o))
+  assert.Equal(t, 14, o)
+  
+  // *big.Float
+  assert.Nil(t, AnyTo(big.NewFloat(15), &o))
+  assert.Equal(t, 15, o)
+  
+  // *big.Rat
+  assert.Nil(t, AnyTo(big.NewRat(16, 1), &o))
+  assert.Equal(t, 16, o)
+  
+  // Any other value is an error
+  assert.Equal(
+    t,
+    fmt.Errorf("AnyTo cannot convert the input type struct { Name string }"),
+    AnyTo(struct {Name string}{Name: "Foo"}, &o),
+  ) 
+}
+
 func TestToBigOps_(t *testing.T) {
+  // Target cannot be nil
+  assert.Equal(t, fmt.Errorf("The target value of type **big.Int cannot be nil"), ToBigOps(1, (**big.Int)(nil)))
+  
 	{
+	  // int to *big.Int
 		var bi *big.Int
 		assert.Nil(t, ToBigOps(1, &bi))
 		assert.Equal(t, big.NewInt(1), bi)
+		
+		// copy nil *big.Int to non-nil *big.Int
+		bi = nil
+		var nbi *big.Int = big.NewInt(2)
+		assert.Nil(t, ToBigOps(bi, &nbi))
+		assert.Nil(t, nbi)
 
-		assert.Nil(t, ToBigOps(bi, &bi))
-		assert.Equal(t, big.NewInt(1), bi)
+    // copy *big.Int to *big.Int with same pointer
+    bi = big.NewInt(2)
+    nbi = bi
+		assert.Nil(t, ToBigOps(bi, &nbi))
+		assert.False(t, nbi == bi)
+		assert.Equal(t, big.NewInt(2), nbi)
+		
+		// copy *big.Int to nil *big.Int
+		bi = big.NewInt(3)
+		nbi = nil
+		assert.Nil(t, ToBigOps(bi, &nbi))
+		assert.False(t, nbi == bi)
+		assert.Equal(t, big.NewInt(3), nbi)
 
-		// byte to *big.Int, which is relly uint8 to *big.Int
+		// byte to *big.Int, which is really uint8 to *big.Int
 		// verify subtypes are handled correctly
 		assert.Nil(t, To(byte('A'), &bi))
 		assert.Equal(t, big.NewInt('A'), bi)
@@ -1182,6 +1307,18 @@ func TestReflectTo_(t *testing.T) {
 
 		// cannot convert from int to Invalid (failure in ReflectTo)
 		assert.Equal(t, errReflectToInvalidTgt, ReflectTo(goreflect.ValueOf(4), goreflect.Value{}))
+		
+		// cannot convert to a non-pointer
+		assert.Equal(t, fmt.Errorf("ReflectTo target must be be a pointer"), ReflectTo(goreflect.ValueOf(5), goreflect.ValueOf(6)))
+    
+    // cannot convert to a nil pointer
+    assert.Equal(t, fmt.Errorf("The target value of type *int cannot be nil"), ReflectTo(goreflect.ValueOf(7), goreflect.ValueOf((*int)(nil))))
+    
+    // cannot convert to big value
+    assert.Equal(t, fmt.Errorf("ReflectTo target must be be a pointer"), ReflectTo(goreflect.ValueOf(8), goreflect.ValueOf(big.Int{})))
+    
+    // cannot convert to big pointer
+    assert.Equal(t, fmt.Errorf("The target value of type *big.Int is invalid: big types have to be a **"), ReflectTo(goreflect.ValueOf(9), goreflect.ValueOf(big.NewInt(9))))
 
 		// cannot convert a src type with multiple pointers (failure in LookupConversion)
 		assert.Equal(t, fmt.Errorf("There is no conversion function from **int to conv.Foo"), ReflectTo(goreflect.ValueOf((**int)(nil)), goreflect.ValueOf(&f)))
@@ -1190,3 +1327,21 @@ func TestReflectTo_(t *testing.T) {
 		assert.Equal(t, fmt.Errorf("There is no conversion function from int to conv.Foo"), ReflectTo(goreflect.ValueOf(3), goreflect.ValueOf(&f)))
 	}
 }
+
+func TestMustReflectTo_(t *testing.T) {
+  var s string
+  MustReflectTo(goreflect.ValueOf(1), goreflect.ValueOf(&s))
+  assert.Equal(t, "1", s)
+
+  funcs.TryTo(
+    func() {
+      var i int
+      MustReflectTo(goreflect.ValueOf("a"), goreflect.ValueOf(&i))
+      assert.Fail(t, "Never execute")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Sprintf("The string value of a cannot be converted to int64"), e.(error).Error())
+    },
+  )
+}
+

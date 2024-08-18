@@ -164,6 +164,28 @@ func TestIsBigPtr_(t *testing.T) {
 	assert.False(t, IsBigPtr(goreflect.TypeOf(0)))
 }
 
+func TestIsSignedInteger_(t *testing.T) {
+  assert.True(t, IsSignedInteger(goreflect.TypeOf(int(0))))
+  assert.True(t, IsSignedInteger(goreflect.TypeOf(int8(0))))
+  assert.True(t, IsSignedInteger(goreflect.TypeOf(int16(0))))
+  assert.True(t, IsSignedInteger(goreflect.TypeOf(int32(0))))
+  assert.True(t, IsSignedInteger(goreflect.TypeOf(int64(0))))
+  
+  assert.False(t, IsSignedInteger(goreflect.TypeOf(uint(0))))
+  assert.False(t, IsSignedInteger(goreflect.TypeOf("")))
+}
+
+func TestIsUnsignedInteger_(t *testing.T) {
+  assert.True(t, IsUnsignedInteger(goreflect.TypeOf(uint(0))))
+  assert.True(t, IsUnsignedInteger(goreflect.TypeOf(uint8(0))))
+  assert.True(t, IsUnsignedInteger(goreflect.TypeOf(uint16(0))))
+  assert.True(t, IsUnsignedInteger(goreflect.TypeOf(uint32(0))))
+  assert.True(t, IsUnsignedInteger(goreflect.TypeOf(uint64(0))))
+  
+  assert.False(t, IsUnsignedInteger(goreflect.TypeOf(int(0))))
+  assert.False(t, IsUnsignedInteger(goreflect.TypeOf("")))
+}
+
 func TestIsNumeric_(t *testing.T) {
 	assert.True(t, IsNumeric(goreflect.TypeOf(int(0))))
 	assert.True(t, IsNumeric(goreflect.TypeOf(int8(0))))

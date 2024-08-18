@@ -1066,7 +1066,7 @@ func MustTo[I, O constraint.Numeric | string](i I, o *O) {
 }
 
 // AnyTo is a version of To that accepts input values of type any
-// The input value must still satisfy constraint.Numeric | string
+// The output value must still satisfy constraint.Numeric | string
 func AnyTo[O constraint.Numeric | string](i any, o *O) error {
   var (
     iv   =  goreflect.ValueOf(i)
@@ -1181,14 +1181,12 @@ func ReflectTo(i, o goreflect.Value) error {
   
   // Die if o is nil
   if o.IsNil() {
-    return fmt.Errorf(errONonNilMsg, otyp)
+    return fmt.Errorf(errONonNilMsg, o.Interface())
   }
   
   // Die if o is a big type that is a value or only one pointer
-  if (
-    ((otyp.Kind() == goreflect.Struct) && reflect.IsBigPtr(goreflect.PointerTo(otyp))) ||
-    reflect.IsBigPtr(otyp)) {
-    return fmt.Errorf(errReflectToTgtBigTypeMsg, otyp)
+  if reflect.IsBigPtr(otyp) {
+    return fmt.Errorf(errReflectToTgtBigTypeMsg, o.Interface())
   }
 
   // Convert output to a base type

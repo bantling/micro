@@ -29,6 +29,15 @@ func TestUintToBigInt_(t *testing.T) {
 	assert.Equal(t, big.NewInt(100_000), o)
 }
 
+func TestIntegerToBigInt_(t *testing.T) {
+  var o *big.Int
+  IntegerToBigInt(1, &o)
+  assert.Equal(t, big.NewInt(1), o)
+  
+  IntegerToBigInt(uint16(2), &o)
+  assert.Equal(t, big.NewInt(2), o)
+}
+
 func TestFloatToBigInt_(t *testing.T) {
 	var o *big.Int
 	assert.Nil(t, FloatToBigInt(float32(1), &o))
