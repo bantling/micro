@@ -4,7 +4,7 @@ package iter
 
 import (
 	"fmt"
-	goio "io"
+	 goio "io"
 	"regexp"
 	"strings"
 	"testing"
@@ -234,6 +234,18 @@ func TestFibonnaciIterGen_(t *testing.T) {
 	}
 }
 
+// trackCloser allows the caller to track whether or not a call is made to close an io.Reader with io.Closer added to it
+type trackCloser struct {
+  goio.Reader
+  closed bool
+}
+
+// Close is the io.ReadClosser method
+func (tc *trackCloser) Close() error {
+  tc.closed = true
+  return  nil
+}
+
 func TestReaderIterGen_(t *testing.T) {
 	// nil
 	var src goio.Reader
@@ -288,6 +300,19 @@ func TestReaderIterGen_(t *testing.T) {
 	val, err = iter()
 	assert.Zero(t, val)
 	assert.Equal(t, anErr, err)
+	
+	// closer
+	src = &trackCloser{strings.NewReader("a"), false}
+	iter = ReaderIterGen(src)
+	
+	val, err = iter()
+	assert.Equal(t, byte('a'), val)
+	assert.False(t, src.(*trackCloser).closed)
+	
+  val, err = iter()
+  assert.Zero(t, val)
+  assert.Equal(t, EOI, err)
+  assert.True(t, src.(*trackCloser).closed)
 }
 
 func TestReaderAsRunesIterGen_(t *testing.T) {

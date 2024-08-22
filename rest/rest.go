@@ -1,7 +1,6 @@
-// Package rest provides functions for simple REST handling
-//
-// SPDX-License-Identifier: Apache-2.0
 package rest
+
+// SPDX-License-Identifier: Apache-2.0
 
 import (
 	"fmt"
@@ -21,39 +20,37 @@ var (
 const (
 	NotFoundMsg         = "Not Found"
 	MethodNotAllowedMsg = "Method Not Allowed"
-)
-
-const (
-	UUIDGroup = "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
+	
+  UUIDGroup = "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
 )
 
 // Handler is a REST handler
-// The only difference compared to http.Handler is en extra argument of regex matches for url parts,
-// so that the handler doesn't to re-evaluate the same regex a second time to get those values.
+// The only difference compared to http.Handler is an extra argument of regex matches for url parts,
+// so that the handler doesn't have to re-evaluate the same regex a second time to get those values.
 type Handler interface {
-	ServeHTTP(w http.ResponseWriter, r *http.Request, urlParts []string)
+	Serve(w http.ResponseWriter, r *http.Request, urlParts []string)
 }
 
 // HandlerFunc is an adapter func for Handler
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, urlParts []string)
 
-// ServeHTTP is HandlerFunc adapter method
-func (hf HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request, urlParts []string) {
+// Serve is HandlerFunc adapter method
+func (hf HandlerFunc) Serve(w http.ResponseWriter, r *http.Request, urlParts []string) {
 	hf(w, r, urlParts)
-}
+}  
 
 // A ServeMux handles REST requests by performing pattern matching that considers the method and URL, rather than just
 // the URL alone like the http.ServeMux implementation.
 // The zero value is ready to use.
 type ServeMux struct {
 	// [](method, regexp, handler)
-	// A flat structure if used to disambiguate a 404 not found error from a 405 method not allowed error
+	// A flat structure is used to disambiguate a 404 not found error from a 405 method not allowed error
 	handlers []tuple.Three[string, *regexp.Regexp, Handler]
 }
 
 // Handle maps the given method and regex string to the given handler.
 // The regex allows capturing path parts that are variable, like a UUID.
-// The Handle can be called anytime, even while HTTP requests are being served.
+// This method can be called any time, even while HTTP requests are being served.
 func (rsm *ServeMux) Handle(method, pattern string, handler Handler) error {
 	// The method cannot be empty
 	if method == "" {
@@ -105,8 +102,8 @@ func (rsm ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if method == mMethod {
 				// Found match, call it and stop searching
-				// ServeHTTP is our Handler interface method that accepts an extra arg of matching url parts
-				mHandler.ServeHTTP(w, r, parts)
+				// Serve is our Handler interface method that accepts an extra arg of matching url parts
+				mHandler.Serve(w, r, parts)
 				return
 			}
 		}

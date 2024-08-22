@@ -4,7 +4,7 @@ package iter
 
 import (
 	"fmt"
-	"io"
+	goio "io"
 	"reflect"
 	"strings"
 	"unicode/utf8"
@@ -175,7 +175,8 @@ func FibonnaciIterGen() func() (int, error) {
 // ReaderIterGen generates an iterating function that iterates all the bytes of an io.Reader.
 // If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
 // If the iter is called again after returning a non-nil error, it returns (0, same error).
-func ReaderIterGen(src io.Reader) func() (byte, error) {
+// If the given io.Reader is also an io.Closer, then the Close() method is called after the last byte is read. 
+func ReaderIterGen(src goio.Reader) func() (byte, error) {
 	var (
 		done = src == nil
 		err  = EOI
@@ -189,7 +190,13 @@ func ReaderIterGen(src io.Reader) func() (byte, error) {
 
 		if _, err := src.Read(buf); err != nil {
 			done = true
-			err = funcs.Ternary(err == io.EOF, EOI, err)
+			if err = funcs.Ternary(err == goio.EOF, EOI, err); err == EOI {
+			  if closer, isa := src.(goio.Closer); isa {
+			    if cerr := closer.Close(); cerr != nil {
+			      return 0, cerr
+			    }
+			  }
+			}
 			return 0, err
 		}
 
@@ -201,7 +208,7 @@ func ReaderIterGen(src io.Reader) func() (byte, error) {
 // Up to four UTF-8 bytes are read to produce a single rune.
 // If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
 // If the iter is called again after returning a non-nil error, it returns (0, same error).
-func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
+func ReaderAsRunesIterGen(src goio.Reader) func() (rune, error) {
 	// UTF-8 encodes the bytes as follows:
 	//
 	// +==============================================================================================+
@@ -247,7 +254,7 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 
 			// Should be a non-nil error if 0 bytes were returned, but don't assume
 			// Translate EOF to EOI
-			if ((n == 0) && (err == nil)) || (err == io.EOF) {
+			if ((n == 0) && (err == nil)) || (err == goio.EOF) {
 				err = EOI
 			}
 
@@ -281,7 +288,7 @@ func ReaderAsRunesIterGen(src io.Reader) func() (rune, error) {
 		// Multiple bytes
 		if n, err = src.Read(buf[0:eb]); (n != eb) || (err != nil) {
 			// Not enough extra bytes exist or some other error
-			if (err == nil) || (err == io.EOF) {
+			if (err == nil) || (err == goio.EOF) {
 				err = InvalidUTF8EncodingError
 			}
 
@@ -358,7 +365,7 @@ func readLines(it func() (rune, error)) func() (string, error) {
 			codePoint, err = it()
 
 			if err != nil {
-				if err = funcs.Ternary(err == io.EOF, EOI, err); err != EOI {
+				if err = funcs.Ternary(err == goio.EOF, EOI, err); err != EOI {
 					return "", err
 				}
 
@@ -390,7 +397,7 @@ func readLines(it func() (rune, error)) func() (string, error) {
 
 // ReaderAsLinesIterGen generates an iterating function that iterates all the UTF-8 lines of an io.Reader
 // See readLines.
-func ReaderAsLinesIterGen(src io.Reader) func() (string, error) {
+func ReaderAsLinesIterGen(src goio.Reader) func() (string, error) {
 	// Use ReaderAsRunesIterGen to read individual runes until a line is read
 	return readLines(ReaderAsRunesIterGen(src))
 }

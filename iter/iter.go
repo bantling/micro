@@ -3,8 +3,10 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+//  "compress/gzip"
+//  "encoding/csv"
 	"fmt"
-	"io"
+	goio "io"
 	"strings"
 
 	"github.com/bantling/micro/tuple"
@@ -102,14 +104,14 @@ func OfMap[K comparable, V any](items map[K]V) Iter[tuple.Two[K, V]] {
 // OfReader constructs an Iter[byte] that iterates the bytes of a Reader.
 //
 // See ReaderIterGen.
-func OfReader(src io.Reader) Iter[byte] {
+func OfReader(src goio.Reader) Iter[byte] {
 	return OfIter[byte](ReaderIterGen(src))
 }
 
 // OfReaderAsRunes constructs an Iter[rune] that iterates the UTF-8 runes of a Reader.
 //
 // See ReaderAsRunesIterGen.
-func OfReaderAsRunes(src io.Reader) Iter[rune] {
+func OfReaderAsRunes(src goio.Reader) Iter[rune] {
 	return OfIter(ReaderAsRunesIterGen(src))
 }
 
@@ -123,7 +125,7 @@ func OfStringAsRunes(src string) Iter[rune] {
 // OfReaderAsLines constructs an Iter[string] that iterates the UTF-8 lines of a Reader.
 //
 // See ReaderAsLinesIterGen.
-func OfReaderAsLines(src io.Reader) Iter[string] {
+func OfReaderAsLines(src goio.Reader) Iter[string] {
 	return OfIter(ReaderAsLinesIterGen(src))
 }
 
@@ -142,8 +144,9 @@ func Concat[T any](iters ...Iter[T]) Iter[T] {
 
 // ==== IterImpl Methods
 
-// Next returns (true, nil) if there is another item to be read by Value.
+// Next returns (value, nil) if there is another item to be read by Value.
 // When Next returns (zero value, EOI), further calls return (zero value, EOI).
+// Next does not ever return both a value and an error.
 func (it *IterImpl[T]) Next() (T, error) {
 	// Check buffer for values placed by Unread
 	if len(it.buffer) > 0 {
@@ -152,7 +155,7 @@ func (it *IterImpl[T]) Next() (T, error) {
 		return val, nil
 	}
 
-	// Check if we still may have values to acquire via iterating function
+	// Check if we still have values to acquire via iterating function
 	if it.iterFn != nil {
 		// Try to get next value
 		val, err := it.iterFn()

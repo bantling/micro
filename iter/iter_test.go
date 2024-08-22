@@ -128,6 +128,16 @@ func TestOfStringAsLines_(t *testing.T) {
 	assert.Equal(t, union.OfError[string](EOI), Maybe(it))
 }
 
+//func TestOfCSV_(t *testing.T) {
+//  it := OfCSV(strings.NewReader(`
+//"FirstName","LastName"
+//"Jane","Doe"`))
+
+//  assert.Equal(t, union.OfResult([]string{"FirstName", "LastName"}), Maybe(it))
+//  assert.Equal(t, union.OfResult([]string{"Jane", "Doe"}), Maybe(it))
+//  assert.Equal(t, union.OfError[[]string](EOI), Maybe(it))
+//}
+
 func TestConcat_(t *testing.T) {
 	it := Concat(Of(1), Of(2, 3))
 	assert.Equal(t, union.OfResult(1), Maybe(it))

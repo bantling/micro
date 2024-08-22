@@ -1,10 +1,8 @@
-// Package rest provides functions for simple REST handling
-//
-// SPDX-License-Identifier: Apache-2.0
 package rest
 
+// SPDX-License-Identifier: Apache-2.0
+
 import (
-	// "fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -19,7 +17,7 @@ type testData struct {
 	urlParts []string
 }
 
-func (t *testData) ServeHTTP(w http.ResponseWriter, r *http.Request, urlParts []string) {
+func (t *testData) Serve(w http.ResponseWriter, r *http.Request, urlParts []string) {
 	t.urlParts = urlParts
 }
 
@@ -100,5 +98,5 @@ func TestHandle_(t *testing.T) {
 	assert.Equal(t, errEmptyMethod, mux.Handle("", pat1, h))
 	assert.Equal(t, errEmptyPattern, mux.Handle("GET", "", h))
 	assert.Equal(t, errNilHandler, mux.Handle("GET", pat1, nil))
-	assert.Equal(t, funcs.SecondValue2(regexp.Compile("(")), mux.Handle("GET", "(", h))
+	assert.Equal(t, "error parsing regexp: missing closing ): `(`", mux.Handle("GET", "(", h).Error())
 }
