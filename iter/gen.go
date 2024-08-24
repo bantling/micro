@@ -209,27 +209,24 @@ func ReaderIterGen(src goio.Reader) func() (byte, error) {
 // If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
 // If the iter is called again after returning a non-nil error, it returns (0, same error).
 func ReaderAsRunesIterGen(src goio.Reader) func() (rune, error) {
-	// UTF-8 encodes the bytes as follows:
+	// UTF-8 encodes the bytes as follows (note D800 - DFFF are surrogates):
 	//
-	// +==============================================================================================+
-	// | First code point | Last code point | Byte 1   | Byte 2   | Byte 3   | Byte 4   | Code points |
-	// | U+0000           | U+007F          | 0xxxxxxx |          |          |          | 128         |
-	// | U+0080           | U+07FF          | 110xxxxx | 10xxxxxx |          |          | 1920        |
-	// | U+0800           | U+FFFF          | 1110xxxx | 10xxxxxx | 10xxxxxx |          | 61440       |
-	// | U+10000          | U+10FFFF        | 11110xxx | 10xxxxxx | 10xxxxxx | 10xxxxxx | 1048576     |
-	// +==============================================================================================+
+	// +===================================================================================================================================+
+	// | First code point | Last code point | Byte 1   | Byte 2   | Byte 3   | Byte 4   | Code points                                      |
+	// | U+000000         | U+00007F        | 0aaabbbb |          |          |          |     7F - 00 + 1              =     80 -> 128     |
+	// | U+000080         | U+0007FF        | 110aaabb | 10bbcccc |          |          |    7FF - 80 + 1              =    780 -> 1920    |
+	// | U+000800         | U+00FFFF        | 1110aaaa | 10bbbbcc | 10ccdddd |          |   FFFF - 800 - (DFFF - D800) =   F001 -> 61440   |
+	// | U+010000         | U+10FFFF        | 11110abb | 10bbcccc | 10ddddee | 10eeffff | 10FFFF - 010000 + 1          = 100000 -> 1048576 |
+	// +===================================================================================================================================+
 	//
 	// Minimum and maximum values for each byte of encoding
-	// Two byte encodings:
-	// - range from 0000 0000 1000 0000 thru 0000 0111 1111 1111
-	// - encoded as 1100 0aaa bbbb cccc thru 1100 0aaa bbbb cccc
-	// +==============================================================================================+
-	// | Byte 1                | Byte 2                | Byte 3                | Byte 4               |
-	// | 0 0000000 - 0 1111111 |                       |                       |                      |
-	// | 110 00000 - 110 11111 | 10 000000 - 10 111111 |                       |                      |
-	// | 1110 0000 - 1110 1111 | 10 000000 - 10 111111 | 10 000000 - 10 111111 |                      |
-	// | 11110 000 - 11110 100 | 10 000000 - 10 001111 | 10 000000 - 10 111111 | 10 00000 - 10 111111 |
-	// +==============================================================================================+
+	// +===============================================================================================+
+	// | Byte 1                | Byte 2                | Byte 3                | Byte 4                |
+	// | 0 0000000 - 0 1111111 |                       |                       |                       |
+	// | 110 00000 - 110 11111 | 10 000000 - 10 111111 |                       |                       |
+	// | 1110 0000 - 1110 1111 | 10 000000 - 10 111111 | 10 000000 - 10 111111 |                       |
+	// | 11110 000 - 11110 100 | 10 010000 - 10 001111 | 10 000000 - 10 111111 | 10 000000 - 10 111111 |
+	// +===============================================================================================+
 	//
 	// See https://en.wikipedia.org/wiki/UTF-8 for further details
 

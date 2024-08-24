@@ -3,8 +3,6 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-//  "compress/gzip"
-//  "encoding/csv"
 	"fmt"
 	goio "io"
 	"strings"
