@@ -134,6 +134,11 @@ func OfStringAsLines(src string) Iter[string] {
 	return OfIter(ReaderAsLinesIterGen(strings.NewReader(src)))
 }
 
+// OfCSV constructs an Iter[[]string] that iterates lines of a csv document inan io.Reader.
+func OfCSV(src goio.Reader) Iter[[]string] {
+  return OfIter(CSVIterGen(src))
+}
+
 // Concatenate any number of Iter[T] into a single Iter[T] that iterates all the elements of each Iter[T], until the
 // last element of the last iterator has been returned.
 func Concat[T any](iters ...Iter[T]) Iter[T] {

@@ -3,25 +3,38 @@ package rest
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "compress/gzip"
+  goio "io"
+  "net/http"
+  
+  "github.com/bantling/micro/funcs"
   "github.com/bantling/micro/iter"
 )
 
 var (
   acceptEncoding = "Accept-Encoding"
   gzipEncoding   = "gzip"
+  
+  contentType    = "Content-Type"
+  csvContent     = "text/csv"
 )
 
 // AcceptGzip checks if the request Accept-Encoding header is gzip.
-// If so, it returns an Iter[byte] which decompresses using gzip.
-// Otherwise, it returns an Iter[byte] of the request body as is.
-func AcceptGzip(r *http.Request) Iter[byte] {
-  it := iter.OfReader(r.Body)
+// If so, it returns a new io.Reader which decompresses the body io.Reader using gzip.
+// Otherwise, it returns the body io.Reader as is.
+func AcceptGzip(r *http.Request) goio.Reader {
   if r.Header.Get(acceptEncoding) == gzipEncoding {
-    it = iter.
+    return funcs.MustValue(gzip.NewReader(r.Body))
+  }
+  
+  return r.Body
 }
 
 // NegotiateCSVContent returns an Iter[[]string] if the Content-Type header is text/csv, otherwise it returns nil
-// If the Accept-Encoding header is gzip, then the content is decompressed with gzip first
-func NegotiateCSVContent(r *http.Request) Iter[[]string] {
+func NegotiateCSVContent(r *http.Request) iter.Iter[[]string] {
+  if r.Header.Get(contentType) == csvContent {
+    return iter.OfCSV(r.Body)
+  }
   
-} 
+  return nil
+}

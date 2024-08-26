@@ -4,6 +4,7 @@ package iter
 
 import (
 	"fmt"
+	"encoding/csv"
 	goio "io"
 	"reflect"
 	"strings"
@@ -404,6 +405,36 @@ func ReaderAsLinesIterGen(src goio.Reader) func() (string, error) {
 func StringAsLinesIterGen(src string) func() (string, error) {
 	// Use StringAsRunesIterGen to read individual runes until a line is read
 	return readLines(StringAsRunesIterGen(src))
+}
+
+// CSVIterGen generates an iterating function that iterates all the rows of a CSV document provided by an io.Reader.
+// The same []string is returned each time with different content.
+func CSVIterGen(src goio.Reader) func() ([]string, error) {
+  var (
+    done   = src == nil
+    csvRdr *csv.Reader
+    line   []string
+    err    = EOI
+  )
+  
+  if !done {
+    csvRdr = csv.NewReader(src)
+    csvRdr.ReuseRecord = true
+  }
+  
+  return func() ([]string, error) {
+    if done {
+      return nil, err
+    }
+    
+    line, err = csvRdr.Read()
+    if err = funcs.Ternary(err == goio.EOF, EOI, err); err == EOI {
+      done = true
+      line = nil
+    }
+    
+    return line, err
+  }
 }
 
 // ConcatIterGen generates an iterating function that iterates all the values of all the Iters passed.
