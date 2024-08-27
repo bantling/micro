@@ -9,6 +9,8 @@ import (
   
   "github.com/bantling/micro/funcs"
   "github.com/bantling/micro/iter"
+  "github.com/bantling/micro/encoding/json"
+  "github.com/bantling/micro/encoding/json/parse"
 )
 
 var (
@@ -17,6 +19,7 @@ var (
   
   contentType    = "Content-Type"
   csvContent     = "text/csv"
+  jsonContent    = "application/json"
 )
 
 // AcceptGzip checks if the request Accept-Encoding header is gzip.
@@ -34,6 +37,15 @@ func AcceptGzip(r *http.Request) goio.Reader {
 func NegotiateCSVContent(r *http.Request) iter.Iter[[]string] {
   if r.Header.Get(contentType) == csvContent {
     return iter.OfCSV(r.Body)
+  }
+  
+  return nil
+}
+
+// NegotiateJSONContent returns an Iter[json.Value] if the Content-Type header is application/json, otherwise it returns nil
+func NegotiateJSONContent(r *http.Request) iter.Iter[json.Value] {
+  if r.Header.Get(contentType) == csvContent {
+    return parse.Iterate(r.Body)
   }
   
   return nil

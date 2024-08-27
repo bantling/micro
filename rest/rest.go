@@ -51,7 +51,7 @@ type ServeMux struct {
 // Handle maps the given method and regex string to the given handler.
 // The regex allows capturing path parts that are variable, like a UUID.
 // This method can be called any time, even while HTTP requests are being served.
-func (rsm *ServeMux) Handle(method, pattern string, handler Handler) error {
+func (sm *ServeMux) Handle(method, pattern string, handler Handler) error {
 	// The method cannot be empty
 	if method == "" {
 		return errEmptyMethod
@@ -74,25 +74,25 @@ func (rsm *ServeMux) Handle(method, pattern string, handler Handler) error {
 	}
 
 	// Add method, pattern, and handler triple
-	funcs.SliceAdd(&rsm.handlers, tuple.Of3(method, regex, handler))
+	funcs.SliceAdd(&sm.handlers, tuple.Of3(method, regex, handler))
 
 	return nil
 }
 
 // MustHandle is a must version of Handle
-func (rsm *ServeMux) MustHandle(method, pattern string, handler Handler) {
-	funcs.Must(rsm.Handle(method, pattern, handler))
+func (sm *ServeMux) MustHandle(method, pattern string, handler Handler) {
+	funcs.Must(sm.Handle(method, pattern, handler))
 }
 
 // ServeHTTP is http.Handler interface method
-func (rsm ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (sm ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get the method and url
-	method, url := r.Method, (*r.URL).Path
+	method, url := r.Method, r.URL.Path
 
 	// Iterate the method, regexp, and handler triples to find the first method match and regexp url matches, if any
 	var urlMatched bool
 
-	for _, methodPatternHandler := range rsm.handlers {
+	for _, methodPatternHandler := range sm.handlers {
 		mMethod, mPattern, mHandler := methodPatternHandler.Values()
 		parts := mPattern.FindStringSubmatch(url)
 
