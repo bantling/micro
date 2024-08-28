@@ -44,7 +44,7 @@ func NegotiateCSVContent(r *http.Request) iter.Iter[[]string] {
 
 // NegotiateJSONContent returns an Iter[json.Value] if the Content-Type header is application/json, otherwise it returns nil
 func NegotiateJSONContent(r *http.Request) iter.Iter[json.Value] {
-  if r.Header.Get(contentType) == csvContent {
+  if r.Header.Get(contentType) == jsonContent {
     return parse.Iterate(r.Body)
   }
   
