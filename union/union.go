@@ -126,7 +126,7 @@ func Of4W[TT, UU, VV, WW any](w WW) Four[TT, UU, VV, WW] {
 	return Four[TT, UU, VV, WW]{w: w, which: W}
 }
 
-// Of constructs a Maybe that holds a T.
+// Of constructs a Maybe that holds a T
 // If t is nil, the Maybe is Empty, otherwise it is Present.
 func Of[TT any](t TT) Maybe[TT] {
 	return Maybe[TT]{v: t, present: !funcs.IsNilValue(t)}
@@ -135,6 +135,16 @@ func Of[TT any](t TT) Maybe[TT] {
 // Empty constructs an empty Maybe
 func Empty[TT any]() Maybe[TT] {
 	return Maybe[TT]{}
+}
+
+// First constructs a Maybe from a slice of zero or one values
+// If the slice is empty, an Empty[TT] is returned, else Of[TT](t[0]) is returned
+func First[TT any](t ...TT) Maybe[TT] {
+  if len(t) == 0 {
+    return Empty[TT]()
+  }
+  
+  return Of(t[0])
 }
 
 // OfResult constructs a Result that holds an R

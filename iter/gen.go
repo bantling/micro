@@ -3,8 +3,8 @@ package iter
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-	"fmt"
 	"encoding/csv"
+	"fmt"
 	goio "io"
 	"reflect"
 	"strings"
@@ -176,7 +176,7 @@ func FibonnaciIterGen() func() (int, error) {
 // ReaderIterGen generates an iterating function that iterates all the bytes of an io.Reader.
 // If the reader returns an EOF, it is translated to an EOI, any other error is returned as is.
 // If the iter is called again after returning a non-nil error, it returns (0, same error).
-// If the given io.Reader is also an io.Closer, then the Close() method is called after the last byte is read. 
+// If the given io.Reader is also an io.Closer, then the Close() method is called after the last byte is read.
 func ReaderIterGen(src goio.Reader) func() (byte, error) {
 	var (
 		done = src == nil
@@ -192,11 +192,11 @@ func ReaderIterGen(src goio.Reader) func() (byte, error) {
 		if _, err := src.Read(buf); err != nil {
 			done = true
 			if err = funcs.Ternary(err == goio.EOF, EOI, err); err == EOI {
-			  if closer, isa := src.(goio.Closer); isa {
-			    if cerr := closer.Close(); cerr != nil {
-			      return 0, cerr
-			    }
-			  }
+				if closer, isa := src.(goio.Closer); isa {
+					if cerr := closer.Close(); cerr != nil {
+						return 0, cerr
+					}
+				}
 			}
 			return 0, err
 		}
@@ -410,31 +410,31 @@ func StringAsLinesIterGen(src string) func() (string, error) {
 // CSVIterGen generates an iterating function that iterates all the rows of a CSV document provided by an io.Reader.
 // The same []string is returned each time with different content.
 func CSVIterGen(src goio.Reader) func() ([]string, error) {
-  var (
-    done   = src == nil
-    csvRdr *csv.Reader
-    line   []string
-    err    = EOI
-  )
-  
-  if !done {
-    csvRdr = csv.NewReader(src)
-    csvRdr.ReuseRecord = true
-  }
-  
-  return func() ([]string, error) {
-    if done {
-      return nil, err
-    }
-    
-    line, err = csvRdr.Read()
-    if err = funcs.Ternary(err == goio.EOF, EOI, err); err == EOI {
-      done = true
-      line = nil
-    }
-    
-    return line, err
-  }
+	var (
+		done   = src == nil
+		csvRdr *csv.Reader
+		line   []string
+		err    = EOI
+	)
+
+	if !done {
+		csvRdr = csv.NewReader(src)
+		csvRdr.ReuseRecord = true
+	}
+
+	return func() ([]string, error) {
+		if done {
+			return nil, err
+		}
+
+		line, err = csvRdr.Read()
+		if err = funcs.Ternary(err == goio.EOF, EOI, err); err == EOI {
+			done = true
+			line = nil
+		}
+
+		return line, err
+	}
 }
 
 // ConcatIterGen generates an iterating function that iterates all the values of all the Iters passed.

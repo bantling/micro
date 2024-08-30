@@ -4,7 +4,7 @@ package iter
 
 import (
 	"fmt"
-	 goio "io"
+	goio "io"
 	"regexp"
 	"strings"
 	"testing"
@@ -238,16 +238,16 @@ func TestFibonnaciIterGen_(t *testing.T) {
 // - track whether or not a call is made to close an io.Reader with io.Closer added to it
 // - track if the caller handles errors correctly
 type trackCloser struct {
-  goio.Reader
-  closed bool
-  err error
+	goio.Reader
+	closed bool
+	err    error
 }
 
 // Close is the io.ReadCloser method
 // If the err field is non-nil, it returns that error
 func (tc *trackCloser) Close() error {
-  tc.closed = true
-  return tc.err
+	tc.closed = true
+	return tc.err
 }
 
 func TestReaderIterGen_(t *testing.T) {
@@ -304,35 +304,35 @@ func TestReaderIterGen_(t *testing.T) {
 	val, err = iter()
 	assert.Zero(t, val)
 	assert.Equal(t, anErr, err)
-	
+
 	// closer successfully closes
 	src = &trackCloser{strings.NewReader("a"), false, nil}
 	iter = ReaderIterGen(src)
-	
+
 	val, err = iter()
 	assert.Equal(t, byte('a'), val)
 	assert.Nil(t, err)
 	assert.False(t, src.(*trackCloser).closed)
-	
-  val, err = iter()
-  assert.Zero(t, val)
-  assert.Equal(t, EOI, err)
-  assert.True(t, src.(*trackCloser).closed)
-  
-  // closer gets an error when closing
-  e := fmt.Errorf("whatever")
-  src = &trackCloser{strings.NewReader("b"), false, e}
-  iter = ReaderIterGen(src)
-  
-  val, err = iter()
-  assert.Equal(t, byte('b'), val)
-  assert.Nil(t, err)
-  assert.False(t, src.(*trackCloser).closed)
-  
-  val, err = iter()
-  assert.Zero(t, val)
-  assert.Equal(t, e, err)
-  assert.True(t, src.(*trackCloser).closed)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, EOI, err)
+	assert.True(t, src.(*trackCloser).closed)
+
+	// closer gets an error when closing
+	e := fmt.Errorf("whatever")
+	src = &trackCloser{strings.NewReader("b"), false, e}
+	iter = ReaderIterGen(src)
+
+	val, err = iter()
+	assert.Equal(t, byte('b'), val)
+	assert.Nil(t, err)
+	assert.False(t, src.(*trackCloser).closed)
+
+	val, err = iter()
+	assert.Zero(t, val)
+	assert.Equal(t, e, err)
+	assert.True(t, src.(*trackCloser).closed)
 }
 
 func TestReaderAsRunesIterGen_(t *testing.T) {
@@ -645,31 +645,31 @@ func TestStringAsLinesIterGen_(t *testing.T) {
 }
 
 func TestCSVIterGen_(t *testing.T) {
-  iter := CSVIterGen(strings.NewReader(
-    `"FirstName","LastName"
+	iter := CSVIterGen(strings.NewReader(
+		`"FirstName","LastName"
 "Jane","Doe"
 "John","Doe"`),
-  )
+	)
 
-  val, err := iter()
-  assert.Equal(t, []string{"FirstName", "LastName"}, val)
-  assert.Nil(t, err)
+	val, err := iter()
+	assert.Equal(t, []string{"FirstName", "LastName"}, val)
+	assert.Nil(t, err)
 
-  val, err = iter()
-  assert.Equal(t, []string{"Jane", "Doe"}, val)
-  assert.Nil(t, err)
+	val, err = iter()
+	assert.Equal(t, []string{"Jane", "Doe"}, val)
+	assert.Nil(t, err)
 
-  val, err = iter()
-  assert.Equal(t, []string{"John", "Doe"}, val)
-  assert.Nil(t, err)
+	val, err = iter()
+	assert.Equal(t, []string{"John", "Doe"}, val)
+	assert.Nil(t, err)
 
-  val, err = iter()
-  assert.Nil(t, val)
-  assert.Equal(t, EOI, err)
+	val, err = iter()
+	assert.Nil(t, val)
+	assert.Equal(t, EOI, err)
 
-  val, err = iter()
-  assert.Nil(t, val)
-  assert.Equal(t, EOI, err)
+	val, err = iter()
+	assert.Nil(t, val)
+	assert.Equal(t, EOI, err)
 }
 
 func TestConcatIterGen_(t *testing.T) {

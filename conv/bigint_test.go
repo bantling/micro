@@ -30,12 +30,12 @@ func TestUintToBigInt_(t *testing.T) {
 }
 
 func TestIntegerToBigInt_(t *testing.T) {
-  var o *big.Int
-  IntegerToBigInt(1, &o)
-  assert.Equal(t, big.NewInt(1), o)
-  
-  IntegerToBigInt(uint16(2), &o)
-  assert.Equal(t, big.NewInt(2), o)
+	var o *big.Int
+	IntegerToBigInt(1, &o)
+	assert.Equal(t, big.NewInt(1), o)
+
+	IntegerToBigInt(uint16(2), &o)
+	assert.Equal(t, big.NewInt(2), o)
 }
 
 func TestFloatToBigInt_(t *testing.T) {

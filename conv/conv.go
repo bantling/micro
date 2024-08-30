@@ -14,14 +14,14 @@ import (
 )
 
 var (
-	errMsg        = "The %T value of %s cannot be converted to %s"
-	errONonNilMsg = "The target value of type %T cannot be nil"
-	errAnyToInvalidIMsg = "AnyTo cannot convert the input type %s"
-	errReflectToInvalidSrc = fmt.Errorf("ReflectTo source cannot be Invalid")
-  errReflectToInvalidTgt = fmt.Errorf("ReflectTo target cannot be Invalid")
-  errReflectToTgtMustBePtr = fmt.Errorf("ReflectTo target must be be a pointer")
-  errReflectToTgtBigTypeMsg = "The target value of type %T is invalid: big types have to be a **"
-  errReflectToLookupMsg = "There is no conversion function from %s to %s"
+	errMsg                    = "The %T value of %s cannot be converted to %s"
+	errONonNilMsg             = "The target value of type %T cannot be nil"
+	errAnyToInvalidIMsg       = "AnyTo cannot convert the input type %s"
+	errReflectToInvalidSrc    = fmt.Errorf("ReflectTo source cannot be Invalid")
+	errReflectToInvalidTgt    = fmt.Errorf("ReflectTo target cannot be Invalid")
+	errReflectToTgtMustBePtr  = fmt.Errorf("ReflectTo target must be be a pointer")
+	errReflectToTgtBigTypeMsg = "The target value of type %T is invalid: big types have to be a **"
+	errReflectToLookupMsg     = "There is no conversion function from %s to %s"
 
 	log2Of10 = math.Log2(10)
 
@@ -1022,12 +1022,12 @@ func To[I, O constraint.Numeric | string](i I, o *O) error {
 	}
 
 	// Get reflection info on i and o
-  // If i and/or o is a subtype, convert it to the base type, so we can find a conversion function
+	// If i and/or o is a subtype, convert it to the base type, so we can find a conversion function
 	var (
 		ival = reflect.ValueToBaseType(goreflect.ValueOf(i))
 		ityp = ival.Type()
 		oval = reflect.ValueToBaseType(goreflect.ValueOf(o)) // o cannot be nil, but o.Elem() can be nil
-		otyp = oval.Type().Elem()   // o.Type().Elem() cannot be nil
+		otyp = oval.Type().Elem()                            // o.Type().Elem() cannot be nil
 	)
 
 	// If the types are the same, then a simple copy will suffice
@@ -1068,11 +1068,11 @@ func MustTo[I, O constraint.Numeric | string](i I, o *O) {
 // AnyTo is a version of To that accepts input values of type any
 // The output value must still satisfy constraint.Numeric | string
 func AnyTo[O constraint.Numeric | string](i any, o *O) error {
-  var (
-    iv   =  goreflect.ValueOf(i)
-    ival = reflect.ValueToBaseType(iv).Interface()
-  )
-  
+	var (
+		iv   = goreflect.ValueOf(i)
+		ival = reflect.ValueToBaseType(iv).Interface()
+	)
+
 	switch iv.Kind() {
 	case goreflect.Int:
 		return To(ival.(int), o)
@@ -1098,8 +1098,8 @@ func AnyTo[O constraint.Numeric | string](i any, o *O) error {
 		return To(ival.(float32), o)
 	case goreflect.Float64:
 		return To(ival.(float64), o)
-  case goreflect.String:
-    return To(ival.(string), o)
+	case goreflect.String:
+		return To(ival.(string), o)
 	case goreflect.Ptr:
 		if bi, isa := i.(*big.Int); isa {
 			return To(bi, o)
@@ -1159,49 +1159,49 @@ func MustToBigOps[I constraint.Numeric | string, O constraint.BigOps[O]](i I, o 
 // This function is useful for reflection algorithms that need to do conversions.
 // The tgt must wrap a pointer.
 func ReflectTo(i, o goreflect.Value) error {
-  // Die if i is invalid
-  if !i.IsValid() {
-    return errReflectToInvalidSrc
-  }
+	// Die if i is invalid
+	if !i.IsValid() {
+		return errReflectToInvalidSrc
+	}
 
-  // Die if o is invalid
-  if !o.IsValid() {
-    return errReflectToInvalidTgt
-  }
-  
-  // Die if o is not a pointer
-  if o.Kind() != goreflect.Pointer {
-    return errReflectToTgtMustBePtr
-  }
-  
-  var (
-   ityp = i.Type()
-   otyp = o.Type()
-  )
-  
-  // Die if o is nil
-  if o.IsNil() {
-    return fmt.Errorf(errONonNilMsg, o.Interface())
-  }
-  
-  // Die if o is a big type that is a value or only one pointer
-  if reflect.IsBigPtr(otyp) {
-    return fmt.Errorf(errReflectToTgtBigTypeMsg, o.Interface())
-  }
+	// Die if o is invalid
+	if !o.IsValid() {
+		return errReflectToInvalidTgt
+	}
 
-  // Convert output to a base type
-  ob := reflect.ValueToBaseType(o)
+	// Die if o is not a pointer
+	if o.Kind() != goreflect.Pointer {
+		return errReflectToTgtMustBePtr
+	}
 
-  // Locate a conversion function in convertFromTo map  
-  convFn := convertFromTo[(ityp.String()+ob.Type().Elem().String())]
-  if convFn == nil {
-    return fmt.Errorf(errReflectToLookupMsg, ityp, otyp.Elem())
-  }
-  
-  return convFn(i.Interface(), ob.Interface())
+	var (
+		ityp = i.Type()
+		otyp = o.Type()
+	)
+
+	// Die if o is nil
+	if o.IsNil() {
+		return fmt.Errorf(errONonNilMsg, o.Interface())
+	}
+
+	// Die if o is a big type that is a value or only one pointer
+	if reflect.IsBigPtr(otyp) {
+		return fmt.Errorf(errReflectToTgtBigTypeMsg, o.Interface())
+	}
+
+	// Convert output to a base type
+	ob := reflect.ValueToBaseType(o)
+
+	// Locate a conversion function in convertFromTo map
+	convFn := convertFromTo[(ityp.String() + ob.Type().Elem().String())]
+	if convFn == nil {
+		return fmt.Errorf(errReflectToLookupMsg, ityp, otyp.Elem())
+	}
+
+	return convFn(i.Interface(), ob.Interface())
 }
 
 // MustReflectTo is a Must version of ReflectTo
 func MustReflectTo(i, o goreflect.Value) {
-  funcs.Must(ReflectTo(i, o))
+	funcs.Must(ReflectTo(i, o))
 }

@@ -491,6 +491,13 @@ func TestMaybe_(t *testing.T) {
 		resp.SetOrError(&i)
 		assert.Equal(t, &i, resp.Get())
 	}
+	
+	// First
+	{
+    assert.Equal(t, Of(1), First(1))
+    assert.Equal(t, Of(1), First(1, 2))
+    assert.Equal(t, Empty[int](), First[int]())
+	}
 
 	// String
 	{

@@ -20,8 +20,8 @@ var (
 const (
 	NotFoundMsg         = "Not Found"
 	MethodNotAllowedMsg = "Method Not Allowed"
-	
-  UUIDGroup = "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
+
+	UUIDGroup = "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
 )
 
 // Handler is a REST handler
@@ -37,7 +37,7 @@ type HandlerFunc func(w http.ResponseWriter, r *http.Request, urlParts []string)
 // Serve is HandlerFunc adapter method
 func (hf HandlerFunc) Serve(w http.ResponseWriter, r *http.Request, urlParts []string) {
 	hf(w, r, urlParts)
-}  
+}
 
 // A ServeMux handles REST requests by performing pattern matching that considers the method and URL, rather than just
 // the URL alone like the http.ServeMux implementation.
