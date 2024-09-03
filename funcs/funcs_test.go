@@ -989,8 +989,25 @@ func TestNillable_(t *testing.T) {
 	)
 
 	assert.False(t, IsNilValue(0))
-	assert.False(t, IsNilValue(c))
+  TryTo(
+    func() {
+      MustNonNilValue(0)
+      assert.Fail(t, "Must die")
+    },
+    func(err any) { assert.Equal(t, fmt.Errorf("Type int is not a nillable type"), err) },
+  )
+	
 	assert.True(t, IsNilValue(cn))
+  TryTo(
+    func() {
+      MustNonNilValue(cn)
+      assert.Fail(t, "Must die")
+    },
+    func(err any) { assert.Equal(t, fmt.Errorf("The value of type chan int cannot be nil"), err) },
+  )
+  
+  assert.False(t, IsNilValue(c))
+  assert.Equal(t, c, MustNonNilValue(c))
 
 	TryTo(
 		func() {

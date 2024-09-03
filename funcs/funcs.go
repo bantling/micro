@@ -16,6 +16,7 @@ import (
 
 const (
 	notNilableMsg              = "Type %s is not a nillable type"
+	nilMsg                     = "The value of type %s cannot be nil"
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
 	assertTypeMsg              = "expected %s to be %T, not %T"
@@ -159,7 +160,7 @@ func SliceIndex[T any](slc []T, index int, defawlt ...T) T {
 	return zv
 }
 
-// Sliceof allows caller to infer the slice type rather than have to write it out.
+// SliceOf allows caller to infer the slice type rather than have to write it out.
 // This is useful when the type is a more lengthy declaration.
 func SliceOf[T any](vals ...T) []T {
 	return vals
@@ -1015,6 +1016,19 @@ func IsNilValue(val any) bool {
 	rv := reflect.ValueOf(val)
 	// In the case of an untyped nil any value, reflect.ValueOf() returns Invalid, which means you cannot call IsNil()
 	return (!rv.IsValid()) || (Nillable(rv.Type()) && rv.IsNil())
+}
+
+// MustNonNilValue returns the value if it is non-nil, else panics
+// Panics if the value is not a nillable type
+func MustNonNilValue[T any](val T) T {
+  rv := reflect.ValueOf(val)
+  MustBeNillable(rv.Type())
+  
+  if IsNilValue(val) {
+    panic(fmt.Errorf(nilMsg, rv.Type()))
+  }
+  
+  return val
 }
 
 // IsNonNil generates a filter func (func(T) bool) that returns true if the value given is non-nil.

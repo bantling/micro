@@ -137,14 +137,13 @@ func Empty[TT any]() Maybe[TT] {
 	return Maybe[TT]{}
 }
 
-// First constructs a Maybe from a slice of zero or one values
-// If the slice is empty, an Empty[TT] is returned, else Of[TT](t[0]) is returned
-func First[TT any](t ...TT) Maybe[TT] {
-  if len(t) == 0 {
-    return Empty[TT]()
+// Present constructs a Present Maybe
+// This function only differs from Of for nillable types - this function will die if the nillable type is nil
+func Present[TT any](t TT) Maybe[TT] {
+  if funcs.IsNilValue(t) {
+    panic(errEmptyMaybe)
   }
-  
-  return Of(t[0])
+  return Maybe[TT]{v: t, present: true}
 }
 
 // OfResult constructs a Result that holds an R

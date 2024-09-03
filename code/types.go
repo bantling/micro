@@ -3,11 +3,12 @@ package code
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+  "github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/union"
 )
 
 // Type is the type of any kind of value
-type Type int
+type Type uint
 
 // Scalar is a Type that has only one value
 type ScalarType Type
@@ -42,13 +43,14 @@ const (
 	DurationDays   // days elapsed
 	DurationSecs   // seconds elapsed
 	DurationMillis // elapsed milliseconds
+	afterScalar    // internal constant for one past last scalar
 )
 
 // Aggregate is a type that has multiple values
 type AggregateType Type
 
 const (
-	JSON AggregateType = iota
+	JSON AggregateType = AggregateType(afterScalar)
 	Array
 	Enum
 	List
@@ -58,8 +60,19 @@ const (
 	Set
 )
 
+// IsScalar is true if the Type is a Scalar Type
+func IsScalar(typ Type) bool {
+	return uint(typ) < uint(afterScalar)
+}
+
+// IsAggregate is true if the Type is an Aggregate Type
+func IsAggregate(typ Type) bool {
+	return uint(typ) >= uint(afterScalar)
+}
+
 // AccessLevel indicates the level of access to a source member
 // Depending on the target language, not all access levels may be supported
+// The default level is Private
 type AccessLevel int
 
 const (
@@ -71,73 +84,187 @@ const (
 
 // TypeDef is a type definition
 type TypeDef struct {
-	typ           Type                     // Type
-	arrayBounds   []int                    // Bounds of an array, cannot be empty
-	name          string                   // Name of an enum or object
-	names         []string                 // Names of enum constants or object generics - zero-based indexes are the enum values, strings are the names
-	listDimension uint                     // Dimension of the list (eg, list of string, list of list of string, etc), cannot be 0
-	keyType       *TypeDef                 // Map key type
-	valueType     *TypeDef                 // Array element type, list element type, map value type, maybe type, or set type
-	access        union.Maybe[AccessLevel] // Level of access, if applicable
+	Access      AccessLevel // Level of access, if applicable. Empty means default level.
+	Typ         Type                     // Type
+	ArrayBounds []uint                   // Bounds of an array. A dimension can be -1 for unspecified dimension, slice can
+	// be zero length for one unspecified dimension.
+	// For a list, one element >= 1 that indicates list, or list of list, etc.
+	Name      string                // Name of an enum or object
+	Names     []string              // Names of enum constants or object generics - zero-based indexes are the enum values, strings are the names
+	KeyType   union.Maybe[*TypeDef] // Map key type
+	ValueType union.Maybe[*TypeDef] // Array element type, Enum base type, list element type, map value type, maybe type, object base type, or set element type
 }
 
 // OfScalarType constructs a scalar TypeDef
 func OfScalarType(
 	typ ScalarType,
+	bounds []uint,
 	access ...AccessLevel,
 ) TypeDef {
 	return TypeDef{
-		typ:    Type(typ),
-		access: union.First(access...),
+    Access: funcs.SliceIndex(access, 0, Private),
+		Typ:    Type(typ),
 	}
 }
 
-// ConstDef is a constant definition
-type ConstDef struct {
-	TypeName string      // TypeDef.Name
-	Name     string      // Constant name
-	Value    string      // Value
-	Access   AccessLevel // Level of access
+// OfJSONType constructs a JSON TypeDef
+func OfJSONType(access ...AccessLevel) TypeDef {
+  return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Typ: Type(JSON),
+  }
 }
 
-// VarDef is a variable definition
+// OfArrayType constructs an array TypeDef
+func OfArrayType(
+	elementTyp *TypeDef,
+	bounds []uint,
+	access ...AccessLevel,
+) TypeDef {
+	return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+		Typ:         Type(Array),
+		ArrayBounds: bounds,
+		ValueType:   union.Present(elementTyp),
+	}
+}
+
+// OfEnumType constructs an enum TypeDef
+func OfEnumType(
+  name string,
+  baseType *TypeDef,
+	constants []string,
+	access ...AccessLevel,
+) TypeDef {
+	return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+		Typ:    Type(Enum),
+		Name:   name,
+		Names:  constants,
+    ValueType: union.Present(baseType),
+	}
+}
+
+// OfListType constructs a list TypeDef
+func OfListType(
+  elementType *TypeDef,
+  access ...AccessLevel,
+) TypeDef {
+  return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Typ:    Type(List),
+    ValueType: union.Present(elementType),
+  }
+}
+
+// OfMapType constructs a map TypeDef
+func OfMapType(
+  keyType *TypeDef,
+  valueType *TypeDef,
+  access ...AccessLevel,
+) TypeDef {
+  return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Typ:    Type(Map),
+    KeyType: union.Present(keyType),
+    ValueType: union.Present(valueType),
+  }
+}
+
+// OfMaybeType constructs a Maybe TypeDef
+func OfMaybeType(
+  elementType *TypeDef,
+  access ...AccessLevel,
+) TypeDef {
+  return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Typ:    Type(Maybe),
+    ValueType: union.Present(elementType),
+  }
+}
+
+// OfObjectType constructs an Object TypeDef
+func OfObjectType(
+  baseType *TypeDef,
+  name string,
+  generics []string,
+  access ...AccessLevel,
+) TypeDef {
+  return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Typ:    Type(Object),
+    Name: name,
+    Names: generics,
+    ValueType: union.Present(baseType),
+  }
+}
+
+// OfSetType constructs a set TypeDef
+func OfSetType(
+  elementType *TypeDef,
+  access ...AccessLevel,
+) TypeDef {
+  return TypeDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Typ:    Type(Set),
+    ValueType: union.Present(elementType),
+  }
+}
+
+// VarDef is a constant or variable definition
 type VarDef struct {
-	TypeName string      // TypeDef.Name
-	Name     string      // Var name
-	Access   AccessLevel // Level of access
+	Access AccessLevel // Level of access
+	Const  bool        // True if it is a constant
+	Def    *TypeDef    // TypeDef
+	Name   string      // Var name
+	Value  string      // The initial value
+}
+
+
+// OfVarDef constructs a VarDef
+func OfVarDef(
+  konst bool,
+  def *TypeDef,
+  name string,
+  Value string,
+  access ...AccessLevel,
+) VarDef {
+  return VarDef{
+    Access: funcs.SliceIndex(access, 0, Private),
+    Const: konst,
+    Def: funcs.MustNonNilValue(def),
+  }
 }
 
 // LitDef is a literal definition
 type LitDef struct {
-	TypeName string // TypeDef.Name
-	Value    string // Literal value
+	Def   *TypeDef // TypeDef.Name
+	Value string   // Literal value
 }
 
 // ValKind is the kind of a value
 type ValKind int
 
 const (
-	ConstVal = iota // A constant value
-	VarVal          // A variable value
-	LitVal          // A literal value
+	LitVal ValKind = iota // A literal value
+	VarVal                // A variable value
 )
 
 // Val represents a value of some type
 // It is a constant, variable or literal
 type Val struct {
-	Kind  ValKind // The kind of value
-	Name  string  // The ConstDef.Name or VarDef.Name, if applicable
-	Value string  // The literal value, if applicable
+	Kind    ValKind              // The kind of value
+	TypeDef union.Maybe[TypeDef] // The TypeDef, if applicable
+	Value   string               // The literal value or variable name
 }
 
 // FuncDef is a function definition
 type FuncDef struct {
-	Params      map[string]VarDef   // Parameters of function
-	LocalConsts map[string]ConstDef // Local constants
-	LocalVars   map[string]VarDef   // Local vars
-	Results     []TypeDef           // Results of function
+	Access  AccessLevel       // The level of access
+	Params  map[string]VarDef // Parameters of function
+	Locals  map[string]VarDef // Local constants and vars
+	Results []TypeDef         // Results of function
 	//Code                            // Code of function
-	Access AccessLevel // The level of access
 }
 
 // ObjectDef is an object, which can have fields and functions that operate on them
@@ -147,19 +274,18 @@ type ObjectDef struct {
 	Funcs   map[string]FuncDef // Object methods
 }
 
-// Src is a source file
-type Src struct {
-	GlobalConsts map[string]TypeDef   // Global constants
-	GlobalVars   map[string]TypeDef   // Global vars
-	Objects      map[string]ObjectDef // Objects
-	Funcs        map[string]FuncDef   // Top level functions that are not methods
-	Main         FuncDef              // Main function
+// SrcDef is a source file
+type SrcDef struct {
+	Globals map[string]TypeDef   // Global constants and vars
+	Objects map[string]ObjectDef // Objects
+	Funcs   map[string]FuncDef   // Top level functions that are not methods
+	Main    FuncDef              // Main function
 }
 
-// Pkg is a directory of source files
-type Pkg struct {
-	Path    string // Relative path to dir containing sources
-	Sources []Src  // Source files
+// PkgDef is a directory of source files
+type PkgDef struct {
+	Path    string   // Relative path to dir containing sources
+	Sources []SrcDef // Source files
 
 	// Init is an optional initialization function for the package.
 	// The set of all package init functions execute in some arbitrary order at runtime.

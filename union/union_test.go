@@ -492,11 +492,30 @@ func TestMaybe_(t *testing.T) {
 		assert.Equal(t, &i, resp.Get())
 	}
 	
-	// First
+	// Present
 	{
-    assert.Equal(t, Of(1), First(1))
-    assert.Equal(t, Of(1), First(1, 2))
-    assert.Equal(t, Empty[int](), First[int]())
+    res := Present(1)
+    assert.True(t, res.Present())
+    assert.False(t, res.Empty())
+    assert.Equal(t, 1, res.Get())
+
+    var i int
+    resp := Present(&i)
+    assert.True(t, resp.Present())
+    assert.Equal(t, &i, resp.Get())
+    
+    called := false
+    funcs.TryTo(
+      func() {
+        resp = Present[*int](nil)
+        assert.Fail(t, "Must die")
+      },
+      func(e any) {
+        assert.Equal(t, errEmptyMaybe, e)
+        called = true
+      },
+    )
+    assert.True(t, called)
 	}
 
 	// String
