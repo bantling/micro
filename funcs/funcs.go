@@ -17,6 +17,7 @@ import (
 const (
 	notNilableMsg              = "Type %s is not a nillable type"
 	nilMsg                     = "The value of type %s cannot be nil"
+  zeroMsg                    = "The value of type %T cannot be the zero value"
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
 	assertTypeMsg              = "expected %s to be %T, not %T"
@@ -1124,6 +1125,15 @@ func AssertType[T any](msg string, v any) (T, error) {
 // MustAssertType is a must version of AssertType
 func MustAssertType[T any](msg string, v any) T {
 	return MustValue(AssertType[T](msg, v))
+}
+
+// MustNonZero panics if the value passed is a zero value, else it returns the value passed
+func MustNonZero[T any](v T) T {
+  if reflect.ValueOf(v).IsZero() {
+    panic(fmt.Errorf(zeroMsg, v))
+  }
+  
+  return v
 }
 
 // ConvertToSlice asserts that the any value given is a []any, and that all elements are type T, converting to a []T

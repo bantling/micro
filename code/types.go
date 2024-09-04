@@ -226,13 +226,15 @@ func OfVarDef(
   konst bool,
   def *TypeDef,
   name string,
-  Value string,
+  value string,
   access ...AccessLevel,
 ) VarDef {
   return VarDef{
     Access: funcs.SliceIndex(access, 0, Private),
     Const: konst,
     Def: funcs.MustNonNilValue(def),
+    Name: funcs.MustNonZero(name),
+    Value: value,
   }
 }
 

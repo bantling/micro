@@ -1139,13 +1139,16 @@ func TestMustValue3_(t *testing.T) {
 	)
 }
 
-func TestAssertType_(t *testing.T) {
+func TestAssert_(t *testing.T) {
+  var called bool
+
 	assert.Equal(t, tuple.Of2[bool, error](true, nil), tuple.Of2(AssertType[bool]("", true)))
 	assert.Equal(t, tuple.Of2[bool, error](false, fmt.Errorf("expected foo to be bool, not string")), tuple.Of2(AssertType[bool]("foo", "")))
 
 	assert.Equal(t, tuple.Of2[int8, error](1, nil), tuple.Of2(AssertType[int8]("", int8(1))))
 	assert.Equal(t, tuple.Of2[int8, error](0, fmt.Errorf("expected foo to be int8, not bool")), tuple.Of2(AssertType[int8]("foo", false)))
 
+  called = false
 	assert.Equal(t, true, MustAssertType[bool]("", true))
 	TryTo(
 		func() {
@@ -1154,9 +1157,12 @@ func TestAssertType_(t *testing.T) {
 		},
 		func(e any) {
 			assert.Equal(t, fmt.Errorf("expected foo to be bool, not string"), e)
+			called = true
 		},
 	)
+	assert.True(t, called)
 
+  called = false
 	assert.Equal(t, int8(1), MustAssertType[int8]("", int8(1)))
 	TryTo(
 		func() {
@@ -1165,8 +1171,38 @@ func TestAssertType_(t *testing.T) {
 		},
 		func(e any) {
 			assert.Equal(t, fmt.Errorf("expected foo to be int8, not bool"), e)
+			called = true
 		},
 	)
+  assert.True(t, called)
+	
+	called = false
+	assert.Equal(t, 1, MustNonZero(1))
+  TryTo(
+    func() {
+      MustNonZero("")
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("The value of type string cannot be the zero value"), e)
+      called = true
+    },
+  )
+  assert.True(t, called)
+  
+  called = false
+  assert.Equal(t, &called, MustNonZero(&called))
+  TryTo(
+    func() {
+      MustNonZero((*bool)(nil))
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("The value of type *bool cannot be the zero value"), e)
+      called = true
+    },
+  )
+  assert.True(t, called)
 }
 
 func TestConvertToSlice_(t *testing.T) {
