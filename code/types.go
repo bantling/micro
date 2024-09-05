@@ -3,7 +3,7 @@ package code
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/union"
 )
 
@@ -85,8 +85,8 @@ const (
 // TypeDef is a type definition
 type TypeDef struct {
 	Access      AccessLevel // Level of access, if applicable. Empty means default level.
-	Typ         Type                     // Type
-	ArrayBounds []uint                   // Bounds of an array. A dimension can be -1 for unspecified dimension, slice can
+	Typ         Type        // Type
+	ArrayBounds []uint      // Bounds of an array. A dimension can be -1 for unspecified dimension, slice can
 	// be zero length for one unspecified dimension.
 	// For a list, one element >= 1 that indicates list, or list of list, etc.
 	Name      string                // Name of an enum or object
@@ -102,17 +102,17 @@ func OfScalarType(
 	access ...AccessLevel,
 ) TypeDef {
 	return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
+		Access: funcs.SliceIndex(access, 0, Private),
 		Typ:    Type(typ),
 	}
 }
 
 // OfJSONType constructs a JSON TypeDef
 func OfJSONType(access ...AccessLevel) TypeDef {
-  return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Typ: Type(JSON),
-  }
+	return TypeDef{
+		Access: funcs.SliceIndex(access, 0, Private),
+		Typ:    Type(JSON),
+	}
 }
 
 // OfArrayType constructs an array TypeDef
@@ -122,7 +122,7 @@ func OfArrayType(
 	access ...AccessLevel,
 ) TypeDef {
 	return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
+		Access:      funcs.SliceIndex(access, 0, Private),
 		Typ:         Type(Array),
 		ArrayBounds: bounds,
 		ValueType:   union.Present(elementTyp),
@@ -131,84 +131,84 @@ func OfArrayType(
 
 // OfEnumType constructs an enum TypeDef
 func OfEnumType(
-  name string,
-  baseType *TypeDef,
+	name string,
+	baseType *TypeDef,
 	constants []string,
 	access ...AccessLevel,
 ) TypeDef {
 	return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-		Typ:    Type(Enum),
-		Name:   name,
-		Names:  constants,
-    ValueType: union.Present(baseType),
+		Access:    funcs.SliceIndex(access, 0, Private),
+		Typ:       Type(Enum),
+		Name:      name,
+		Names:     constants,
+		ValueType: union.Present(baseType),
 	}
 }
 
 // OfListType constructs a list TypeDef
 func OfListType(
-  elementType *TypeDef,
-  access ...AccessLevel,
+	elementType *TypeDef,
+	access ...AccessLevel,
 ) TypeDef {
-  return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Typ:    Type(List),
-    ValueType: union.Present(elementType),
-  }
+	return TypeDef{
+		Access:    funcs.SliceIndex(access, 0, Private),
+		Typ:       Type(List),
+		ValueType: union.Present(elementType),
+	}
 }
 
 // OfMapType constructs a map TypeDef
 func OfMapType(
-  keyType *TypeDef,
-  valueType *TypeDef,
-  access ...AccessLevel,
+	keyType *TypeDef,
+	valueType *TypeDef,
+	access ...AccessLevel,
 ) TypeDef {
-  return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Typ:    Type(Map),
-    KeyType: union.Present(keyType),
-    ValueType: union.Present(valueType),
-  }
+	return TypeDef{
+		Access:    funcs.SliceIndex(access, 0, Private),
+		Typ:       Type(Map),
+		KeyType:   union.Present(keyType),
+		ValueType: union.Present(valueType),
+	}
 }
 
 // OfMaybeType constructs a Maybe TypeDef
 func OfMaybeType(
-  elementType *TypeDef,
-  access ...AccessLevel,
+	elementType *TypeDef,
+	access ...AccessLevel,
 ) TypeDef {
-  return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Typ:    Type(Maybe),
-    ValueType: union.Present(elementType),
-  }
+	return TypeDef{
+		Access:    funcs.SliceIndex(access, 0, Private),
+		Typ:       Type(Maybe),
+		ValueType: union.Present(elementType),
+	}
 }
 
 // OfObjectType constructs an Object TypeDef
 func OfObjectType(
-  baseType *TypeDef,
-  name string,
-  generics []string,
-  access ...AccessLevel,
+	baseType *TypeDef,
+	name string,
+	generics []string,
+	access ...AccessLevel,
 ) TypeDef {
-  return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Typ:    Type(Object),
-    Name: name,
-    Names: generics,
-    ValueType: union.Present(baseType),
-  }
+	return TypeDef{
+		Access:    funcs.SliceIndex(access, 0, Private),
+		Typ:       Type(Object),
+		Name:      name,
+		Names:     generics,
+		ValueType: union.Present(baseType),
+	}
 }
 
 // OfSetType constructs a set TypeDef
 func OfSetType(
-  elementType *TypeDef,
-  access ...AccessLevel,
+	elementType *TypeDef,
+	access ...AccessLevel,
 ) TypeDef {
-  return TypeDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Typ:    Type(Set),
-    ValueType: union.Present(elementType),
-  }
+	return TypeDef{
+		Access:    funcs.SliceIndex(access, 0, Private),
+		Typ:       Type(Set),
+		ValueType: union.Present(elementType),
+	}
 }
 
 // VarDef is a constant or variable definition
@@ -220,28 +220,38 @@ type VarDef struct {
 	Value  string      // The initial value
 }
 
-
 // OfVarDef constructs a VarDef
 func OfVarDef(
-  konst bool,
-  def *TypeDef,
-  name string,
-  value string,
-  access ...AccessLevel,
+	konst bool,
+	def *TypeDef,
+	name string,
+	value string,
+	access ...AccessLevel,
 ) VarDef {
-  return VarDef{
-    Access: funcs.SliceIndex(access, 0, Private),
-    Const: konst,
-    Def: funcs.MustNonNilValue(def),
-    Name: funcs.MustNonZero(name),
-    Value: value,
-  }
+	return VarDef{
+		Access: funcs.SliceIndex(access, 0, Private),
+		Const:  konst,
+		Def:    funcs.MustNonNilValue(def),
+		Name:   funcs.MustNonZero(name),
+		Value:  value,
+	}
 }
 
 // LitDef is a literal definition
 type LitDef struct {
-	Def   *TypeDef // TypeDef.Name
+	Def   *TypeDef // Literal Type
 	Value string   // Literal value
+}
+
+// OPfLitDef constructs a literal definition
+func OfLitDef(
+	def *TypeDef,
+	value string,
+) LitDef {
+	return LitDef{
+		Def:   funcs.MustNonNilValue(def),
+		Value: value,
+	}
 }
 
 // ValKind is the kind of a value
@@ -255,9 +265,22 @@ const (
 // Val represents a value of some type
 // It is a constant, variable or literal
 type Val struct {
-	Kind    ValKind              // The kind of value
-	TypeDef union.Maybe[TypeDef] // The TypeDef, if applicable
-	Value   string               // The literal value or variable name
+	Kind    ValKind               // The kind of value
+	TypeDef union.Maybe[*TypeDef] // The TypeDef, if applicable
+	Value   string                // The literal value or variable name
+}
+
+// OfVal constructs a value
+func OfVal(
+	knd ValKind,
+	typeDef *TypeDef,
+	val string,
+) Val {
+	return Val{
+		Kind:    knd,
+		TypeDef: union.Of(typeDef),
+		Value:   val,
+	}
 }
 
 // FuncDef is a function definition

@@ -140,10 +140,10 @@ func Empty[TT any]() Maybe[TT] {
 // Present constructs a Present Maybe
 // This function only differs from Of for nillable types - this function will die if the nillable type is nil
 func Present[TT any](t TT) Maybe[TT] {
-  if funcs.IsNilValue(t) {
-    panic(errEmptyMaybe)
-  }
-  return Maybe[TT]{v: t, present: true}
+	if funcs.IsNilValue(t) {
+		panic(errEmptyMaybe)
+	}
+	return Maybe[TT]{v: t, present: true}
 }
 
 // OfResult constructs a Result that holds an R
