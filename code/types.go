@@ -17,12 +17,14 @@ const (
 	Bool ScalarType = iota
 
 	// Unsigned ints
+	Uint
 	Uint8
 	Uint16
 	Uint32
 	Uint64
 
 	// Signed ints
+	Int
 	Int8
 	Int16
 	Int32
