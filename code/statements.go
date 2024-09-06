@@ -140,20 +140,6 @@ func OfBooleanExpr(
   }
 }
 
-// OfTernaryExpr constructs a ternary boolean Expr
-func OfTernaryExpr(
-  val1 *Val,
-  val2 *Val,
-  val3 *Val,
-) Expr {
-  return Expr{
-    Op: Operator(Ternary),
-    Val1: funcs.MustNonNilValue(val1),
-    Val2: union.Present(val2),
-    Val3: union.Present(val3),
-  }
-}
-
 // StmtKind describes the type of statement
 type StmtKind uint
 
