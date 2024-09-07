@@ -1203,6 +1203,34 @@ func TestAssert_(t *testing.T) {
 		},
 	)
 	assert.True(t, called)
+
+  called = false
+  assert.Equal(t, []int{1}, MustNonZero([]int{1}))
+  TryTo(
+    func() {
+      MustNonZero(([]int)(nil))
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("The value cannot be []int(nil)"), e)
+      called = true
+    },
+  )
+  assert.True(t, called)
+
+  called = false
+  assert.Equal(t, []int{1}, MustNonEmptySlice([]int{1}))
+  TryTo(
+    func() {
+      MustNonEmptySlice([]int{})
+      assert.Fail(t, "Must Die")
+    },
+    func(e any) {
+      assert.Equal(t, fmt.Errorf("The value of type []int must have at least one element"), e)
+      called = true
+    },
+  )
+  assert.True(t, called)
 }
 
 func TestConvertToSlice_(t *testing.T) {

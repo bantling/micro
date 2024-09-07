@@ -1,5 +1,7 @@
 package code
 
+// SPDX-License-Identifier: Apache-2.0
+
 import (
   "github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/union"
@@ -33,7 +35,7 @@ type BinaryOperator Operator
 
 const (
 	// Four basic ops
-	Add BinaryOperator = BinaryOperator(afterUnary)
+	Add BinaryOperator = iota + BinaryOperator(afterUnary)
 	Sub
 	Mul
 	Div
@@ -57,18 +59,21 @@ const (
 type BooleanOperator Operator
 
 const (
-	// Logical
-	And BooleanOperator = BooleanOperator(afterBinary)
+	// Logical Unary
+  Not BooleanOperator = iota + BooleanOperator(afterBinary)
+  // Logical Binary
+	And 
 	Or
-  Not
-  Ternary
 
-	// Relational
+	// Relational Binary
 	Lesser
 	LesserEquals
 	Equals
 	GreaterEquals
 	Greater
+	
+	// Logical Ternary
+	Ternary
 )
 
 // IsUnary is true if the Operator is a UnaryOperator
@@ -121,22 +126,32 @@ func OfBinaryExpr(
 }
 
 // OfBooleanExpr constructs a binary boolean Expr
+// If the operator is Not, then val23 is ignored 
+// If the operator is Ternary, then val23 must have two values
+// All other operators are binary, so val23 must have one value 
 func OfBooleanExpr(
   op   BooleanOperator,
   val1 *Val,
-  val2 *Val,
-  val3 ...*Val,
+  val23 ... *Val,
 ) Expr {
-  var ternVal union.Maybe[*Val]
-  if op == Ternary {
-    ternVal = union.Present(val3[0])
+  var val2, val3 union.Maybe[*Val]
+  switch op {
+    case Not:
+      // Only need one value
+    case Ternary:
+      // Need three values
+      val2 = union.Present(val23[0])
+      val3 = union.Present(val23[1])
+    default:
+      // Rest are binary operators, need two values
+      val2 = union.Present(val23[0])
   }
   
   return Expr{
     Op:   Operator(op),
     Val1: funcs.MustNonNilValue(val1),
-    Val2: union.Present(val2),
-    Val3: ternVal,
+    Val2: val2,
+    Val3: val3,
   }
 }
 

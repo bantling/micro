@@ -52,7 +52,7 @@ const (
 type AggregateType Type
 
 const (
-	JSON AggregateType = AggregateType(afterScalar)
+	JSON AggregateType = iota + AggregateType(afterScalar)
 	Array
 	Enum
 	List
@@ -61,6 +61,11 @@ const (
 	Object
 	Set
 )
+
+// Types is a constraint on Type and all known subtypes of it
+type Types interface {
+  Type|ScalarType|AggregateType
+}
 
 // IsScalar is true if the Type is a Scalar Type
 func IsScalar(typ Type) bool {
@@ -100,18 +105,17 @@ type TypeDef struct {
 // OfScalarType constructs a scalar TypeDef
 func OfScalarType(
 	typ ScalarType,
-	bounds []uint,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access: funcs.SliceIndex(access, 0, Private),
 		Typ:    Type(typ),
 	}
 }
 
 // OfJSONType constructs a JSON TypeDef
-func OfJSONType(access ...AccessLevel) TypeDef {
-	return TypeDef{
+func OfJSONType(access ...AccessLevel) *TypeDef {
+	return &TypeDef{
 		Access: funcs.SliceIndex(access, 0, Private),
 		Typ:    Type(JSON),
 	}
@@ -122,8 +126,8 @@ func OfArrayType(
 	elementTyp *TypeDef,
 	bounds []uint,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:      funcs.SliceIndex(access, 0, Private),
 		Typ:         Type(Array),
 		ArrayBounds: bounds,
@@ -137,12 +141,12 @@ func OfEnumType(
 	baseType *TypeDef,
 	constants []string,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:    funcs.SliceIndex(access, 0, Private),
 		Typ:       Type(Enum),
 		Name:      name,
-		Names:     constants,
+		Names:     funcs.MustNonEmptySlice(constants),
 		ValueType: union.Present(baseType),
 	}
 }
@@ -151,8 +155,8 @@ func OfEnumType(
 func OfListType(
 	elementType *TypeDef,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:    funcs.SliceIndex(access, 0, Private),
 		Typ:       Type(List),
 		ValueType: union.Present(elementType),
@@ -164,8 +168,8 @@ func OfMapType(
 	keyType *TypeDef,
 	valueType *TypeDef,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:    funcs.SliceIndex(access, 0, Private),
 		Typ:       Type(Map),
 		KeyType:   union.Present(keyType),
@@ -177,8 +181,8 @@ func OfMapType(
 func OfMaybeType(
 	elementType *TypeDef,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:    funcs.SliceIndex(access, 0, Private),
 		Typ:       Type(Maybe),
 		ValueType: union.Present(elementType),
@@ -191,8 +195,8 @@ func OfObjectType(
 	name string,
 	generics []string,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:    funcs.SliceIndex(access, 0, Private),
 		Typ:       Type(Object),
 		Name:      name,
@@ -205,8 +209,8 @@ func OfObjectType(
 func OfSetType(
 	elementType *TypeDef,
 	access ...AccessLevel,
-) TypeDef {
-	return TypeDef{
+) *TypeDef {
+	return &TypeDef{
 		Access:    funcs.SliceIndex(access, 0, Private),
 		Typ:       Type(Set),
 		ValueType: union.Present(elementType),
