@@ -37,9 +37,9 @@ type Generator interface {
 	// This will be the current source file under another call is made
 	Src(name string) Generator
 	// Create global constants in the current source file
-	GlobalConsts(constants ...VarDef) Generator
+	GlobalConsts(constants ...Val) Generator
 	// Create global vars in the current source file
-	GlobalVars(globals ...VarDef) Generator
+	GlobalVars(globals ...Val) Generator
 	// Create types in the current source file
 	Types(objects ...ObjectDef) Generator
 	// Create funcs in the current source file

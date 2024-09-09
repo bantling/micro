@@ -3,7 +3,7 @@ package code
 // SPDX-License-Identifier: Apache-2.0
 
 import (
-  "github.com/bantling/micro/funcs"
+	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/union"
 )
 
@@ -49,7 +49,7 @@ const (
 	BitXor
 	BitShiftLeft
 	BitShiftRight
-  BitShiftRightArithmetic
+	BitShiftRightArithmetic
 
 	// internal constant for one past last binary
 	afterBinary
@@ -60,9 +60,9 @@ type BooleanOperator Operator
 
 const (
 	// Logical Unary
-  Not BooleanOperator = iota + BooleanOperator(afterBinary)
-  // Logical Binary
-	And 
+	Not BooleanOperator = iota + BooleanOperator(afterBinary)
+	// Logical Binary
+	And
 	Or
 
 	// Relational Binary
@@ -71,7 +71,7 @@ const (
 	Equals
 	GreaterEquals
 	Greater
-	
+
 	// Logical Ternary
 	Ternary
 )
@@ -98,71 +98,71 @@ type Expr struct {
 	Op   Operator
 	Val1 *Val
 	Val2 union.Maybe[*Val]
-  Val3 union.Maybe[*Val]
+	Val3 union.Maybe[*Val]
 }
 
 // OfUnaryExpr constructs a unary Expr
 func OfUnaryExpr(
-  op  UnaryOperator,
-  val *Val,
+	op UnaryOperator,
+	val *Val,
 ) Expr {
-  return Expr{
-    Op: Operator(op),
-    Val1: funcs.MustNonNilValue(val),
-  }
+	return Expr{
+		Op:   Operator(op),
+		Val1: funcs.MustNonNilValue(val),
+	}
 }
 
 // OfBinaryExpr constructs a binary Expr
 func OfBinaryExpr(
-  op   BinaryOperator,
-  val1 *Val,
-  val2 *Val,
+	op BinaryOperator,
+	val1 *Val,
+	val2 *Val,
 ) Expr {
-  return Expr{
-    Op: Operator(op),
-    Val1: funcs.MustNonNilValue(val1),
-    Val2: union.Present(val2),
-  }
+	return Expr{
+		Op:   Operator(op),
+		Val1: funcs.MustNonNilValue(val1),
+		Val2: union.Present(val2),
+	}
 }
 
 // OfBooleanExpr constructs a binary boolean Expr
-// If the operator is Not, then val23 is ignored 
+// If the operator is Not, then val23 is ignored
 // If the operator is Ternary, then val23 must have two values
-// All other operators are binary, so val23 must have one value 
+// All other operators are binary, so val23 must have one value
 func OfBooleanExpr(
-  op   BooleanOperator,
-  val1 *Val,
-  val23 ... *Val,
+	op BooleanOperator,
+	val1 *Val,
+	val23 ...*Val,
 ) Expr {
-  var val2, val3 union.Maybe[*Val]
-  switch op {
-    case Not:
-      // Only need one value
-    case Ternary:
-      // Need three values
-      val2 = union.Present(val23[0])
-      val3 = union.Present(val23[1])
-    default:
-      // Rest are binary operators, need two values
-      val2 = union.Present(val23[0])
-  }
-  
-  return Expr{
-    Op:   Operator(op),
-    Val1: funcs.MustNonNilValue(val1),
-    Val2: val2,
-    Val3: val3,
-  }
+	var val2, val3 union.Maybe[*Val]
+	switch op {
+	case Not:
+		// Only need one value
+	case Ternary:
+		// Need three values
+		val2 = union.Present(val23[0])
+		val3 = union.Present(val23[1])
+	default:
+		// Rest are binary operators, need two values
+		val2 = union.Present(val23[0])
+	}
+
+	return Expr{
+		Op:   Operator(op),
+		Val1: funcs.MustNonNilValue(val1),
+		Val2: val2,
+		Val3: val3,
+	}
 }
 
 // StmtKind describes the type of statement
 type StmtKind uint
 
 const (
-  Constant   StmtKind = iota // Constant is a local constant
+	Constant   StmtKind = iota // Constant is a local constant
 	Local                      // Local is a local var
 	Assignment                 // Assign a value to a local var
-	Case                       // Conditional, flexible like SQL or go switch	
+	Case                       // Conditional, flexible like SQL or go switch
 )
 
 // StmtDef is a statement

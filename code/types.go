@@ -64,7 +64,7 @@ const (
 
 // Types is a constraint on Type and all known subtypes of it
 type Types interface {
-  Type|ScalarType|AggregateType
+	Type | ScalarType | AggregateType
 }
 
 // IsScalar is true if the Type is a Scalar Type
@@ -217,84 +217,57 @@ func OfSetType(
 	}
 }
 
-// VarDef is a constant or variable definition
-type VarDef struct {
-	Access AccessLevel // Level of access
-	Const  bool        // True if it is a constant
-	Def    *TypeDef    // TypeDef
-	Name   string      // Var name
-	Value  string      // The initial value
-}
-
-// OfVarDef constructs a VarDef
-func OfVarDef(
-	konst bool,
-	def *TypeDef,
-	name string,
-	value string,
-	access ...AccessLevel,
-) VarDef {
-	return VarDef{
-		Access: funcs.SliceIndex(access, 0, Private),
-		Const:  konst,
-		Def:    funcs.MustNonNilValue(def),
-		Name:   funcs.MustNonZero(name),
-		Value:  value,
-	}
-}
-
-// LitDef is a literal definition
-type LitDef struct {
-	Def   *TypeDef // Literal Type
-	Value string   // Literal value
-}
-
-// OPfLitDef constructs a literal definition
-func OfLitDef(
-	def *TypeDef,
-	value string,
-) LitDef {
-	return LitDef{
-		Def:   funcs.MustNonNilValue(def),
-		Value: value,
-	}
-}
-
 // ValKind is the kind of a value
 type ValKind int
 
 const (
-	LitVal ValKind = iota // A literal value
-	VarVal                // A variable value
+	LitVal   ValKind = iota // A literal value
+	VarVal                  // A variable value
+	VarConst                // A constant variable value
 )
 
 // Val represents a value of some type
-// It is a constant, variable or literal
+// It is a (non-)constant variable or literal
 type Val struct {
+	Access  AccessLevel           // Level of access
 	Kind    ValKind               // The kind of value
-	TypeDef union.Maybe[*TypeDef] // The TypeDef, if applicable
+	TypeDef union.Maybe[*TypeDef] // The TypeDef
 	Value   string                // The literal value or variable name
 }
 
-// OfVal constructs a value
-func OfVal(
-	knd ValKind,
+// OfLitVal constructs a literal value
+func OfLitVal(
 	typeDef *TypeDef,
 	val string,
 ) Val {
 	return Val{
-		Kind:    knd,
-		TypeDef: union.Of(typeDef),
+		Kind:    LitVal,
+		TypeDef: union.Present(typeDef),
+		Value:   val,
+	}
+}
+
+// OfVarVal constructs a variable value, which may be constant
+func OfVarVal(
+	konst bool,
+	typeDef *TypeDef,
+	val string,
+	access ...AccessLevel,
+) Val {
+	return Val{
+		Access:  funcs.SliceIndex(access, 0, Private),
+		Kind:    funcs.Ternary(konst, VarConst, VarVal),
+		TypeDef: union.Present(typeDef),
 		Value:   val,
 	}
 }
 
 // FuncDef is a function definition
 type FuncDef struct {
-	Access  AccessLevel       // The level of access
-	Params  map[string]VarDef // Parameters of function
-	Locals  map[string]VarDef // Local constants and vars
-	Results []TypeDef         // Results of function
+	Access  AccessLevel    // The level of access
+	Params  map[string]Val // Parameters of function
+	Locals  map[string]Val // Local constants and vars
+	Results []TypeDef      // Results of function
 	//Code                            // Code of function
 }
 

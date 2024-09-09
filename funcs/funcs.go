@@ -17,7 +17,7 @@ import (
 const (
 	notNilableMsg              = "Type %s is not a nillable type"
 	nilMsg                     = "The value of type %s cannot be nil"
-	nonEmptyMsg                = "The value of type %T must have at least one element" 
+	nonEmptyMsg                = "The value of type %T must have at least one element"
 	zeroMsg                    = "The value cannot be %#v"
 	sliceFlattenArgNotSliceMsg = "SliceFlatten argument must be a slice, not type %T"
 	sliceFlattenArgNotTMsg     = "SliceFlatten argument must be slice of %s, not a slice of %s"
@@ -1139,11 +1139,11 @@ func MustNonZero[T any](v T) T {
 
 // MustNonEmptySlice panics if the value passed is a nil or empty slice
 func MustNonEmptySlice[T any](v []T) []T {
-  if len(v) == 0 {
-    panic(fmt.Errorf(nonEmptyMsg, v))
-  }
-  
-  return v
+	if len(v) == 0 {
+		panic(fmt.Errorf(nonEmptyMsg, v))
+	}
+
+	return v
 }
 
 // ConvertToSlice asserts that the any value given is a []any, and that all elements are type T, converting to a []T
