@@ -5,6 +5,7 @@ package code
 import (
 	"testing"
 
+  "github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,4 +31,31 @@ func TestType_(t *testing.T) {
 	assert.True(t, IsAggregate(OfMaybeType(OfScalarType(Uint)).Typ))
 	assert.True(t, IsAggregate(OfObjectType(OfScalarType(Uint), "foo", []string{"bar"}).Typ))
 	assert.True(t, IsAggregate(OfSetType(OfScalarType(Uint)).Typ))
+}
+
+func TestVal_(t *testing.T) {
+  typ := OfScalarType(Int)
+  assert.Equal(
+    t,
+    Val{Access: union.Empty[AccessLevel](), Kind: LitVal, Typ: typ, Value: "1"},
+    OfLitVal(typ, "1"),
+  )
+  
+  assert.Equal(
+    t,
+    Val{Access: union.Of(Public), Kind: VarVal, Typ: typ, Value: "2"},
+    OfVarVal(false, typ, "2", Public),
+  )
+  
+  assert.Equal(
+    t,
+    Val{Access: union.Of(Private), Kind: VarVal, Typ: typ, Value: "3"},
+    OfVarVal(false, typ, "3", Private),
+  )
+  
+  assert.Equal(
+    t,
+    Val{Access: union.Empty[AccessLevel](), Kind: VarConst, Typ: typ, Value: "4"},
+    OfVarVal(true, typ, "4"),
+  )
 }

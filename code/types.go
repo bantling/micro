@@ -229,10 +229,10 @@ const (
 // Val represents a value of some type
 // It is a (non-)constant variable or literal
 type Val struct {
-	Access  AccessLevel           // Level of access
-	Kind    ValKind               // The kind of value
-	TypeDef union.Maybe[*TypeDef] // The TypeDef
-	Value   string                // The literal value or variable name
+	Access  union.Maybe[AccessLevel] // Level of access
+	Kind    ValKind                  // The kind of value
+	Typ     *TypeDef                 // The TypeDef
+	Value   string                   // The literal value or variable name
 }
 
 // OfLitVal constructs a literal value
@@ -241,9 +241,9 @@ func OfLitVal(
 	val string,
 ) Val {
 	return Val{
-		Kind:    LitVal,
-		TypeDef: union.Present(typeDef),
-		Value:   val,
+		Kind : LitVal,
+		Typ  : funcs.MustNonNilValue(typeDef),
+		Value: val,
 	}
 }
 
@@ -255,9 +255,9 @@ func OfVarVal(
 	access ...AccessLevel,
 ) Val {
 	return Val{
-		Access:  funcs.SliceIndex(access, 0, Private),
+		Access:  union.First(access),
 		Kind:    funcs.Ternary(konst, VarConst, VarVal),
-		TypeDef: union.Present(typeDef),
+		Typ:    funcs.MustNonNilValue(typeDef),
 		Value:   val,
 	}
 }
