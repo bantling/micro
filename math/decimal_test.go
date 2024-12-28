@@ -200,7 +200,7 @@ func TestMagnitudeLessThanOne_(t *testing.T) {
     assert.False(t, Decimal{value: 1, scale: 0}.MagnitudeLessThanOne())
 
     // scale = 1
-    assert.True(t, Decimal{value: 9, scale: 1}.MagnitudeLessThanOne())
+    assert.True(t, Decimal{value: -9, scale: 1}.MagnitudeLessThanOne())
     assert.False(t, Decimal{value: 10, scale: 1}.MagnitudeLessThanOne())
 
     // scale = 2
