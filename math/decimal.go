@@ -5,6 +5,7 @@ package math
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/bantling/micro/conv"
@@ -12,34 +13,64 @@ import (
 )
 
 var (
-	decimalRegex = regexp.MustCompile("(-?)([1-9][0-9]*)(?:.([0-9]+))?")
+    // optional minus sign, zero or more digits, optional dot and zero or more digits.
+	decimalRegex = regexp.MustCompile("(-?)([0-9]*)[.]?([0-9]*)")
+
+	// Powers of 10 constants from 10^0 thru 10^18 (scale can be 0 - 18)
+	powersOf10 = []int64{
+	   1,                          //  0
+	   10,                         //  1
+	   100,                        //  2
+	   1_000,                      //  3
+	   10_000,                     //  4
+	   100_000,                    //  5
+	   1_000_000,                  //  6
+	   10_000_000,                 //  7
+	   100_000_000,                //  8
+	   1_000_000_000,              //  9
+	   10_000_000_000,             // 10
+	   100_000_000_000,            // 11
+	   1_000_000_000_000,          // 12
+	   10_000_000_000_000,         // 13
+	   100_000_000_000_000,        // 14
+	   1_000_000_000_000_000,      // 15
+	   10_000_000_000_000_000,     // 16
+	   100_000_000_000_000_000,    // 17
+	   1_000_000_000_000_000_000,  // 18
+	}
 )
 
 const (
 	// decimalMaxScale is the maximum decimal scale, which is also the maximum precision
+	// range of 64-bit signed int is:
+	//   1 234 567 890 123 456 789
+	// - 9,223,372,036,854,775,808
+	// + 9,223,372,036,854,775,807
+	// That's a total of 19 digits, but cannot store 19 9 digits.
+	// So we drop back to 18 digits, and we can express values from -18 9s to +18 9s.
 	decimalMaxScale = 18
 
 	// decimalDefaultScale is the default decimal scale, which is 2, since most uses will probably be for money
 	decimalDefaultScale = 2
 
 	// decimalMaxValue is the maximum decimal value
-	//                 123 456 789 012 345 678
+	//                       123 456 789 012 345 678
 	decimalMaxValue int64 = +999_999_999_999_999_999
 
 	// decimalMinValue is the minimum decimal value
-	//                 123 456 789 012 345 678
+	//                       123 456 789 012 345 678
 	decimalMinValue int64 = -999_999_999_999_999_999
 
 	// decimalCheck18SignificantDigits is the smallest value of 18 significant digits
-	//                                       123 456 789 012 345 678
+	//                                      123 456 789 012 345 678
 	decimalCheck18SignificantDigits int64 = 100_000_000_000_000_000
 
 	// decimalRoundMaxValue is the maximum decimal value that can be rounded up without requiring a 19th digit
-	//                        123 456 789 012 345 678
+	//                            123 456 789 012 345 678
 	decimalRoundMaxValue int64 = +999_999_999_999_999_994
 
 	// decimalRoundMinValue is the minimum decimal value that can be rounded down without requiring a 19th digit
-	//                             123 456 789 012 345 678
+	//                            123 456 789 012 345 678
 	decimalRoundMinValue int64 = -999_999_999_999_999_994
 
 	// errInvalidStringMsg is the error message for an invalid string to construct a decimal from
@@ -86,7 +117,7 @@ type Decimal struct {
 	scale uint
 }
 
-// OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 0)
+// OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 2)
 func OfDecimal(value int64, scale ...uint) (d Decimal, err error) {
 	scaleVal := funcs.SliceIndex(scale, 0, decimalDefaultScale)
 	if scaleVal > decimalMaxScale {
@@ -115,15 +146,15 @@ func MustDecimal(value int64, scale ...uint) Decimal {
 }
 
 // StringToDecimal creates a Decimal from the given string
-// The string must contain no more than 18 significant digits (leading zeros are not allowed), and satisfy the following regex:
-// -?[1-9][0-9]*(.[0-9]+)?
+// The string must contain no more than 18 significant digits, and satisfy the following regex:
+// (-?)([0-9]*)(.[0-9]*)?
 func StringToDecimal(value string) (d Decimal, err error) {
 	parts := decimalRegex.FindStringSubmatch(value)
 
 	// Error if string doesn't match regex
 	// Error if total number of digits > 18
-	// indexes : 1 = optional leading minus sign, 2 = required digits before decimal, 3 = optional digits after decimal
-	if (parts == nil) || ((len(parts[2]) + len(parts[3])) > 18) {
+	// indexes : 1 = optional leading minus sign, 2 = optional integer digits, 3 = optional decimal digits
+	if (parts == nil) || slices.Equal(parts, []string{"", "", "", ""}) || ((len(parts[2]) + len(parts[3])) > 18) {
 		err = fmt.Errorf(errInvalidStringMsg, value)
 		return
 	}
@@ -140,6 +171,11 @@ func StringToDecimal(value string) (d Decimal, err error) {
 	}
 
 	return
+}
+
+// MustStringToDecimal is a must version of StringToDecimal
+func MustStringToDecimal(value string) Decimal {
+    return funcs.MustValue(StringToDecimal(value))
 }
 
 // String is the Stringer interface
@@ -187,9 +223,7 @@ func (d Decimal) Scale() uint {
 
 // Sign returns the sign of the number:
 // -1 if value < 0
-//
 //	0 if value = 0
-//
 // +1 if value > 0
 func (d Decimal) Sign() (sgn int) {
 	switch {
@@ -295,6 +329,11 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 	return nil
 }
 
+// MustAdjustDecimalScale is a must version of AdjustDecimalScale
+func MustAdjustDecimalScale(d1, d2 *Decimal) {
+    funcs.Must(AdjustDecimalScale(d1, d2))
+}
+
 // AdjustDecimalFormat adjusts the two decimals strings to have the same number of digits before the decimal,
 // and the same number of digits after the decimal. Leading and trailing zeros are added as needed.
 // A positive number has a leading space.
@@ -398,6 +437,23 @@ func (d Decimal) Negate() Decimal {
 	return Decimal{value: -d.value, scale: d.scale}
 }
 
+// MagnitudeLessThanOne returns true if the decimal value
+// represents a value whose mangitude < 1
+func (d Decimal) MagnitudeLessThanOne() bool {
+    // If the value is negative, negate it to be positive
+    absVal := d.value
+    if absVal < 0 {
+         absVal = -absVal
+    }
+
+    // Use the powersOf10 slice to lookup 10^scale, where scale is the index
+    power10 := powersOf10[d.scale]
+
+    // If the absolute value < the 10^scale, then all significant digits are the right of the decimal place,
+    // which means the Decimal is < 1
+    return absVal < power10
+}
+
 // addDecimal is internal function called by Add and Sub
 // For Add, o = origO
 // For Sub, o = -origO
@@ -439,7 +495,7 @@ func (d Decimal) Add(o Decimal) (Decimal, error) {
 	return addDecimal(d, o, o, "+")
 }
 
-// MustAdd is amjust version of Add
+// MustAdd is a must version of Add
 func (d Decimal) MustAdd(o Decimal) Decimal {
 	return funcs.MustValue(d.Add(o))
 }
@@ -458,7 +514,7 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 }
 
 // Mul multiplies d by o, then sets the result scale to (d scale) + (o scale)
-// Returns an overflow error if the result > 18 9 digits.
+// Returns an overflow error if the result  >   18 9 digits.
 // Returns an underflow error if the result < - 18 9 digits.
 func (d Decimal) Mul(o Decimal) (Decimal, error) {
 	// Start by just multiplying the two 64-bit values together, and adding their scales
@@ -603,12 +659,12 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //
 // 9. 5.123 / 0.021
 // 5123 / 21 = 243 r 20
-//   20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 r 11     = 0.9         r 11
+//   20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 + 0 r 11 = 0.9         r 11
 //   11 / 21 = 110 (11 * 10^1) / 21 = 5 scale 1 + 1 r 5  = 0.05        r 5
-//    5 / 21 = 50 (5 * 10^1) / 21   = 2 scale 1 + 2 r 8  = 0.002       r 8
-//    8 / 21 = 80 (8 * 10^1) / 21   = 3 scale 1 + 3 r 17 = 0.000_3     r 17
+//    5 / 21 = 50  (5  * 10^1) / 21 = 2 scale 1 + 2 r 8  = 0.002       r 8
+//    8 / 21 = 80  (8  * 10^1) / 21 = 3 scale 1 + 3 r 17 = 0.000_3     r 17
 //   17 / 21 = 170 (17 * 10^1) / 21 = 8 scale 1 + 4 r 2  = 0.000_08    r 2
-//    2 / 21 = 200 (2 * 10^2) / 21  = 9 scale 2 + 5 r 11 = 0.000_000_9 r 11
+//    2 / 21 = 200 (2  * 10^2) / 21 = 9 scale 2 + 5 r 11 = 0.000_000_9 r 11
 // So a repeating decimal sequence of 952380 -> 243.952380952380952
 //
 // 10. 1.03075 / 0.25
@@ -619,13 +675,15 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // 11. 1_234_567_890_123_456.78 / 2.5
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 1 = 1 -> 4_938_271_560_493_827 scale 1 = 493_827_156_049_382.7
-// 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 + 1 = 0.012
+// 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 1 r 5 = 0.01  r 5
+// 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 2 r 0 = 0.002
 // Result is 493_827_156_049_382.7 + 0.012 = 493_827_156_049_382.712
 //
 // 12. 1_234_567_890_123_456.78 / 0.25
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 2 = scale 0 -> 4_938_271_560_493_827
-// 3 / 25 = 300 (3 * 10^2) / 25 = 12 scale 2 = 0.12
+// 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 0 r 5 = 0.1 r 5
+// 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 1 r 0 = 0.02
 // Result is 4_938_271_560_493_827 + 0.12 = 4_938_271_560_493_827.12
 //
 // 13. 1_234_567_890_123_456.78 / 0.00025
@@ -637,30 +695,18 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // 1 / 100_000_000_000_000_000
 // = 100_000_000_000_000_000 (1 * 10^17) / 100_000_000_000_000_000
 // = 1 scale 17
-// = 0.00_000_000_000_000_001
+// = 0.000_000_000_000_000_01
 //
 // 15. 1 / 200_000_000_000_000_000
 // 1 / 200_000_000_000_000_000
 // = 1 * 10^18 / 200_000_000_000_000_000, 1 * 10^18 is too large to store
-// = 1 / 2 * 10^17
-// = 10 / 2 * 10^18
-// = 5 scale 18 = 0.000_000_000_000_000_005
-//
-// 15. 1 / 200_000_000_001_000_000
-// 1 / 200_000_000_001_000_000
-// = 1 * 10^18 / 200_000_000_001_000_000, 1 * 10^18 is too large to store
-// = 1 / 200_000_000_001 * 10^6
-// = 1_000_000_000_000 / 200_000_000_001 * 10^18
-// = 4 r 199_999_999_996
-// = 4_000_000_000_000 / 199_999_999_996 =
-//=
-// = 5 scale 18 = 0.000_000_000_000_000_005
+// = underflow
 //
 // 16. 100_000_000_000_000_000 / 0.1
 // = 100_000_000_000_000_000 / 1
 // = 100_000_000_000_000_000
 // Scale 0 - 1 = -1 = Multiply by 10^1
-// = 1_000_000_000_000_000_000
+// = 1 * 10^18
 // = overflow
 //
 // Algorithm:

@@ -36,9 +36,15 @@ func TestOfDecimal_(t *testing.T) {
 }
 
 func TestStringToDecimal_(t *testing.T) {
+	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 0}, error(nil)), tuple.Of2(StringToDecimal("0")))
 	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 100}, error(nil)), tuple.Of2(StringToDecimal("100")))
 	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1001}, error(nil)), tuple.Of2(StringToDecimal("-1.001")))
 
+	assert.Equal(
+		t,
+		tuple.Of2(Decimal{}, fmt.Errorf("The string value x.5 is not a valid decimal string")),
+		tuple.Of2(StringToDecimal("x.5")),
+	)
 	assert.Equal(
 		t,
 		tuple.Of2(Decimal{}, fmt.Errorf("The string value 1234567890123456789 is not a valid decimal string")),
@@ -186,6 +192,84 @@ func TestDecimalNegate_(t *testing.T) {
 	assert.Equal(t, MustDecimal(-5), MustDecimal(5).Negate())
 	assert.Equal(t, MustDecimal(0), MustDecimal(0).Negate())
 	assert.Equal(t, MustDecimal(5), MustDecimal(-5).Negate())
+}
+
+func TestMagnitudeLessThanOne_(t *testing.T) {
+    // scale = 0
+    assert.True(t, Decimal{value: 0, scale: 0}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1, scale: 0}.MagnitudeLessThanOne())
+
+    // scale = 1
+    assert.True(t, Decimal{value: 9, scale: 1}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 10, scale: 1}.MagnitudeLessThanOne())
+
+    // scale = 2
+    assert.True(t, Decimal{value: 99, scale: 2}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 100, scale: 2}.MagnitudeLessThanOne())
+
+    // scale = 3
+    assert.True(t, Decimal{value: 999, scale: 3}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1_000, scale: 3}.MagnitudeLessThanOne())
+
+    // scale = 4
+    assert.True(t, Decimal{value: 9_999, scale: 4}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 10_000, scale: 4}.MagnitudeLessThanOne())
+
+    // scale = 5
+    assert.True(t, Decimal{value: 99_999, scale: 5}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 100_000, scale: 5}.MagnitudeLessThanOne())
+
+    // scale = 6
+    assert.True(t, Decimal{value: 999_999, scale: 6}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1_000_000, scale: 6}.MagnitudeLessThanOne())
+
+    // scale = 7
+    assert.True(t, Decimal{value: 9_999_999, scale: 7}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 10_000_000, scale: 7}.MagnitudeLessThanOne())
+
+    // scale = 8
+    assert.True(t, Decimal{value: 99_999_999, scale: 8}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 100_000_000, scale: 8}.MagnitudeLessThanOne())
+
+    // scale = 9
+    assert.True(t, Decimal{value: 999_999_999, scale: 9}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1_000_000_000, scale: 9}.MagnitudeLessThanOne())
+
+    // scale = 10
+    assert.True(t, Decimal{value: 9_999_999_999, scale: 10}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 10_000_000_000, scale: 10}.MagnitudeLessThanOne())
+
+    // scale = 11
+    assert.True(t, Decimal{value: 99_999_999_999, scale: 11}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 100_000_000_000, scale: 11}.MagnitudeLessThanOne())
+
+    // scale = 12
+    assert.True(t, Decimal{value: 999_999_999_999, scale: 12}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1_000_000_000_000, scale: 12}.MagnitudeLessThanOne())
+
+    // scale = 13
+    assert.True(t, Decimal{value: 9_999_999_999_999, scale: 13}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 10_000_000_000_000, scale: 13}.MagnitudeLessThanOne())
+
+    // scale = 14
+    assert.True(t, Decimal{value: 99_999_999_999_999, scale: 14}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 100_000_000_000_000, scale: 14}.MagnitudeLessThanOne())
+
+    // scale = 15
+    assert.True(t, Decimal{value: 999_999_999_999_999, scale: 15}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1_000_000_000_000_000, scale: 15}.MagnitudeLessThanOne())
+
+    // scale = 16
+    assert.True(t, Decimal{value: 9_999_999_999_999_999, scale: 16}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 10_000_000_000_000_000, scale: 16}.MagnitudeLessThanOne())
+
+    // scale = 17
+    assert.True(t, Decimal{value: 99_999_999_999_999_999, scale: 17}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 100_000_000_000_000_000, scale: 17}.MagnitudeLessThanOne())
+
+    // scale = 18 (this isn't quite realistic, the constructors would not allow a 19-digit value)
+    assert.True(t, Decimal{value: 999_999_999_999_999_999, scale: 18}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: 1_000_000_000_000_000_000, scale: 18}.MagnitudeLessThanOne())
 }
 
 func TestDecimalAdd_(t *testing.T) {
