@@ -449,8 +449,12 @@ func (d Decimal) MagnitudeLessThanOne() bool {
     // Use the powersOf10 slice to lookup 10^scale, where scale is the index
     power10 := powersOf10[d.scale]
 
-    // If the absolute value < the 10^scale, then all significant digits are the right of the decimal place,
+    // If the absolute value < 10^scale, then all significant digits are the right of the decimal place,
     // which means the Decimal is < 1
+    // Examples:
+    // if scale = 0 and abs val < 10^0 = 1, then val = 0, which is the only scale 0 value that is < 1.
+    // if scale = 1 and abs val < 10^1 = 10, then 0 <= val <= 9, the one digit is right of decimal, value < 1.
+    // if scale = 2 and abs val < 10^2 = 100, then 00 <= val <= 99, the two digits are right of decimal, value < 1.
     return absVal < power10
 }
 
@@ -458,6 +462,8 @@ func (d Decimal) MagnitudeLessThanOne() bool {
 // For Add, o = origO
 // For Sub, o = -origO
 // origO is only needed for error messages
+// Returns an overflow  error if the result >   18 9 digits
+// Returns an underflow error if the result < - 18 9 digits
 func addDecimal(d, origO, o Decimal, op string) (Decimal, error) {
 	// Adjust scales to be the same
 	var (
@@ -491,6 +497,8 @@ func addDecimal(d, origO, o Decimal, op string) (Decimal, error) {
 // Returns an error if:
 // - Adjusting the scale produces an error
 // - Addition overflows or underflows
+//
+// See addDecimal
 func (d Decimal) Add(o Decimal) (Decimal, error) {
 	return addDecimal(d, o, o, "+")
 }
@@ -504,18 +512,20 @@ func (d Decimal) MustAdd(o Decimal) Decimal {
 // Returns an error if:
 // - Adjusting the scale produces an error
 // - Subtraction overflows or underflows
+//
+// See addDecimal
 func (d Decimal) Sub(o Decimal) (Decimal, error) {
 	return addDecimal(d, o, o.Negate(), "-")
 }
 
-// MustSub is amjust version of Sub
+// MustSub is a must version of Sub
 func (d Decimal) MustSub(o Decimal) Decimal {
 	return funcs.MustValue(d.Sub(o))
 }
 
 // Mul multiplies d by o, then sets the result scale to (d scale) + (o scale)
-// Returns an overflow error if the result  >   18 9 digits.
-// Returns an underflow error if the result < - 18 9 digits.
+// Returns an overflow  error if the result >   18 9 digits
+// Returns an underflow error if the result < - 18 9 digits
 func (d Decimal) Mul(o Decimal) (Decimal, error) {
 	// Start by just multiplying the two 64-bit values together, and adding their scales
 	r := d
@@ -523,12 +533,12 @@ func (d Decimal) Mul(o Decimal) (Decimal, error) {
 	r.scale += o.scale
 
 	// There are two cases of over/under flow:
-	// - operation is not reversible: if r != 0 and r <= max value, then r / o != d
+	// - operation is not reversible: o != 0 and r / o != d
 	// - abs(value) > 18 9's
 	// It is an overflow if the signs are the same, underflow if they differ
 	// Note we must do checks in the order shown above:
 	// - The resulting value may be storable in a 64 bit int, but roll over/under, so that it has the opposite sign of what it should be
-	if (r.value != 0) && (r.value/o.value != d.value) {
+	if (o.value != 0) && (r.value/o.value != d.value) {
 		return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
 	}
 	if r.value > decimalMaxValue {

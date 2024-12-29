@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bantling/micro/funcs"
 	"github.com/bantling/micro/tuple"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +35,7 @@ func TestOfDecimal_(t *testing.T) {
 }
 
 func TestStringToDecimal_(t *testing.T) {
-	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 0}, error(nil)), tuple.Of2(StringToDecimal("0")))
+	assert.Equal(t, Decimal{scale: 0, value: 0}, MustStringToDecimal("0"))
 	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 100}, error(nil)), tuple.Of2(StringToDecimal("100")))
 	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1001}, error(nil)), tuple.Of2(StringToDecimal("-1.001")))
 
@@ -98,44 +97,44 @@ func TestDecimalSign_(t *testing.T) {
 
 func TestAdjustDecimalScale_(t *testing.T) {
 	d1, d2 := MustDecimal(15, 1), MustDecimal(125, 1)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(15, 1), d1)
 	assert.Equal(t, MustDecimal(125, 1), d2)
 
 	d1, d2 = MustDecimal(15, 1), MustDecimal(125, 2)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(150, 2), d1)
 	assert.Equal(t, MustDecimal(125, 2), d2)
 
 	d1, d2 = MustDecimal(15, 1), MustDecimal(100_000_000_000_000_000, 0)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(2, 0), d1)
 	assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
 	d1, d2 = MustDecimal(154, 2), MustDecimal(100_000_000_000_000_000, 0)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(2, 0), d1)
 	assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
 	d1, d2 = MustDecimal(149, 2), MustDecimal(100_000_000_000_000_000, 0)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(1, 0), d1)
 	assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
 	d1, d2 = MustDecimal(144, 2), MustDecimal(100_000_000_000_000_000, 0)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(1, 0), d1)
 	assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
 	d1, d2 = MustDecimal(-154, 2), MustDecimal(100_000_000_000_000_000, 0)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(-2, 0), d1)
 	assert.Equal(t, MustDecimal(100_000_000_000_000_000, 0), d2)
 
 	// 1.5 and 199_999_999_999_999_995
 	// the second cannot be multiplied by 10, so the 1.5 is rounded to 2
 	d1, d2 = MustDecimal(15, 1), MustDecimal(199_999_999_999_999_995, 0)
-	funcs.Must(AdjustDecimalScale(&d1, &d2))
+	MustAdjustDecimalScale(&d1, &d2)
 	assert.Equal(t, MustDecimal(2, 0), d1)
 	assert.Equal(t, MustDecimal(199_999_999_999_999_995, 0), d2)
 
@@ -205,7 +204,7 @@ func TestMagnitudeLessThanOne_(t *testing.T) {
 
     // scale = 2
     assert.True(t, Decimal{value: 99, scale: 2}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 100, scale: 2}.MagnitudeLessThanOne())
+    assert.False(t, Decimal{value: -100, scale: 2}.MagnitudeLessThanOne())
 
     // scale = 3
     assert.True(t, Decimal{value: 999, scale: 3}.MagnitudeLessThanOne())
@@ -380,6 +379,10 @@ func TestDecimalMul_(t *testing.T) {
 	// -1.5 * -2.5 = 3.75
 	d1, d2 = MustDecimal(-15, 1), MustDecimal(-25, 1)
 	assert.Equal(t, MustDecimal(375, 2), d1.MustMul(d2))
+
+	// Over/underflow check does not result in division by zero error
+	d1, d2 = MustDecimal(1, 0), MustDecimal(0, 0)
+	assert.Equal(t, MustDecimal(0, 0), d1.MustMul(d2))
 
 	// Overflow
 	// - Within bounds of signed 64 bit int, but beyond bounds of 18 decimals
