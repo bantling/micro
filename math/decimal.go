@@ -627,47 +627,54 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //
 // Examples:
 //
-// 1. 5000 / 200
+// 5000 / 200
 // 5000 / 200 = 25
 //
-// 2. 500.0 / 200
+// 500.0 / 200
 // 5000 / 200 = 25
 // Scale 1 - scale 0 = 1 -> Set scale to 1
 // Result is 2.5
 //
-// 3. 500.0 / 2.00
+// 500.0 / 2.00
 // 5000 / 200 = 25
 // Scale 1 - scale 2 = -1 -> Multiply by 10^1
 // Result is 250
 //
-// 4. 5001 / 200
+// 500.1 / 2.00
+// 5001 / 200 = 25 r 1
+// Scale 1 - scale 2 = -1 -> Multiply by 10^1
+// 250 r 10
+// 10 / 200 -> 1000 (10 * 10^2) / 200 = 5 scale 2 = 0.05
+// Result is 250.05
+//
+// 5001 / 200
 // 5001 / 200 = 25 r 1
 // 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale 3 = 0.005
 // Result is 25 + 0.005 = 25.005
 //
-// 5. 5001 / -200
+// 5001 / -200
 // 5001 / -200 = -25 r 1
 // 1 / -200 -> 1000 (1 * 10^3) / -200 = -5 scale 3 = -0.005
 // Result is -25 + -0.005 = -25.005
 //
-// 6. -5001 / 200
+// -5001 / 200
 // -5001 / 200 = -25 r -1
 // -1 / 200 -> -1000 (1 * 10^3) / 200 = -5 scale 3 = -0.005
 // Result is -25 + -0.005 = -25.005
 //
-// 7. -5001 / -200
+// -5001 / -200
 // -5001 / -200 = 25 r -1
 // Adjust remainder sign to 1
 // 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale 3 = 0.005
 // Result is 25 + 0.005 = 25.005
 //
-// 8. -500.1 / 200
+// -500.1 / 200
 // -5001 / 200 = -25 r -1
 // Scale 1 - scale 0 = 1 -> -25 scale 1 = -2.5
 // -1 / 200 -> -1000 (1 * 10^3) / 200 = -5 scale (1 + 3) = -0.0005
 // Result is -2.5 + -0.0005 = -2.5005
 //
-// 9. 5.123 / 0.021
+// 5.123 / 0.021
 // 5123 / 21 = 243 r 20
 //   20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 + 0 r 11 = 0.9         r 11
 //   11 / 21 = 110 (11 * 10^1) / 21 = 5 scale 1 + 1 r 5  = 0.05        r 5
@@ -677,78 +684,53 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //    2 / 21 = 200 (2  * 10^2) / 21 = 9 scale 2 + 5 r 11 = 0.000_000_9 r 11
 // So a repeating decimal sequence of 952380 -> 243.952380952380952
 //
-// 10. 1.03075 / 0.25
+// 1.03075 / 0.25
 // 103075 / 25 = 4123
 // Scale 5 - scale 2 = 3
 // Result is 4.123
 //
-// 11. 1_234_567_890_123_456.78 / 2.5
+// 1_234_567_890_123_456.78 / 2.5
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 1 = 1 -> 4_938_271_560_493_827 scale 1 = 493_827_156_049_382.7
 // 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 1 r 5 = 0.01  r 5
 // 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 2 r 0 = 0.002
 // Result is 493_827_156_049_382.7 + 0.012 = 493_827_156_049_382.712
 //
-// 12. 1_234_567_890_123_456.78 / 0.25
+// 1_234_567_890_123_456.78 / 0.25
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 2 = scale 0 -> 4_938_271_560_493_827
 // 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 0 r 5 = 0.1 r 5
 // 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 1 r 0 = 0.02
 // Result is 4_938_271_560_493_827 + 0.12 = 4_938_271_560_493_827.12
 //
-// 13. 1_234_567_890_123_456.78 / 0.00025
+// 1_234_567_890_123_456.78 / 0.00025
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 5 = -3 -> Multiply by 10^3
 // 4_938_271_560_493_827_000 = 19 digits = overflow
 //
-// 14. 1 / 100_000_000_000_000_000
+// 1 / 100_000_000_000_000_000
 // 1 / 100_000_000_000_000_000
 // = 100_000_000_000_000_000 (1 * 10^17) / 100_000_000_000_000_000
 // = 1 scale 17
 // = 0.000_000_000_000_000_01
 //
-// 15. 1 / 200_000_000_000_000_000
+// 1 / 200_000_000_000_000_000
 // 1 / 200_000_000_000_000_000
 // = 1 * 10^18 / 200_000_000_000_000_000, 1 * 10^18 is too large to store
 // = underflow
 //
-// 16. 100_000_000_000_000_000 / 0.1
+// 100_000_000_000_000_000 / 0.1
 // = 100_000_000_000_000_000 / 1
 // = 100_000_000_000_000_000
 // Scale 0 - 1 = -1 = Multiply by 10^1
 // = 1 * 10^18
 // = overflow
-//
-// Algorithm:
-//
-// 1. Divide dividend by divisor
-//    Scale = dividend scale - divisor scale
-//
-//
-// 1. While divisor scale > 1 and divisor % 10 = 0 (divisor has trailing zero fractional digits)
-//    (eliminate all divisor trailing zero fractional digits)
-//    divisor = divisor / 10
-//    divisor scale = divisor scale - 1
-//
-// 2. If divisor scale > 1 (dividend and divisor both have fractional digits)
-//    adjustment = min(dividend scale, divisor scale)
-//    dividend scale = dividend scale - adjustment
-//    divisor scale = divisor scale - adjustment
-//
-// 3.
-//
-// 1. while dividend < divisor, multiply dividend by 10, counting as int scale
-// 2. int, frac = dividend / divisor, dividend % divisor
-// 3. while
-// func (d Decimal) Div(o Decimal) (Decimal, error) {
-//   // Division by zero is an error
-//   if o.value == 0 {
-//     return fmt.Errorf(errDecimalDivisionByZeroMsg, d)
-//   }
-//
-//   // Start with integer division, ignoring scale
-//   quo, rem := d.value / o.value, d.value % o.value
-//
-//   // Adjust scale of quo if necessary
-// //   if
-// }
+func (d Decimal) Div(o Decimal) (Decimal, error) {
+    q := d.value / o.value
+    return Decimal{q, 0}, nil
+}
+
+// MustDiv is a must version of Div
+func (d Decimal) MustDiv(o Decimal) Decimal {
+    return funcs.MustValue(d.Div(o))
+}

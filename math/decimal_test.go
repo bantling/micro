@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/bantling/micro/tuple"
+	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -453,4 +454,9 @@ func TestDecimalDivIntAdd_(t *testing.T) {
 
 	// Division by divisor > dividend
 	assert.Equal(t, tuple.Of2([]Decimal(nil), fmt.Errorf("The decimal calculation 100.00 / 101 is not allowed, the divisor is larger than the dividend")), tuple.Of2(de.DivIntAdd(101)))
+}
+
+func TestDecimalDiv_(t *testing.T) {
+    de, dv := MustDecimal(5000, 0), MustDecimal(200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(25, 0)), union.OfResultError(de.Div(dv)))
 }
