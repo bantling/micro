@@ -457,6 +457,11 @@ func TestDecimalDivIntAdd_(t *testing.T) {
 }
 
 func TestDecimalDiv_(t *testing.T) {
+    // 5000 / 200 = 25
     de, dv := MustDecimal(5000, 0), MustDecimal(200, 0)
     assert.Equal(t, union.OfResult(MustDecimal(25, 0)), union.OfResultError(de.Div(dv)))
+
+    // 500.0 / 200 = 2.5
+    de, dv = MustDecimal(5000, 1), MustDecimal(200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(25, 1)), union.OfResultError(de.Div(dv)))
 }

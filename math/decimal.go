@@ -727,7 +727,9 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // = overflow
 func (d Decimal) Div(o Decimal) (Decimal, error) {
     q := d.value / o.value
-    return Decimal{q, 0}, nil
+    s := d.scale - o.scale
+
+    return Decimal{q, s}, nil
 }
 
 // MustDiv is a must version of Div
