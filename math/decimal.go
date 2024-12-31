@@ -726,10 +726,36 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // = 1 * 10^18
 // = overflow
 func (d Decimal) Div(o Decimal) (Decimal, error) {
+    // Start with plain old division
     q := d.value / o.value
-    s := d.scale - o.scale
+    r := d.value % o.value
 
-    return Decimal{q, s}, nil
+    // Scale is dividend - divisor, could be negative
+    s := int(d.scale - o.scale)
+
+    // If scale is negative, multiply q,r by 10^(-scale), set scale = 0
+    for s < 0 {
+        q *= 10
+        r *= 10
+        s += 1
+    }
+
+    // If r != 0, perform successive multiply/divides until r = 0
+    for r != 0 {
+        // Multiply q,r by 10 until r >= o
+        for r < o.value {
+            q *= 10
+            r *= 10
+            s += 1
+        }
+
+        // Add r / o.value to q
+        q += r / o.value
+        r %= o.value
+    }
+
+    // Return result
+    return Decimal{q, uint(s)}, nil
 }
 
 // MustDiv is a must version of Div
