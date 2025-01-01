@@ -463,7 +463,7 @@ func TestDecimalDiv_(t *testing.T) {
 
     // 500.0 / 200 = 2.5
     de, dv = MustDecimal(5000, 1), MustDecimal(200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(25, 1)), union.OfResultError(de.Div(dv)))
+    assert.Equal(t, union.OfResult(MustDecimal(2_5, 1)), union.OfResultError(de.Div(dv)))
 
     // 500.0 / 2.00 = 250
     de, dv = MustDecimal(5000, 1), MustDecimal(200, 2)
@@ -471,5 +471,33 @@ func TestDecimalDiv_(t *testing.T) {
 
     // 500.1 / 2.00 = 250.05
     de, dv = MustDecimal(5001, 1), MustDecimal(200, 2)
-    assert.Equal(t, union.OfResult(MustDecimal(25005, 2)), union.OfResultError(de.Div(dv)))
+    assert.Equal(t, union.OfResult(MustDecimal(250_05, 2)), union.OfResultError(de.Div(dv)))
+
+    // 5001 / 200 = 25.005
+    de, dv = MustDecimal(5001, 0), MustDecimal(200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(25_005, 3)), union.OfResultError(de.Div(dv)))
+
+    // 5001 / -200 = -25.005
+    de, dv = MustDecimal(5001, 0), MustDecimal(-200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(-25_005, 3)), union.OfResultError(de.Div(dv)))
+
+    // -5001 / 200 = -25.005
+    de, dv = MustDecimal(-5001, 0), MustDecimal(200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(-25_005, 3)), union.OfResultError(de.Div(dv)))
+
+    // -5001 / -200 = 25.005
+    de, dv = MustDecimal(-5001, 0), MustDecimal(-200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(25_005, 3)), union.OfResultError(de.Div(dv)))
+
+    // -500.1 / 200 = -2.5005
+    de, dv = MustDecimal(-5001, 1), MustDecimal(200, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(-2_5005, 4)), union.OfResultError(de.Div(dv)))
+
+    // 5.123 / 0.021 = 243.952380952380952
+    de, dv = MustDecimal(5123, 3), MustDecimal(21, 3)
+    assert.Equal(t, union.OfResult(MustDecimal(243_952380952380952, 15)), union.OfResultError(de.Div(dv)))
+
+    // 1.03075 / 0.25 = 4.123
+    de, dv = MustDecimal(1_03075, 5), MustDecimal(0_25, 2)
+    assert.Equal(t, union.OfResult(MustDecimal(4_123, 3)), union.OfResultError(de.Div(dv)))
 }

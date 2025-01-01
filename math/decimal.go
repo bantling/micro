@@ -726,9 +726,21 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // = 1 * 10^18
 // = overflow
 func (d Decimal) Div(o Decimal) (Decimal, error) {
+    // Check if d and o are positive (>= 0)
+    dpos, opos := d.value >= 0, o.value >= 0
+
+    // Make both values positive, for simplicity
+    dval, oval := d.value, o.value
+    if !dpos {
+        dval = -dval
+    }
+    if !opos {
+        oval = -oval
+    }
+
     // Start with plain old division
-    q := d.value / o.value
-    r := d.value % o.value
+    q := dval / oval
+    r := dval % oval
 
     // Scale is dividend - divisor, could be negative
     s := int(d.scale - o.scale)
@@ -741,17 +753,31 @@ func (d Decimal) Div(o Decimal) (Decimal, error) {
     }
 
     // If r != 0, perform successive multiply/divides until r = 0
+    main_loop:
     for r != 0 {
         // Multiply q,r by 10 until r >= o
-        for r < o.value {
-            q *= 10
-            r *= 10
-            s += 1
+        // If q or r > 18 9s, stop with over/underflow
+        for r < oval {
+            nq, nr, ns := q * 10, r * 10, s + 1
+
+            if (nq > decimalMaxValue) || (nr > decimalMaxValue) {
+                // Stop and return current value
+                break main_loop
+            }
+
+            q = nq
+            r = nr
+            s = ns
         }
 
         // Add r / o.value to q
-        q += r / o.value
-        r %= o.value
+        q += r / oval
+        r %= oval
+    }
+
+    // If original signs differed, then result is negative
+    if dpos != opos {
+        q = -q
     }
 
     // Return result
