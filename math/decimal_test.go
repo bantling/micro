@@ -494,10 +494,27 @@ func TestDecimalDiv_(t *testing.T) {
     assert.Equal(t, union.OfResult(MustDecimal(-2_5005, 4)), union.OfResultError(de.Div(dv)))
 
     // 5.123 / 0.021 = 243.952380952380952
+    // 2439523809523809520
     de, dv = MustDecimal(5123, 3), MustDecimal(21, 3)
     assert.Equal(t, union.OfResult(MustDecimal(243_952380952380952, 15)), union.OfResultError(de.Div(dv)))
 
     // 1.03075 / 0.25 = 4.123
-    de, dv = MustDecimal(1_03075, 5), MustDecimal(0_25, 2)
+    de, dv = MustDecimal(1_03075, 5), MustDecimal(25, 2)
     assert.Equal(t, union.OfResult(MustDecimal(4_123, 3)), union.OfResultError(de.Div(dv)))
+
+    // 1_234_567_890_123_456.78 / 2.5 = 493_827_156_049_382.712
+    de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(2_5, 1)
+    assert.Equal(t, union.OfResult(MustDecimal(493_827_156_049_382_712, 3)), union.OfResultError(de.Div(dv)))
+
+    // 1_234_567_890_123_456.78 / 0.25 = 4_938_271_560_493_827.12
+    de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(25, 2)
+    assert.Equal(t, union.OfResult(MustDecimal(4_938_271_560_493_827_12, 2)), union.OfResultError(de.Div(dv)))
+
+    // 1_234_567_890_123_456.78 / 0.00025 = overflow
+    de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(25, 5)
+    assert.Equal(t, union.OfError[Decimal](fmt.Errorf(errDecimalOverflowMsg, de, "/", dv)), union.OfResultError(de.Div(dv)))
+
+    // 1 / 100_000_000_000_000_000 = 0.000_000_000_000_000_01
+    de, dv = MustDecimal(1, 0), MustDecimal(100_000_000_000_000_000, 0)
+    assert.Equal(t, union.OfResult(MustDecimal(1, 17)), union.OfResultError(de.Div(dv)))
 }

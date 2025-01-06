@@ -707,6 +707,7 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 5 = -3 -> Multiply by 10^3
 // 4_938_271_560_493_827_000 = 19 digits = overflow
+// 4938271560493827120
 //
 // 1 / 100_000_000_000_000_000
 // 1 / 100_000_000_000_000_000
@@ -750,6 +751,11 @@ func (d Decimal) Div(o Decimal) (Decimal, error) {
         q *= 10
         r *= 10
         s += 1
+
+        if q > decimalMaxValue {
+            // Return over/underflow
+            return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "/", o)
+        }
     }
 
     // If r != 0, perform successive multiply/divides until r = 0
@@ -759,9 +765,10 @@ func (d Decimal) Div(o Decimal) (Decimal, error) {
         // If q or r > 18 9s, stop with over/underflow
         for r < oval {
             nq, nr, ns := q * 10, r * 10, s + 1
+//             fmt.Printf("nq = %d, nr = %d, ns = %d\n", nq, nr, ns)
 
             if (nq > decimalMaxValue) || (nr > decimalMaxValue) {
-                // Stop and return current value
+                // Stop at q, we have as much accuracy as we can provide
                 break main_loop
             }
 
@@ -771,8 +778,17 @@ func (d Decimal) Div(o Decimal) (Decimal, error) {
         }
 
         // Add r / o.value to q
-        q += r / oval
-        r %= oval
+        q, r = q + r / oval, r % oval
+//         if nq > decimalMaxValue {
+//             // Stop at q, we have as much accuracy as we can provide
+//             break
+//         }
+//         q, r = nq, nr
+//         fmt.Printf("q, r = %d, %d\n", q, r)
+//         if q > decimalMaxValue {
+//             // Return over/underflow
+//             return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "/", o)
+//         }
     }
 
     // If original signs differed, then result is negative
