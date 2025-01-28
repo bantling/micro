@@ -149,12 +149,12 @@ func Present[TT any](t TT) Maybe[TT] {
 // First constructs a Maybe value from the first element of a slice.
 // If the slice is zero length, an empty Maybe is returned.
 func First[TT any](slc []TT) Maybe[TT] {
-  var m Maybe[TT]
-  if len(slc) > 0 {
-    m.Set(slc[0])
-  }
-  
-  return m
+	var m Maybe[TT]
+	if len(slc) > 0 {
+		m.Set(slc[0])
+	}
+
+	return m
 }
 
 // OfResult constructs a Result that holds an R

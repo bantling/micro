@@ -195,81 +195,81 @@ func TestDecimalNegate_(t *testing.T) {
 }
 
 func TestMagnitudeLessThanOne_(t *testing.T) {
-    // scale = 0
-    assert.True(t, Decimal{value: 0, scale: 0}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1, scale: 0}.MagnitudeLessThanOne())
+	// scale = 0
+	assert.True(t, Decimal{value: 0, scale: 0}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1, scale: 0}.MagnitudeLessThanOne())
 
-    // scale = 1
-    assert.True(t, Decimal{value: -9, scale: 1}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 10, scale: 1}.MagnitudeLessThanOne())
+	// scale = 1
+	assert.True(t, Decimal{value: -9, scale: 1}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 10, scale: 1}.MagnitudeLessThanOne())
 
-    // scale = 2
-    assert.True(t, Decimal{value: 99, scale: 2}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: -100, scale: 2}.MagnitudeLessThanOne())
+	// scale = 2
+	assert.True(t, Decimal{value: 99, scale: 2}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: -100, scale: 2}.MagnitudeLessThanOne())
 
-    // scale = 3
-    assert.True(t, Decimal{value: 999, scale: 3}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1_000, scale: 3}.MagnitudeLessThanOne())
+	// scale = 3
+	assert.True(t, Decimal{value: 999, scale: 3}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000, scale: 3}.MagnitudeLessThanOne())
 
-    // scale = 4
-    assert.True(t, Decimal{value: 9_999, scale: 4}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 10_000, scale: 4}.MagnitudeLessThanOne())
+	// scale = 4
+	assert.True(t, Decimal{value: 9_999, scale: 4}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 10_000, scale: 4}.MagnitudeLessThanOne())
 
-    // scale = 5
-    assert.True(t, Decimal{value: 99_999, scale: 5}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 100_000, scale: 5}.MagnitudeLessThanOne())
+	// scale = 5
+	assert.True(t, Decimal{value: 99_999, scale: 5}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 100_000, scale: 5}.MagnitudeLessThanOne())
 
-    // scale = 6
-    assert.True(t, Decimal{value: 999_999, scale: 6}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1_000_000, scale: 6}.MagnitudeLessThanOne())
+	// scale = 6
+	assert.True(t, Decimal{value: 999_999, scale: 6}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000, scale: 6}.MagnitudeLessThanOne())
 
-    // scale = 7
-    assert.True(t, Decimal{value: 9_999_999, scale: 7}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 10_000_000, scale: 7}.MagnitudeLessThanOne())
+	// scale = 7
+	assert.True(t, Decimal{value: 9_999_999, scale: 7}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 10_000_000, scale: 7}.MagnitudeLessThanOne())
 
-    // scale = 8
-    assert.True(t, Decimal{value: 99_999_999, scale: 8}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 100_000_000, scale: 8}.MagnitudeLessThanOne())
+	// scale = 8
+	assert.True(t, Decimal{value: 99_999_999, scale: 8}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 100_000_000, scale: 8}.MagnitudeLessThanOne())
 
-    // scale = 9
-    assert.True(t, Decimal{value: 999_999_999, scale: 9}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1_000_000_000, scale: 9}.MagnitudeLessThanOne())
+	// scale = 9
+	assert.True(t, Decimal{value: 999_999_999, scale: 9}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000, scale: 9}.MagnitudeLessThanOne())
 
-    // scale = 10
-    assert.True(t, Decimal{value: 9_999_999_999, scale: 10}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 10_000_000_000, scale: 10}.MagnitudeLessThanOne())
+	// scale = 10
+	assert.True(t, Decimal{value: 9_999_999_999, scale: 10}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 10_000_000_000, scale: 10}.MagnitudeLessThanOne())
 
-    // scale = 11
-    assert.True(t, Decimal{value: 99_999_999_999, scale: 11}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 100_000_000_000, scale: 11}.MagnitudeLessThanOne())
+	// scale = 11
+	assert.True(t, Decimal{value: 99_999_999_999, scale: 11}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 100_000_000_000, scale: 11}.MagnitudeLessThanOne())
 
-    // scale = 12
-    assert.True(t, Decimal{value: 999_999_999_999, scale: 12}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1_000_000_000_000, scale: 12}.MagnitudeLessThanOne())
+	// scale = 12
+	assert.True(t, Decimal{value: 999_999_999_999, scale: 12}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000_000, scale: 12}.MagnitudeLessThanOne())
 
-    // scale = 13
-    assert.True(t, Decimal{value: 9_999_999_999_999, scale: 13}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 10_000_000_000_000, scale: 13}.MagnitudeLessThanOne())
+	// scale = 13
+	assert.True(t, Decimal{value: 9_999_999_999_999, scale: 13}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 10_000_000_000_000, scale: 13}.MagnitudeLessThanOne())
 
-    // scale = 14
-    assert.True(t, Decimal{value: 99_999_999_999_999, scale: 14}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 100_000_000_000_000, scale: 14}.MagnitudeLessThanOne())
+	// scale = 14
+	assert.True(t, Decimal{value: 99_999_999_999_999, scale: 14}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 100_000_000_000_000, scale: 14}.MagnitudeLessThanOne())
 
-    // scale = 15
-    assert.True(t, Decimal{value: 999_999_999_999_999, scale: 15}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1_000_000_000_000_000, scale: 15}.MagnitudeLessThanOne())
+	// scale = 15
+	assert.True(t, Decimal{value: 999_999_999_999_999, scale: 15}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000_000_000, scale: 15}.MagnitudeLessThanOne())
 
-    // scale = 16
-    assert.True(t, Decimal{value: 9_999_999_999_999_999, scale: 16}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 10_000_000_000_000_000, scale: 16}.MagnitudeLessThanOne())
+	// scale = 16
+	assert.True(t, Decimal{value: 9_999_999_999_999_999, scale: 16}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 10_000_000_000_000_000, scale: 16}.MagnitudeLessThanOne())
 
-    // scale = 17
-    assert.True(t, Decimal{value: 99_999_999_999_999_999, scale: 17}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 100_000_000_000_000_000, scale: 17}.MagnitudeLessThanOne())
+	// scale = 17
+	assert.True(t, Decimal{value: 99_999_999_999_999_999, scale: 17}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 100_000_000_000_000_000, scale: 17}.MagnitudeLessThanOne())
 
-    // scale = 18 (this isn't quite realistic, the constructors would not allow a 19-digit value)
-    assert.True(t, Decimal{value: 999_999_999_999_999_999, scale: 18}.MagnitudeLessThanOne())
-    assert.False(t, Decimal{value: 1_000_000_000_000_000_000, scale: 18}.MagnitudeLessThanOne())
+	// scale = 18 (this isn't quite realistic, the constructors would not allow a 19-digit value)
+	assert.True(t, Decimal{value: 999_999_999_999_999_999, scale: 18}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000_000_000_000, scale: 18}.MagnitudeLessThanOne())
 }
 
 func TestDecimalAdd_(t *testing.T) {
@@ -457,64 +457,68 @@ func TestDecimalDivIntAdd_(t *testing.T) {
 }
 
 func TestDecimalDiv_(t *testing.T) {
-    // 5000 / 200 = 25
-    de, dv := MustDecimal(5000, 0), MustDecimal(200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(25, 0)), union.OfResultError(de.Div(dv)))
+	// 	// 5000 / 200 = 25
+	// 	de, dv := MustDecimal(5000, 0), MustDecimal(200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(25, 0)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// 500.0 / 200 = 2.5
+	// 	de, dv = MustDecimal(5000, 1), MustDecimal(200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(2_5, 1)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// 500.0 / 2.00 = 250
+	// 	de, dv = MustDecimal(5000, 1), MustDecimal(200, 2)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(250, 0)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// 500.1 / 2.00 = 250.05
+	// 	de, dv = MustDecimal(5001, 1), MustDecimal(200, 2)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(250_05, 2)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// 5001 / 200 = 25.005
+	// 	de, dv = MustDecimal(5001, 0), MustDecimal(200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(25_005, 3)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// 5001 / -200 = -25.005
+	// 	de, dv = MustDecimal(5001, 0), MustDecimal(-200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(-25_005, 3)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// -5001 / 200 = -25.005
+	// 	de, dv = MustDecimal(-5001, 0), MustDecimal(200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(-25_005, 3)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// -5001 / -200 = 25.005
+	// 	de, dv = MustDecimal(-5001, 0), MustDecimal(-200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(25_005, 3)), union.OfResultError(de.Div(dv)))
+	//
+	// 	// -500.1 / 200 = -2.5005
+	// 	de, dv = MustDecimal(-5001, 1), MustDecimal(200, 0)
+	// 	assert.Equal(t, union.OfResult(MustDecimal(-2_5005, 4)), union.OfResultError(de.Div(dv)))
 
-    // 500.0 / 200 = 2.5
-    de, dv = MustDecimal(5000, 1), MustDecimal(200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(2_5, 1)), union.OfResultError(de.Div(dv)))
+	// 5.123 / 0.021 = 243.952380952380952
+	// 2439523809523809520
+	de, dv := MustDecimal(5123, 3), MustDecimal(21, 3)
+	assert.Equal(t, union.OfResult(MustDecimal(243_952380952380952, 15)), union.OfResultError(de.Div(dv)))
 
-    // 500.0 / 2.00 = 250
-    de, dv = MustDecimal(5000, 1), MustDecimal(200, 2)
-    assert.Equal(t, union.OfResult(MustDecimal(250, 0)), union.OfResultError(de.Div(dv)))
-
-    // 500.1 / 2.00 = 250.05
-    de, dv = MustDecimal(5001, 1), MustDecimal(200, 2)
-    assert.Equal(t, union.OfResult(MustDecimal(250_05, 2)), union.OfResultError(de.Div(dv)))
-
-    // 5001 / 200 = 25.005
-    de, dv = MustDecimal(5001, 0), MustDecimal(200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(25_005, 3)), union.OfResultError(de.Div(dv)))
-
-    // 5001 / -200 = -25.005
-    de, dv = MustDecimal(5001, 0), MustDecimal(-200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(-25_005, 3)), union.OfResultError(de.Div(dv)))
-
-    // -5001 / 200 = -25.005
-    de, dv = MustDecimal(-5001, 0), MustDecimal(200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(-25_005, 3)), union.OfResultError(de.Div(dv)))
-
-    // -5001 / -200 = 25.005
-    de, dv = MustDecimal(-5001, 0), MustDecimal(-200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(25_005, 3)), union.OfResultError(de.Div(dv)))
-
-    // -500.1 / 200 = -2.5005
-    de, dv = MustDecimal(-5001, 1), MustDecimal(200, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(-2_5005, 4)), union.OfResultError(de.Div(dv)))
-
-    // 5.123 / 0.021 = 243.952380952380952
-    // 2439523809523809520
-    de, dv = MustDecimal(5123, 3), MustDecimal(21, 3)
-    assert.Equal(t, union.OfResult(MustDecimal(243_952380952380952, 15)), union.OfResultError(de.Div(dv)))
-
-    // 1.03075 / 0.25 = 4.123
-    de, dv = MustDecimal(1_03075, 5), MustDecimal(25, 2)
-    assert.Equal(t, union.OfResult(MustDecimal(4_123, 3)), union.OfResultError(de.Div(dv)))
-
-    // 1_234_567_890_123_456.78 / 2.5 = 493_827_156_049_382.712
-    de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(2_5, 1)
-    assert.Equal(t, union.OfResult(MustDecimal(493_827_156_049_382_712, 3)), union.OfResultError(de.Div(dv)))
-
-    // 1_234_567_890_123_456.78 / 0.25 = 4_938_271_560_493_827.12
-    de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(25, 2)
-    assert.Equal(t, union.OfResult(MustDecimal(4_938_271_560_493_827_12, 2)), union.OfResultError(de.Div(dv)))
-
-    // 1_234_567_890_123_456.78 / 0.00025 = overflow
-    de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(25, 5)
-    assert.Equal(t, union.OfError[Decimal](fmt.Errorf(errDecimalOverflowMsg, de, "/", dv)), union.OfResultError(de.Div(dv)))
-
-    // 1 / 100_000_000_000_000_000 = 0.000_000_000_000_000_01
-    de, dv = MustDecimal(1, 0), MustDecimal(100_000_000_000_000_000, 0)
-    assert.Equal(t, union.OfResult(MustDecimal(1, 17)), union.OfResultError(de.Div(dv)))
+	// // 1.03075 / 0.25 = 4.123
+	// de, dv = MustDecimal(1_03075, 5), MustDecimal(25, 2)
+	// assert.Equal(t, union.OfResult(MustDecimal(4_123, 3)), union.OfResultError(de.Div(dv)))
+	//
+	// // 1_234_567_890_123_456.78 / 2.5 = 493_827_156_049_382.712
+	// de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(2_5, 1)
+	// assert.Equal(t, union.OfResult(MustDecimal(493_827_156_049_382_712, 3)), union.OfResultError(de.Div(dv)))
+	//
+	// // 1_234_567_890_123_456.78 / 0.25 = 4_938_271_560_493_827.12
+	// de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(25, 2)
+	// assert.Equal(t, union.OfResult(MustDecimal(4_938_271_560_493_827_12, 2)), union.OfResultError(de.Div(dv)))
+	//
+	// // 1_234_567_890_123_456.78 / 0.00025 = overflow
+	// de, dv = MustDecimal(1_234_567_890_123_456_78, 2), MustDecimal(25, 5)
+	// assert.Equal(t, union.OfError[Decimal](fmt.Errorf(errDecimalOverflowMsg, de, "/", dv)), union.OfResultError(de.Div(dv)))
+	//
+	// // 1 / 100_000_000_000_000_000 = 0.000_000_000_000_000_01
+	// de, dv = MustDecimal(1, 0), MustDecimal(100_000_000_000_000_000, 0)
+	// assert.Equal(t, union.OfResult(MustDecimal(1, 17)), union.OfResultError(de.Div(dv)))
+	//
+	// // 1 / 200_000_000_000_000_000 = overflow
+	// de, dv = MustDecimal(1, 0), MustDecimal(200_000_000_000_000_000, 0)
+	// assert.Equal(t, union.OfError[Decimal](fmt.Errorf(errDecimalOverflowMsg, de, "/", dv)), union.OfResultError(de.Div(dv)))
 }

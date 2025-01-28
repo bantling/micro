@@ -517,15 +517,15 @@ func TestMaybe_(t *testing.T) {
 		)
 		assert.True(t, called)
 	}
-	
+
 	// FirstOrEmpty
 	{
-    res := First(([]int)(nil))
-    assert.False(t, res.Present())
-    
-    res = First([]int{1, 2})
-    assert.True(t, res.Present())
-    assert.Equal(t, 1, res.Get())
+		res := First(([]int)(nil))
+		assert.False(t, res.Present())
+
+		res = First([]int{1, 2})
+		assert.True(t, res.Present())
+		assert.Equal(t, 1, res.Get())
 	}
 
 	// String

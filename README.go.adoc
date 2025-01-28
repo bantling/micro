@@ -254,6 +254,9 @@ A dependency graph can be generated anytime by running `make depgraph.png`.
 
 === TODO
 
+* building on hoist complains about spdx if there is a .cache dir - skip this dir
+* buiding in podman is broken - it needs to pull in stuff like graphviz
+
 * For all TryTo usage in unit tests that are supposed to fail, ensure that a bool is declared, set to true by the panicFn, and tested as true after TryTo call
 * I don't think decimal rounding is correct in AdjustDecimalScale
 ** Appears to just examine most significant decimal place for >= 5
