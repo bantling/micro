@@ -251,7 +251,7 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 		return nil
 	}
 
-	// Swap if necessary so that d1 has larger scale
+	// Swap pointers if necessary so that d1 has larger scale
 	if d1.scale < d2.scale {
 		t := d1
 		d1 = d2
