@@ -50,9 +50,6 @@ const (
 	// So we drop back to 18 digits, and we can express values from -18 9s to +18 9s.
 	decimalMaxScale = 18
 
-	// decimalDefaultScale is the default decimal scale, which is 2, since most uses will probably be for money
-	decimalDefaultScale = 2
-
 	// decimalMaxValue is the maximum decimal value
 	//                       123 456 789 012 345 678
 	decimalMaxValue int64 = +999_999_999_999_999_999
@@ -117,11 +114,11 @@ type Decimal struct {
 	scale uint
 }
 
-// OfDecimal creates a Decimal with the given sign, digits, and optional scale (default 2)
-func OfDecimal(value int64, scale ...uint) (d Decimal, err error) {
-	scaleVal := funcs.SliceIndex(scale, 0, decimalDefaultScale)
-	if scaleVal > decimalMaxScale {
-		err = fmt.Errorf(errScaleTooLargeMsg, scaleVal)
+// OfDecimal creates a Decimal with the given sign, digits, and scale
+// For clarity, there is no default scale
+func OfDecimal(value int64, scale uint) (d Decimal, err error) {
+	if scale > decimalMaxScale {
+		err = fmt.Errorf(errScaleTooLargeMsg, scale)
 		return
 	}
 
@@ -136,13 +133,13 @@ func OfDecimal(value int64, scale ...uint) (d Decimal, err error) {
 	}
 
 	d.value = value
-	d.scale = scaleVal
+	d.scale = scale
 	return
 }
 
 // MustDecimal is a must version of OfDecimal
-func MustDecimal(value int64, scale ...uint) Decimal {
-	return funcs.MustValue(OfDecimal(value, scale...))
+func MustDecimal(value int64, scale uint) Decimal {
+	return funcs.MustValue(OfDecimal(value, scale))
 }
 
 // StringToDecimal creates a Decimal from the given string
@@ -340,7 +337,7 @@ func MustAdjustDecimalScale(d1, d2 *Decimal) {
 // and the same number of digits after the decimal. Leading and trailing zeros are added as needed.
 // A positive number has a leading space.
 //
-// The strings returned are not directly comparable:
+// The strings returned are not directly comparable numerically:
 // "-1" > " 1"
 // "-2" > "-1"
 //
@@ -460,6 +457,34 @@ func (d Decimal) MagnitudeLessThanOne() bool {
 	return absVal < power10
 }
 
+// normalize gets rid of trailing zeros when scale > 1
+// This can help improve accuracy oveer successive calculations
+func (d *Decimal) normalize() {
+    if d.scale > 0 {
+        var (
+            v = d.value
+            s = d.scale
+            neg = v < 0
+        )
+
+        if neg {
+            v = -v;
+        }
+
+        for q, r := v / 10, v % 10; (s > 0) && (r == 0); q, r = q / 10, q % 10 {
+            v = q
+            s--
+        }
+
+        if neg {
+            v = -v;
+        }
+
+        d.value = v
+        d.scale = s
+    }
+}
+
 // addDecimal is internal function called by Add and Sub
 // For Add, o = origO
 // For Sub, o = -origO
@@ -525,9 +550,26 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 	return funcs.MustValue(d.Sub(o))
 }
 
-// Mul multiplies d by o, then sets the result scale to (d scale) + (o scale)
-// Returns an overflow  error if the result >   18 9 digits
-// Returns an underflow error if the result < - 18 9 digits
+// Mul calculates d * o using one of two methods:
+//
+// 1. r = d * o is tried first
+// If r = 0, then return 0 scale 0.
+// If r / d = o, then if r > max value, we have a valid result 19 digits in length.
+//   Round it to 18 with single divide by 10, and add 1 if remainder >= 5.
+// Otherwise, go to method 2 below.
+//
+// The resulting scale rs is d scale + o scale.
+// If rs <= 18, just return r with scale rs.
+// Otherwise, round r (rs - 18) times.
+// If the result is 0, return 0 scale 0, else return r scale rs.
+//
+// 2. If r / d != o, we have a case where d * o exceeds bounds of 64 bit integers.
+// Split d and o into 32-bit upper/lower pairs, and perform a series of shift and adds
+// that generate a 128-bit result.
+//
+// The 128 bit result is first rounded down to 18 digits, reducing rs by up to 18.
+// If rs = 0 and there are more than 18 digitds l
+// The result rs must be <= 18, return as is.
 func (d Decimal) Mul(o Decimal) (Decimal, error) {
 	// Start by just multiplying the two 64-bit values together, and adding their scales
 	r := d
@@ -625,60 +667,66 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 	return funcs.MustValue(d.DivIntAdd(o))
 }
 
-// Div is division
+// Div is the general form of division, suitable for any two Decimal values.
+// Integer division is used to generate digits by taking remainders and multiplying them by 10 until they are >= divisor,
+// so that the remainder can then be divided further, generating more digits.
 //
 // Examples:
 //
-// 5000 / 200
+// 1. 5000 / 200
 // 5000 / 200 = 25
 //
-// 500.0 / 200
+// 2. 500.0 / 200
 // 5000 / 200 = 25
 // Scale 1 - scale 0 = 1 -> Set scale to 1
 // Result is 2.5
 //
-// 500.0 / 2.00
+// 3. 500.0 / 2.00
 // 5000 / 200 = 25
 // Scale 1 - scale 2 = -1 -> Multiply by 10^1
 // Result is 250
 //
-// 500.1 / 2.00
+// 4. 500.1 / 2.00
 // 5001 / 200 = 25 r 1
 // Scale 1 - scale 2 = -1 -> Multiply by 10^1
 // 250 r 10
 // 10 / 200 -> 1000 (10 * 10^2) / 200 = 5 scale 2 = 0.05
 // Result is 250.05
 //
-// 5001 / 200
+// 5. 5001 / 200
 // 5001 / 200 = 25 r 1
 // 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale 3 = 0.005
 // Result is 25 + 0.005 = 25.005
 //
-// 5001 / -200
+// 6. 5001 / -200
 // 5001 / -200 = -25 r 1
 // 1 / -200 -> 1000 (1 * 10^3) / -200 = -5 scale 3 = -0.005
 // Result is -25 + -0.005 = -25.005
 //
-// -5001 / 200
+// 7. -5001 / 200
 // -5001 / 200 = -25 r -1
 // -1 / 200 -> -1000 (1 * 10^3) / 200 = -5 scale 3 = -0.005
 // Result is -25 + -0.005 = -25.005
 //
-// -5001 / -200
+// 8. -5001 / -200
 // -5001 / -200 = 25 r -1
 // Adjust remainder sign to 1
 // 1 / 200 -> 1000 (1 * 10^3) / 200 = 5 scale 3 = 0.005
 // Result is 25 + 0.005 = 25.005
 //
-// -500.1 / 200
+// 9. -500.1 / 200
 // -5001 / 200 = -25 r -1
 // Scale 1 - scale 0 = 1 -> -25 scale 1 = -2.5
 // -1 / 200 -> -1000 (1 * 10^3) / 200 = -5 scale (1 + 3) = -0.0005
 // Result is -2.5 + -0.0005 = -2.5005
 //
-// 5.123 / 0.021
-// 5123 / 21 = 243 r 20
+// 10. 3 / 2
+// 3 / 2 = 1 r 1
+// 1 / 2 = 10 (1 * 10^1) / 2 = 5 scale 1
+// Result is 1.5
 //
+// 10. 5.123 / 0.021
+// 5123 / 21 = 243 r 20
 //	20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 + 0 r 11 = 0.9          r 11
 //	11 / 21 = 110 (11 * 10^1) / 21 = 5 scale 1 + 1 r 5  = 0.05         r 5
 //	 5 / 21 = 50  (5  * 10^1) / 21 = 2 scale 1 + 2 r 8  = 0.002        r 8
@@ -690,42 +738,45 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // After the final 2, the next digit is a 3, which means rounding down
 // Final result is still 243.952380952380952
 //
-// 1.03075 / 0.25
+// 11. 5 / 9 = 0.555...
+// By generating a 19th digit of 5, the result rounds to 0.555_555_555_555_555_556
+//
+// 12. 1.03075 / 0.25
 // 103075 / 25 = 4123
 // Scale 5 - scale 2 = 3
 // Result is 4.123
 //
-// 1_234_567_890_123_456.78 / 2.5
+// 13. 1_234_567_890_123_456.78 / 2.5
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 1 = 1 -> 4_938_271_560_493_827 scale 1 = 493_827_156_049_382.7
 // 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 1 r 5 = 0.01  r 5
 // 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 2 r 0 = 0.002
 // Result is 493_827_156_049_382.7 + 0.012 = 493_827_156_049_382.712
 //
-// 1_234_567_890_123_456.78 / 0.25
+// 14. 1_234_567_890_123_456.78 / 0.25
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 2 = scale 0 -> 4_938_271_560_493_827
 // 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 0 r 5 = 0.1 r 5
 // 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 1 r 0 = 0.02
 // Result is 4_938_271_560_493_827 + 0.12 = 4_938_271_560_493_827.12
 //
-// 1_234_567_890_123_456.78 / 0.00025
+// 15. 1_234_567_890_123_456.78 / 0.00025
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 5 = -3 -> Multiply by 10^3
 // 4_938_271_560_493_827_000 = 19 digits = overflow
 //
-// 1 / 100_000_000_000_000_000
+// 16. 1 / 100_000_000_000_000_000
 // 1 / 100_000_000_000_000_000
 // = 100_000_000_000_000_000 (1 * 10^17) / 100_000_000_000_000_000
 // = 1 scale 17
 // = 0.000_000_000_000_000_01
 //
-// 1 / 200_000_000_000_000_000
+// 17. 1 / 200_000_000_000_000_000
 // 1 / 200_000_000_000_000_000
 // = 1 * 10^18 / 200_000_000_000_000_000, 1 * 10^18 is too large to store
-// = underflow
+// = overflow
 //
-// 100_000_000_000_000_000 / 0.1
+// 18. 100_000_000_000_000_000 / 0.1
 // = 100_000_000_000_000_000 / 1
 // = 100_000_000_000_000_000
 // Scale 0 - 1 = -1 = Multiply by 10^1
@@ -771,11 +822,11 @@ main_loop:
 		// Multiply q,r by 10 until r >= o
 		for r < oval {
 			nq, nr, ns := q*10, r*10, s+1
-			//             fmt.Printf("nq = %d, nr = %d, ns = %d\n", nq, nr, ns)
+			// fmt.Printf("nq = %d, nr = %d, ns = %d\n", nq, nr, ns)
 
 			// If quotient exceeds max value, fall back on previous quotient, as most accurate result we can get
 			if nq > decimalMaxValue {
-				// 			    fmt.Println("ran out of digits")
+				// fmt.Println("ran out of digits")
 
 				// Get next generated digit, so we know if we should round up the existing quotient
 				// Remainder may be < oval, multiply by 10 until it isn't
@@ -783,18 +834,18 @@ main_loop:
 					nr *= 10
 				}
 				nr /= oval
-				// 			    fmt.Printf("next digit remainder = %d\n", nr)
+				// fmt.Printf("next digit remainder = %d\n", nr)
 
 				// New remainder may be > 10
 				// If so, divide by 10 until remainder < 10, to get most significant digit of it
 				for nr > 10 {
 					nr /= 10
 				}
-				//                 fmt.Printf("next digit = %d\n", nr)
+				// fmt.Printf("next digit = %d\n", nr)
 
 				// Is next digit >= 5?
-				if nr > 5 {
-					//                     fmt.Printf("Rounding up")
+				if nr >= 5 {
+					// fmt.Printf("Rounding up")
 					q++
 				}
 
@@ -803,27 +854,18 @@ main_loop:
 
 			// If remainder exceeds max value, over/underflow occurs
 			if nr > decimalMaxValue {
-				//                 fmt.Println("exceeded max")
+				// fmt.Println("exceeded max")
 				return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "/", o)
 			}
 
+            // Copy new quotient, remainder, scale into current
 			q = nq
 			r = nr
 			s = ns
 		}
 
-		// Add r / o.value to q
+		// Add r / oval to q, set r to r mod oval
 		q, r = q+r/oval, r%oval
-		//         if nq > decimalMaxValue {
-		//             // Stop at q, we have as much accuracy as we can provide
-		//             break
-		//         }
-		//         q, r = nq, nr
-		//         fmt.Printf("q, r = %d, %d\n", q, r)
-		//         if q > decimalMaxValue {
-		//             // Return over/underflow
-		//             return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "/", o)
-		//         }
 	}
 
 	// If original signs differed, then result is negative
