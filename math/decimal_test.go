@@ -273,44 +273,44 @@ func TestMagnitudeLessThanOne_(t *testing.T) {
 }
 
 func TestNormalize_(t *testing.T) {
-    // No trailing zeros
-    d := MustDecimal(1, 0)
-    d.normalize()
-    assert.Equal(t, MustDecimal(1, 0), d)
+	// No trailing zeros
+	d := MustDecimal(1, 0)
+	d.normalize()
+	assert.Equal(t, MustDecimal(1, 0), d)
 
-    d = MustDecimal(12, 1)
-    d.normalize()
-    assert.Equal(t, MustDecimal(12, 1), d)
+	d = MustDecimal(12, 1)
+	d.normalize()
+	assert.Equal(t, MustDecimal(12, 1), d)
 
-    d = MustDecimal(123, 2)
-    d.normalize()
-    assert.Equal(t, MustDecimal(123, 2), d)
+	d = MustDecimal(123, 2)
+	d.normalize()
+	assert.Equal(t, MustDecimal(123, 2), d)
 
-    // One trailing zero
-    d = MustDecimal(10, 1)
-    d.normalize()
-    assert.Equal(t, MustDecimal(1, 0), d)
+	// One trailing zero
+	d = MustDecimal(10, 1)
+	d.normalize()
+	assert.Equal(t, MustDecimal(1, 0), d)
 
-    d = MustDecimal(120, 2)
-    d.normalize()
-    assert.Equal(t, MustDecimal(12, 1), d)
+	d = MustDecimal(120, 2)
+	d.normalize()
+	assert.Equal(t, MustDecimal(12, 1), d)
 
-    d = MustDecimal(1230, 3)
-    d.normalize()
-    assert.Equal(t, MustDecimal(123, 2), d)
+	d = MustDecimal(-1230, 3)
+	d.normalize()
+	assert.Equal(t, MustDecimal(-123, 2), d)
 
-    // Two trailing zeros
-    d = MustDecimal(100, 2)
-    d.normalize()
-    assert.Equal(t, MustDecimal(1, 0), d)
+	// Two trailing zeros
+	d = MustDecimal(100, 2)
+	d.normalize()
+	assert.Equal(t, MustDecimal(1, 0), d)
 
-    d = MustDecimal(1200, 3)
-    d.normalize()
-    assert.Equal(t, MustDecimal(12, 1), d)
+	d = MustDecimal(-1200, 3)
+	d.normalize()
+	assert.Equal(t, MustDecimal(-12, 1), d)
 
-    d = MustDecimal(12300, 4)
-    d.normalize()
-    assert.Equal(t, MustDecimal(123, 2), d)
+	d = MustDecimal(12300, 4)
+	d.normalize()
+	assert.Equal(t, MustDecimal(123, 2), d)
 }
 
 func TestDecimalAdd_(t *testing.T) {

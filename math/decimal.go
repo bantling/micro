@@ -460,29 +460,29 @@ func (d Decimal) MagnitudeLessThanOne() bool {
 // normalize gets rid of trailing zeros when scale > 1
 // This can help improve accuracy oveer successive calculations
 func (d *Decimal) normalize() {
-    if d.scale > 0 {
-        var (
-            v = d.value
-            s = d.scale
-            neg = v < 0
-        )
+	if d.scale > 0 {
+		var (
+			v   = d.value
+			s   = d.scale
+			neg = v < 0
+		)
 
-        if neg {
-            v = -v;
-        }
+		if neg {
+			v = -v
+		}
 
-        for q, r := v / 10, v % 10; (s > 0) && (r == 0); q, r = q / 10, q % 10 {
-            v = q
-            s--
-        }
+		for q, r := v/10, v%10; (s > 0) && (r == 0); q, r = q/10, q%10 {
+			v = q
+			s--
+		}
 
-        if neg {
-            v = -v;
-        }
+		if neg {
+			v = -v
+		}
 
-        d.value = v
-        d.scale = s
-    }
+		d.value = v
+		d.scale = s
+	}
 }
 
 // addDecimal is internal function called by Add and Sub
@@ -555,7 +555,10 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 // 1. r = d * o is tried first
 // If r = 0, then return 0 scale 0.
 // If r / d = o, then if r > max value, we have a valid result 19 digits in length.
-//   Round it to 18 with single divide by 10, and add 1 if remainder >= 5.
+//
+//	Round it to 18 with single divide by 10, and add 1 if remainder >= 5.
+//	Given max int64 value starts with 92, divide by 10 cannot be max value.
+//
 // Otherwise, go to method 2 below.
 //
 // The resulting scale rs is d scale + o scale.
@@ -727,6 +730,7 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 //
 // 10. 5.123 / 0.021
 // 5123 / 21 = 243 r 20
+//
 //	20 / 21 = 200 (20 * 10^1) / 21 = 9 scale 1 + 0 r 11 = 0.9          r 11
 //	11 / 21 = 110 (11 * 10^1) / 21 = 5 scale 1 + 1 r 5  = 0.05         r 5
 //	 5 / 21 = 50  (5  * 10^1) / 21 = 2 scale 1 + 2 r 8  = 0.002        r 8
@@ -858,7 +862,7 @@ main_loop:
 				return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "/", o)
 			}
 
-            // Copy new quotient, remainder, scale into current
+			// Copy new quotient, remainder, scale into current
 			q = nq
 			r = nr
 			s = ns
