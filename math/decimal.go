@@ -458,7 +458,7 @@ func (d Decimal) MagnitudeLessThanOne() bool {
 }
 
 // normalize gets rid of trailing zeros when scale > 1
-// This can help improve accuracy oveer successive calculations
+// This can help improve accuracy over successive calculations
 func (d *Decimal) normalize() {
 	if d.scale > 0 {
 		var (
