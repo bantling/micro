@@ -12,11 +12,11 @@ import (
 )
 
 func TestOfDecimal_(t *testing.T) {
-	assert.Equal(t, tuple.Of2(Decimal{scale: 2, value: 1_00}, error(nil)), tuple.Of2(OfDecimal(1_00, 2)))
-	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1_001}, error(nil)), tuple.Of2(OfDecimal(-1_001, 3)))
+	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 1, denormalized: false}, error(nil)), tuple.Of2(OfDecimal(1_00, 2)))
+	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1_001, denormalized: false}, error(nil)), tuple.Of2(OfDecimal(-1_001, 3)))
 
-	assert.Equal(t, Decimal{scale: 2, value: 100}, MustDecimal(1_00, 2))
-	assert.Equal(t, Decimal{scale: 3, value: -1001}, MustDecimal(-1_001, 3))
+	assert.Equal(t, Decimal{scale: 0, value: 1, denormalized: false}, MustDecimal(1_00, 2))
+	assert.Equal(t, Decimal{scale: 3, value: -1001, denormalized: false}, MustDecimal(-1_001, 3))
 
 	assert.Equal(
 		t,
@@ -36,9 +36,9 @@ func TestOfDecimal_(t *testing.T) {
 }
 
 func TestStringToDecimal_(t *testing.T) {
-	assert.Equal(t, Decimal{scale: 0, value: 0}, MustStringToDecimal("0"))
-	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 100}, error(nil)), tuple.Of2(StringToDecimal("100")))
-	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1_001}, error(nil)), tuple.Of2(StringToDecimal("-1.001")))
+	assert.Equal(t, Decimal{scale: 0, value: 0, denormalized: false}, MustStringToDecimal("0"))
+	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 100, denormalized: false}, error(nil)), tuple.Of2(StringToDecimal("100")))
+	assert.Equal(t, tuple.Of2(Decimal{scale: 3, value: -1_001, denormalized: false}, error(nil)), tuple.Of2(StringToDecimal("-1.001")))
 
 	assert.Equal(
 		t,
@@ -71,15 +71,23 @@ func TestDecimalString_(t *testing.T) {
 func TestDecimalPrecision_(t *testing.T) {
 	assert.Equal(t, 3, MustDecimal(123, 0).Precision())
 	assert.Equal(t, 3, MustDecimal(-123, 0).Precision())
-	assert.Equal(t, 5, MustDecimal(123_00, 2).Precision())
+	assert.Equal(t, 3, MustDecimal(123_00, 2).Precision())
 	assert.Equal(t, 5, MustDecimal(-123_45, 2).Precision())
 }
 
 func TestDecimalScale_(t *testing.T) {
 	assert.Equal(t, uint(0), MustDecimal(123, 0).Scale())
 	assert.Equal(t, uint(0), MustDecimal(-123, 0).Scale())
-	assert.Equal(t, uint(2), MustDecimal(123_00, 2).Scale())
+	assert.Equal(t, uint(0), MustDecimal(123_00, 2).Scale())
 	assert.Equal(t, uint(2), MustDecimal(-123_45, 2).Scale())
+}
+
+func TestDecimalNormalized_(t *testing.T) {
+	assert.True(t, union.OfResultError(OfDecimal(123, 0)).Get().Normalized())
+	assert.False(t, union.OfResultError(OfDecimal(123, 0, false)).Get().Normalized())
+
+	assert.True(t, MustDecimal(123, 0).Normalized())
+	assert.False(t, MustDecimal(123, 0, false).Normalized())
 }
 
 func TestDecimalSign_(t *testing.T) {
@@ -104,7 +112,7 @@ func TestAdjustDecimalScale_(t *testing.T) {
 
 	d1, d2 = MustDecimal(1_5, 1), MustDecimal(1_25, 2)
 	MustAdjustDecimalScale(&d1, &d2)
-	assert.Equal(t, MustDecimal(1_50, 2), d1)
+	assert.Equal(t, Decimal{value: 1_50, scale: 2}, d1)
 	assert.Equal(t, MustDecimal(1_25, 2), d2)
 
 	d1, d2 = MustDecimal(1_5, 1), MustDecimal(100_000_000_000_000_000, 0)
@@ -194,130 +202,136 @@ func TestDecimalNegate_(t *testing.T) {
 	assert.Equal(t, MustDecimal(5, 2), MustDecimal(-5, 2).Negate())
 }
 
-func TestMagnitudeLessThanOne_(t *testing.T) {
+func TestDecimalMagnitudeLessThanOne_(t *testing.T) {
 	// scale = 0
-	assert.True(t, Decimal{value: 0, scale: 0}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1, scale: 0}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 0, scale: 0, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1, scale: 0, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 1
-	assert.True(t, Decimal{value: -9, scale: 1}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_0, scale: 1}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: -9, scale: 1, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_0, scale: 1, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 2
-	assert.True(t, Decimal{value: 99, scale: 2}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: -1_00, scale: 2}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 99, scale: 2, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: -1_00, scale: 2, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 3
-	assert.True(t, Decimal{value: 999, scale: 3}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_000, scale: 3}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 999, scale: 3, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000, scale: 3, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 4
-	assert.True(t, Decimal{value: 9_999, scale: 4}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_0_000, scale: 4}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 9_999, scale: 4, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_0_000, scale: 4, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 5
-	assert.True(t, Decimal{value: 99_999, scale: 5}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_00_000, scale: 5}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 99_999, scale: 5, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_00_000, scale: 5, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 6
-	assert.True(t, Decimal{value: 999_999, scale: 6}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_000_000, scale: 6}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 999_999, scale: 6, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000, scale: 6, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 7
-	assert.True(t, Decimal{value: 9_999_999, scale: 7}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_0_000_000, scale: 7}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 9_999_999, scale: 7, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_0_000_000, scale: 7, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 8
-	assert.True(t, Decimal{value: 99_999_999, scale: 8}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_00_000_000, scale: 8}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 99_999_999, scale: 8, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_00_000_000, scale: 8, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 9
-	assert.True(t, Decimal{value: 999_999_999, scale: 9}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_000_000_000, scale: 9}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 999_999_999, scale: 9, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000, scale: 9, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 10
-	assert.True(t, Decimal{value: 9_999_999_999, scale: 10}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_0_000_000_000, scale: 10}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 9_999_999_999, scale: 10, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_0_000_000_000, scale: 10, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 11
-	assert.True(t, Decimal{value: 99_999_999_999, scale: 11}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_00_000_000_000, scale: 11}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 99_999_999_999, scale: 11, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_00_000_000_000, scale: 11, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 12
-	assert.True(t, Decimal{value: 999_999_999_999, scale: 12}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_000_000_000_000, scale: 12}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 999_999_999_999, scale: 12, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000_000, scale: 12, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 13
-	assert.True(t, Decimal{value: 9_999_999_999_999, scale: 13}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_0_000_000_000_000, scale: 13}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 9_999_999_999_999, scale: 13, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_0_000_000_000_000, scale: 13, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 14
-	assert.True(t, Decimal{value: 99_999_999_999_999, scale: 14}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_00_000_000_000_000, scale: 14}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 99_999_999_999_999, scale: 14, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_00_000_000_000_000, scale: 14, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 15
-	assert.True(t, Decimal{value: 999_999_999_999_999, scale: 15}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_000_000_000_000_000, scale: 15}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 999_999_999_999_999, scale: 15, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000_000_000, scale: 15, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 16
-	assert.True(t, Decimal{value: 9_999_999_999_999_999, scale: 16}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_0_000_000_000_000_000, scale: 16}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 9_999_999_999_999_999, scale: 16, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_0_000_000_000_000_000, scale: 16, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 17
-	assert.True(t, Decimal{value: 99_999_999_999_999_999, scale: 17}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_00_000_000_000_000_000, scale: 17}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 99_999_999_999_999_999, scale: 17, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_00_000_000_000_000_000, scale: 17, denormalized: false}.MagnitudeLessThanOne())
 
 	// scale = 18 (this isn't quite realistic, the constructors would not allow a 19-digit value)
-	assert.True(t, Decimal{value: 999_999_999_999_999_999, scale: 18}.MagnitudeLessThanOne())
-	assert.False(t, Decimal{value: 1_000_000_000_000_000_000, scale: 18}.MagnitudeLessThanOne())
+	assert.True(t, Decimal{value: 999_999_999_999_999_999, scale: 18, denormalized: false}.MagnitudeLessThanOne())
+	assert.False(t, Decimal{value: 1_000_000_000_000_000_000, scale: 18, denormalized: false}.MagnitudeLessThanOne())
 }
 
-func TestNormalize_(t *testing.T) {
+func TestDecimalNormalize_(t *testing.T) {
 	// No trailing zeros
 	d := MustDecimal(1, 0)
-	d.normalize()
 	assert.Equal(t, MustDecimal(1, 0), d)
 
+	d = MustDecimal(-1, 0)
+	assert.Equal(t, MustDecimal(-1, 0), d)
+
 	d = MustDecimal(12, 1)
-	d.normalize()
 	assert.Equal(t, MustDecimal(12, 1), d)
 
 	d = MustDecimal(123, 2)
-	d.normalize()
 	assert.Equal(t, MustDecimal(123, 2), d)
 
 	// One trailing zero
 	d = MustDecimal(10, 1)
-	d.normalize()
 	assert.Equal(t, MustDecimal(1, 0), d)
 
+	d = MustDecimal(-10, 1)
+	assert.Equal(t, MustDecimal(-1, 0), d)
+
 	d = MustDecimal(120, 2)
-	d.normalize()
 	assert.Equal(t, MustDecimal(12, 1), d)
 
 	d = MustDecimal(-1230, 3)
-	d.normalize()
 	assert.Equal(t, MustDecimal(-123, 2), d)
 
 	// Two trailing zeros
 	d = MustDecimal(100, 2)
-	d.normalize()
 	assert.Equal(t, MustDecimal(1, 0), d)
 
-	d = MustDecimal(-1200, 3)
-	d.normalize()
-	assert.Equal(t, MustDecimal(-12, 1), d)
+	d = MustDecimal(-100, 2)
+	assert.Equal(t, MustDecimal(-1, 0), d)
+
+	d = MustDecimal(1200, 3)
+	assert.Equal(t, MustDecimal(12, 1), d)
 
 	d = MustDecimal(12300, 4)
-	d.normalize()
 	assert.Equal(t, MustDecimal(123, 2), d)
 }
 
 func TestDecimalAdd_(t *testing.T) {
-	//   0.010
+	//   0.01
 	// + 0.001
 	// = 0.011
 	d1, d2 := MustDecimal(1, 2), MustDecimal(1, 3)
+	assert.Equal(t, tuple.Of2(MustDecimal(11, 3), error(nil)), tuple.Of2(d1.Add(d2)))
+
+	//   0.01
+	// + 0.0010
+	// = 0.011
+	d1, d2 = MustDecimal(1, 2), MustDecimal(10, 4)
 	assert.Equal(t, tuple.Of2(MustDecimal(11, 3), error(nil)), tuple.Of2(d1.Add(d2)))
 
 	//   -0.010
@@ -335,6 +349,13 @@ func TestDecimalAdd_(t *testing.T) {
 	//   -0.010
 	// +  0.001
 	// = -0.009
+	d1, d2 = MustDecimal(-1, 2), MustDecimal(1, 3)
+	assert.Equal(t, MustDecimal(-9, 3), d1.MustAdd(d2))
+
+    // Normalization
+	//   0.010
+	// + 0.020
+	// = 0.03
 	d1, d2 = MustDecimal(-1, 2), MustDecimal(1, 3)
 	assert.Equal(t, MustDecimal(-9, 3), d1.MustAdd(d2))
 
@@ -455,16 +476,16 @@ func TestDecimalMul_(t *testing.T) {
 
 func TestDecimalDivIntQuoRem_(t *testing.T) {
 	// 100.00 / 3 = 33.33 r 00.01
-	de, dv := MustDecimal(100_00, 2), uint(3)
-	assert.Equal(t, tuple.Of3(MustDecimal(33_33, 2), MustDecimal(1, 2), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
+	de, dv := MustDecimal(100_00, 2, false), uint(3)
+	assert.Equal(t, tuple.Of3(MustDecimal(33_33, 2, false), MustDecimal(1, 2, false), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
 
 	// -100.00 / 3 = -33.33 r -00.01
-	de, dv = MustDecimal(-100_00, 2), uint(3)
-	assert.Equal(t, tuple.Of3(MustDecimal(-33_33, 2), MustDecimal(-1, 2), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
+	de, dv = MustDecimal(-100_00, 2, false), uint(3)
+	assert.Equal(t, tuple.Of3(MustDecimal(-33_33, 2, false), MustDecimal(-1, 2, false), error(nil)), tuple.Of3(de.DivIntQuoRem(dv)))
 
 	// 100.00 / 100 = 1.00 r 0.00
-	de, dv = MustDecimal(100_00, 2), uint(100)
-	assert.Equal(t, tuple.Of2(MustDecimal(1_00, 2), MustDecimal(0, 2)), tuple.Of2(de.MustDivIntQuoRem(dv)))
+	de, dv = MustDecimal(100_00, 2, false), uint(100)
+	assert.Equal(t, tuple.Of2(MustDecimal(1_00, 2, false), MustDecimal(0, 2, false)), tuple.Of2(de.MustDivIntQuoRem(dv)))
 
 	// Division by zero
 	assert.Equal(t, tuple.Of3(Decimal{}, Decimal{}, fmt.Errorf("The decimal calculation 100.00 / 0 is not allowed")), tuple.Of3(de.DivIntQuoRem(0)))
@@ -475,18 +496,18 @@ func TestDecimalDivIntQuoRem_(t *testing.T) {
 
 func TestDecimalDivIntAdd_(t *testing.T) {
 	// 100.00 / 3 = [33.34, 33.34, 33.33]
-	de, dv := MustDecimal(100_00, 2), uint(3)
-	assert.Equal(t, tuple.Of2([]Decimal{MustDecimal(33_34, 2), MustDecimal(33_33, 2), MustDecimal(33_33, 2)}, error(nil)), tuple.Of2(de.DivIntAdd(dv)))
+	de, dv := MustDecimal(100_00, 2, false), uint(3)
+	assert.Equal(t, tuple.Of2([]Decimal{MustDecimal(33_34, 2, false), MustDecimal(33_33, 2, false), MustDecimal(33_33, 2, false)}, error(nil)), tuple.Of2(de.DivIntAdd(dv)))
 
 	// 100.00 / 5 = [20.00, 20.00, 20.00, 20.00, 20.00]
-	de, dv = MustDecimal(100_00, 2), uint(5)
-	assert.Equal(t, []Decimal{MustDecimal(20_00, 2), MustDecimal(20_00, 2), MustDecimal(20_00, 2), MustDecimal(20_00, 2), MustDecimal(20_00, 2)}, de.MustDivIntAdd(dv))
+	de, dv = MustDecimal(100_00, 2, false), uint(5)
+	assert.Equal(t, []Decimal{MustDecimal(20_00, 2, false), MustDecimal(20_00, 2, false), MustDecimal(20_00, 2, false), MustDecimal(20_00, 2, false), MustDecimal(20_00, 2, false)}, de.MustDivIntAdd(dv))
 
 	// 100.00 / 100 = [1.00 repeated 100 times]
-	de, dv = MustDecimal(100_00, 2), uint(100)
+	de, dv = MustDecimal(100_00, 2, false), uint(100)
 	add := make([]Decimal, 100)
 	for i := 0; i < 100; i++ {
-		add[i] = MustDecimal(1_00, 2)
+		add[i] = MustDecimal(1_00, 2, false)
 	}
 	assert.Equal(t, add, de.MustDivIntAdd(dv))
 

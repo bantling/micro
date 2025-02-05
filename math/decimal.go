@@ -112,11 +112,12 @@ const (
 type Decimal struct {
 	value int64
 	scale uint
+	denormalized bool
 }
 
 // OfDecimal creates a Decimal with the given sign, digits, and scale
 // For clarity, there is no default scale
-func OfDecimal(value int64, scale uint) (d Decimal, err error) {
+func OfDecimal(value int64, scale uint, normalized ...bool) (d Decimal, err error) {
 	if scale > decimalMaxScale {
 		err = fmt.Errorf(errScaleTooLargeMsg, scale)
 		return
@@ -134,12 +135,16 @@ func OfDecimal(value int64, scale uint) (d Decimal, err error) {
 
 	d.value = value
 	d.scale = scale
+	d.denormalized = !funcs.SliceIndex(normalized, 0, true)
+
+	// Apply normalization if desired
+	d.applyNormalization()
 	return
 }
 
 // MustDecimal is a must version of OfDecimal
-func MustDecimal(value int64, scale uint) Decimal {
-	return funcs.MustValue(OfDecimal(value, scale))
+func MustDecimal(value int64, scale uint, normalized ...bool) Decimal {
+	return funcs.MustValue(OfDecimal(value, scale, normalized...))
 }
 
 // StringToDecimal creates a Decimal from the given string
@@ -216,6 +221,11 @@ func (d Decimal) Precision() int {
 // Scale returns the number of digits after the decimal, if any.
 func (d Decimal) Scale() uint {
 	return d.scale
+}
+
+// Normalized returns true if the operations return normalized values
+func (d Decimal) Normalized() bool {
+    return !d.denormalized
 }
 
 // Sign returns the sign of the number:
@@ -433,7 +443,7 @@ func (d Decimal) Cmp(o Decimal) int {
 // Negate returns the negation of d.
 // If 0 is passed, the result is 0.
 func (d Decimal) Negate() Decimal {
-	return Decimal{value: -d.value, scale: d.scale}
+	return Decimal{value: -d.value, scale: d.scale, denormalized: d.denormalized}
 }
 
 // MagnitudeLessThanOne returns true if the decimal value
@@ -457,9 +467,10 @@ func (d Decimal) MagnitudeLessThanOne() bool {
 	return absVal < power10
 }
 
-// normalize gets rid of trailing zeros when scale > 1
-// This can help improve accuracy over successive calculations
-func (d *Decimal) normalize() {
+// Normalize gets rid of trailing zeros when scale > 1.
+// This can help improve accuracy over successive calculations.
+// This method is the only method that ignores the internal normalize field, to allow forcing normalization as desired.
+func (d *Decimal) Normalize() {
 	if d.scale > 0 {
 		var (
 			v   = d.value
@@ -483,6 +494,13 @@ func (d *Decimal) normalize() {
 		d.value = v
 		d.scale = s
 	}
+}
+
+func (d *Decimal) applyNormalization() {
+    // Skip if not desired
+    if !d.denormalized {
+        d.Normalize()
+    }
 }
 
 // addDecimal is internal function called by Add and Sub
@@ -517,6 +535,7 @@ func addDecimal(d, origO, o Decimal, op string) (Decimal, error) {
 		}
 	}
 
+    r.applyNormalization()
 	return r, nil
 }
 
@@ -630,8 +649,8 @@ func (d Decimal) DivIntQuoRem(o uint) (Decimal, Decimal, error) {
 	// Divide d by o, and set to d scale
 	// Remainder calculated as d - (q * o), the only way to get the decimal place correct
 	var (
-		q = Decimal{scale: d.scale, value: d.value / int64(o)}
-		r = d.MustSub(Decimal{scale: d.scale, value: q.value * int64(o)})
+		q = Decimal{scale: d.scale, value: d.value / int64(o), denormalized: d.denormalized}
+		r = d.MustSub(Decimal{scale: d.scale, value: q.value * int64(o), denormalized: d.denormalized})
 	)
 
 	return q, r, nil
@@ -658,7 +677,7 @@ func (d Decimal) DivIntAdd(o uint) ([]Decimal, error) {
 		res = make([]Decimal, o)
 	)
 	for i := int64(0); i < int64(o); i++ {
-		res[i] = Decimal{scale: d.scale, value: q.value + int64(funcs.Ternary(rc > 0, 1, 0))}
+		res[i] = Decimal{scale: d.scale, value: q.value + int64(funcs.Ternary(rc > 0, 1, 0)), denormalized: d.denormalized}
 		rc--
 	}
 
@@ -878,7 +897,7 @@ main_loop:
 	}
 
 	// Return result
-	return Decimal{q, uint(s)}, nil
+	return Decimal{value: q, scale: uint(s), denormalized: d.denormalized}, nil
 }
 
 // MustDiv is a must version of Div
