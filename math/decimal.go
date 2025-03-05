@@ -70,6 +70,10 @@ const (
 	//                            123 456 789 012 345 678
 	decimalRoundMinValue int64 = -999_999_999_999_999_994
 
+	// upperHalfMask and lowerHalfMask are bitmasks for the upper and lower 32 bits of a 64 bit value
+	upperHalfMask = 0xFFFF_FFFF_0000_0000
+	lowerHalfMask = 0x0000_0000_FFFF_FFFF
+
 	// errInvalidStringMsg is the error message for an invalid string to construct a decimal from
 	errInvalidStringMsg = "The string value %s is not a valid decimal string"
 
@@ -467,11 +471,15 @@ func (d Decimal) MagnitudeLessThanOne() bool {
 	return absVal < power10
 }
 
-// Normalize gets rid of trailing zeros when scale > 1.
+// Normalize has two cases:
+// value = 0: ensure scale = 0
+// scale > 0: eliminate useless trailing zeros
 // This can help improve accuracy over successive calculations.
 // This method is the only method that ignores the internal normalize field, to allow forcing normalization as desired.
 func (d *Decimal) Normalize() {
-	if d.scale > 0 {
+	if d.value == 0 {
+	    d.scale = 0
+    } else if d.scale > 0 {
 		var (
 			v   = d.value
 			s   = d.scale
@@ -496,9 +504,11 @@ func (d *Decimal) Normalize() {
 	}
 }
 
+// applyNormalization calls Normalize if the value is 0 or denormalized is true
+// Called by other methods that do calculations to maintain the normalization state
 func (d *Decimal) applyNormalization() {
     // Skip if not desired
-    if !d.denormalized {
+    if (d.value == 0) || (!d.denormalized) {
         d.Normalize()
     }
 }
@@ -573,7 +583,7 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 //
 // 1. r = d * o is tried first
 // If r = 0, then return 0 scale 0.
-// If r / d = o, then if r > max value, we have a valid result 19 digits in length.
+// If r / d = o, then if r > max value or < min value, we have a valid result 19 digits in length.
 //
 //	Round it to 18 with single divide by 10, and add 1 if remainder >= 5.
 //	Given max int64 value starts with 92, divide by 10 cannot be max value.
@@ -593,26 +603,139 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 // If rs = 0 and there are more than 18 digitds l
 // The result rs must be <= 18, return as is.
 func (d Decimal) Mul(o Decimal) (Decimal, error) {
-	// Start by just multiplying the two 64-bit values together, and adding their scales
-	r := d
-	r.value *= o.value
-	r.scale += o.scale
+	// Try just multiplying the two 64-bit values together, and see if the result fits in 64 bits
+	var (
+	    dval = d.value
+	    dpos = dval >= 0
 
-	// There are two cases of over/under flow:
-	// - operation is not reversible: o != 0 and r / o != d
-	// - abs(value) > 18 9's
-	// It is an overflow if the signs are the same, underflow if they differ
-	// Note we must do checks in the order shown above:
-	// - The resulting value may be storable in a 64 bit int, but roll over/under, so that it has the opposite sign of what it should be
-	if (o.value != 0) && (r.value/o.value != d.value) {
-		return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
-	}
-	if r.value > decimalMaxValue {
-		return Decimal{}, fmt.Errorf(errDecimalOverflowMsg, d, "*", o)
-	}
-	if r.value < decimalMinValue {
-		return Decimal{}, fmt.Errorf(errDecimalUnderflowMsg, d, "*", o)
-	}
+	    oval = o.value
+	    opos = oval >= 0
+
+        rscale = d.scale + o.scale
+	)
+
+    if !dpos {
+        dval = -dval
+        dval = -dval
+    }
+    if !opos {
+        oval = -oval
+    }
+
+    {
+        var (
+            rval = dval * oval
+            rpos = dpos
+        )
+
+        // If r is 0, nothing more to do
+        if rval != 0 {
+            // If r / o != d, the result overflowed, and we have to use a different technique
+            if rval / oval != dval {
+                goto splitHalf
+            }
+
+            // The result could be a 19 digit value outside the 18 digit range
+            if rval > decimalMaxValue {
+                // If the scale > 0 then we can round one time to make it 18 digits
+                // Since 19 digit value begins with 92, if drop a digit and round up,
+                // we cannot wind up at 19 digits again
+                if rscale == 0 {
+                    return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+                }
+
+                rmdr := rval % 10
+                rval /= 10
+                if rmdr >= 5 {
+                    rval++
+                }
+                rscale--
+            }
+
+            // If scale > 18, we need round until it is 18
+            // EG, scale 12 * scale 10 = scale 22
+            for rscale > decimalMaxScale {
+                rmdr := rval % 10
+                rval /= 10
+                if rmdr >= 5 {
+                    rval++
+                }
+                rscale--
+            }
+        }
+        // Skip the splitHalf algorithm
+        goto :end
+    }
+
+    // Split the two numbers into upper and lower 32 bit halves, and perform a series of multiply and adds to get a
+    // 128 bit result. The large result is then rounded down to a 64-bit 18 digit result.
+    // If it cannot be rounded down to 64 bits, it is an over/underflow.
+    :splitHalf
+
+    // If the scale is 0, then we have an integer result that overflows, there is no point in splitting.
+    if rscale == 0 {
+        return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+    }
+
+    // Split dval and oval into 32-bit upper and lower halves.
+    // Shift the upper halves right 32 bits to align them into the lower 32 bits,
+    // so that multiplication can stay within 64 bits.
+    var (
+        ud = (dval & upperHalfMask) >> 32
+        ld = dval & lowerHalfMask
+
+        uo = (dval & upperHalfMask) >> 32
+        lo = dval & lowerHalfMask
+    )
+
+    // Perform multiplications of all combinations
+    var (
+        ldlo = ld * lo
+        lduo = ld * uo
+        udlo = ud * lo
+        uduo = ud * uo
+    )
+
+    // The above terms line up into four 32-bit sections as follows:
+    //   Upper 64 bits     Lower 64 bits
+    // Section1 Section2 Section3 Section4
+    //                     ldlo     ldlo
+    //            lduo     lduo
+    //            udlo     udlo
+    //   uduo     uduo
+
+    // Create a pair of 64 bit ints to store above sections into
+    var upper64, lower64, temp int64
+    lower64 = ldlo
+    temp = lower64 + ((lduo & lowerHalfMask) << 32)
+    if temp < lower64 {
+        // overlow, add 1 to upper64
+        upper64++
+    }
+    lower64 = temp
+
+    temp = lower64 + ((udlo & lowerHalfMask) << 32)
+    if temp < lower64 {
+        // overlow, add 1 to upper64
+        upper64++
+    }
+    lower64 = temp
+
+    // Multiplying two 64 bit terms cannot exceed 128 bits
+    upper64 += (lduo >> 32) + (udlo >> 32) + uduo
+
+    // Round off digits until one of two results:
+    // - A value small enough to fit into 64 bits, which we can return
+    // - There are no more decimal places to round, leaving only an integer > 64 bits in size
+
+    // Perform common final operations, regardless of which technique was used to get the result
+    :end
+    if !rpos {
+        rval = -rval
+    }
+
+    r = Decimal{value: rval, scale: rscale, denormalized: d.denormalized}
+    r.applyNormalization()
 
 	return r, nil
 }
