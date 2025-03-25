@@ -426,6 +426,10 @@ func TestDecimalSub_(t *testing.T) {
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 - 9999999999999999.99 underflowed")), tuple.Of2(d1.Sub(d2)))
 }
 
+func Testmul128_(t *testing.T) {
+
+}
+
 func TestDecimalMul_(t *testing.T) {
 	// 1.5 * 2.5 = 3.75
 	d1, d2 := MustDecimal(1_5, 1), MustDecimal(2_5, 1)
@@ -449,29 +453,30 @@ func TestDecimalMul_(t *testing.T) {
 
 	// Overflow
 	// - Within bounds of signed 64 bit int, but beyond bounds of 18 decimals
-	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(2, 1)
-	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 0.2 overflowed")), tuple.Of2(d1.Mul(d2)))
+	// 1 999 999 999 999 999 998
+	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(2, 0)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 2 overflowed")), tuple.Of2(d1.Mul(d2)))
 
 	// - Beyond bounds of signed 64 bit int, but only a little
 	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(16, 0)
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 16 overflowed")), tuple.Of2(d1.Mul(d2)))
 
 	// - Way beyond bounds of signed 64 bit int
-	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(99_999_999_999_999_999_9, 1)
-	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 99999999999999999.9 overflowed")), tuple.Of2(d1.Mul(d2)))
+	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(99_999_999_999_999_999_9, 0)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * 999999999999999999 overflowed")), tuple.Of2(d1.Mul(d2)))
 
 	// Underflow
 	// - Within bounds of signed 64 bit int, but beyond bounds of 18 decimals
-	d1, d2 = MustDecimal(-999_999_999_999_999_999, 0), MustDecimal(2, 1)
-	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -999999999999999999 * 0.2 underflowed")), tuple.Of2(d1.Mul(d2)))
+	d1, d2 = MustDecimal(-999_999_999_999_999_999, 0), MustDecimal(2, 0)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -999999999999999999 * 2 underflowed")), tuple.Of2(d1.Mul(d2)))
 
 	// - Beyond bounds of signed 64 bit int, but only a little
 	d1, d2 = MustDecimal(999_999_999_999_999_999, 0), MustDecimal(-16, 0)
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation 999999999999999999 * -16 underflowed")), tuple.Of2(d1.Mul(d2)))
 
 	// - Way beyond bounds of signed 64 bit int
-	d1, d2 = MustDecimal(-999_999_999_999_999_999, 0), MustDecimal(99_999_999_999_999_999_9, 1)
-	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -999999999999999999 * 99999999999999999.9 underflowed")), tuple.Of2(d1.Mul(d2)))
+	d1, d2 = MustDecimal(-999_999_999_999_999_999, 0), MustDecimal(99_999_999_999_999_999_9, 0)
+	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -999999999999999999 * 999999999999999999 underflowed")), tuple.Of2(d1.Mul(d2)))
 }
 
 func TestDecimalDivIntQuoRem_(t *testing.T) {

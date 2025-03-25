@@ -71,8 +71,17 @@ const (
 	decimalRoundMinValue int64 = -999_999_999_999_999_994
 
 	// upperHalfMask and lowerHalfMask are bitmasks for the upper and lower 32 bits of a 64 bit value
-	upperHalfMask = 0xFFFF_FFFF_0000_0000
-	lowerHalfMask = 0x0000_0000_FFFF_FFFF
+	upperHalfMask uint64 = 0xFFFF_FFFF_0000_0000
+	lowerHalfMask uint64 = 0x0000_0000_FFFF_FFFF
+
+	// Power of 10 in middle of a 64-bit value
+	middlePower10 uint64 = 0x0000_0000_1010_0000
+
+	// Bitmask for lowest bit of a 64 bit unsigned int
+	lowestBitMask uint64 = 0x0000_0000_0000_0001
+
+	// Bitmask for highest bit of a 64 bit unsigned int
+	highestBitMask uint64 = 0x1000_0000_0000_0000
 
 	// errInvalidStringMsg is the error message for an invalid string to construct a decimal from
 	errInvalidStringMsg = "The string value %s is not a valid decimal string"
@@ -579,6 +588,69 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 	return funcs.MustValue(d.Sub(o))
 }
 
+// mul128 is an internal function that uses 128 bits to multiply a pair of 64 bit integers.
+// The result cannot overflow, so no error is returned.
+func mul128(a, b uint64) (upper, lower uint64) {
+    // Split a and b into 32-bit upper and lower halves.
+    // Shift the upper halves right 32 bits to align them into the lower 32 bits,
+    // so that multiplication can stay within 64 bits.
+    var (
+        ua = (a & upperHalfMask) >> 32
+        la = a & lowerHalfMask
+
+        ub = (b & upperHalfMask) >> 32
+        lb = b & lowerHalfMask
+    )
+
+    // Perform multiplications of all combinations (none of these can overflow)
+    var (
+        lalb = la * lb
+        laub = la * ub
+        ualb = ua * lb
+        uaub = ua * ub
+    )
+
+    // The above terms line up into four 32-bit sections as follows:
+    //   Upper 64 bits     Lower 64 bits
+    // Section1 Section2 Section3 Section4
+    //                     lalb     lalb
+    //            laub     laub
+    //            ualb     ualb
+    //   uaub     uaub
+
+    // Create a pair of 64 bit ints to store above sections into
+    var temp uint64
+
+    // Start bottom 64 bits with lalb term
+    lower = lalb
+
+    // Add laub bottom 32 bits shifted into upper 32 bits to line up with Section3 (can overflow)
+    temp = lower + ((laub & lowerHalfMask) << 32)
+
+    // When c = a + b overflows, c < a and c < b
+    if temp < lower {
+        // overlow, add 1 to upper 64 bits
+        upper++
+    }
+    lower = temp
+
+    // Add ualb bottom 32 bits shifted into upper 32 bits to line up with Section3 (can overflow)
+    temp = lower + ((ualb & lowerHalfMask) << 32)
+    if temp < lower {
+        // overlow, add 1 to upper 64 bits
+        upper++
+    }
+    lower = temp
+
+    // Add top 32 bits of laub and ualb shited into lower 32 bits to line up with Section2.
+    // Add 64 bits of uaub as is, already aligned with Section1 and Section2.
+    // Even though adding 64-bit values can generally overflow, we know the additions result from multiplying two 64 bit
+    // values, the result of which cannot exceed 128 bits.
+    upper += (laub >> 32) + (ualb >> 32) + uaub
+
+    return
+}
+
 // Mul calculates d * o using one of two methods:
 //
 // 1. r = d * o is tried first
@@ -616,125 +688,127 @@ func (d Decimal) Mul(o Decimal) (Decimal, error) {
 
     if !dpos {
         dval = -dval
-        dval = -dval
     }
     if !opos {
         oval = -oval
     }
 
-    {
-        var (
-            rval = dval * oval
-            rpos = dpos
-        )
+    var (
+        rval = dval * oval
+        rpos = dpos == opos
+    )
 
-        // If r is 0, nothing more to do
-        if rval != 0 {
-            // If r / o != d, the result overflowed, and we have to use a different technique
-            if rval / oval != dval {
-                goto splitHalf
-            }
-
-            // The result could be a 19 digit value outside the 18 digit range
-            if rval > decimalMaxValue {
-                // If the scale > 0 then we can round one time to make it 18 digits
-                // Since 19 digit value begins with 92, if drop a digit and round up,
-                // we cannot wind up at 19 digits again
-                if rscale == 0 {
-                    return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
-                }
-
-                rmdr := rval % 10
-                rval /= 10
-                if rmdr >= 5 {
-                    rval++
-                }
-                rscale--
-            }
-
-            // If scale > 18, we need round until it is 18
-            // EG, scale 12 * scale 10 = scale 22
-            for rscale > decimalMaxScale {
-                rmdr := rval % 10
-                rval /= 10
-                if rmdr >= 5 {
-                    rval++
-                }
-                rscale--
-            }
+    // If one or both inputs are 0, nothing more to do
+    if ((dval != 0) && (oval != 0)) {
+        // If r / o != d, the result overflowed, and we have to use a different technique
+        // Since we already checked rval != 0, we cannot get division by zero
+        if rval / oval != dval {
+            goto splitHalf
         }
-        // Skip the splitHalf algorithm
-        goto :end
+
+        // The result could be a 19 digit value outside the 18 digit range
+        if rval > decimalMaxValue {
+            // If the scale > 0 then we can round one time to make it 18 digits
+            // Since 19 digit value begins with 92, if we drop a digit and round up,
+            // we cannot wind up at 19 digits again
+            if rscale == 0 {
+                return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+            }
+
+            rmdr := rval % 10
+            rval /= 10
+            if rmdr >= 5 {
+                rval++
+            }
+            rscale--
+        }
+
+        // If scale > 18, we need round until it is 18
+        // EG, scale 12 * scale 10 = scale 22
+        for rscale > decimalMaxScale {
+            rmdr := rval % 10
+            rval /= 10
+            if rmdr >= 5 {
+                rval++
+            }
+            rscale--
+        }
     }
+    // Skip the splitHalf algorithm
+    goto end
 
     // Split the two numbers into upper and lower 32 bit halves, and perform a series of multiply and adds to get a
     // 128 bit result. The large result is then rounded down to a 64-bit 18 digit result.
     // If it cannot be rounded down to 64 bits, it is an over/underflow.
-    :splitHalf
+    splitHalf:
 
-    // If the scale is 0, then we have an integer result that overflows, there is no point in splitting.
+    // If the scale is 0, then we have an integer result that overflows, there is no point in using 128 bit math.
     if rscale == 0 {
         return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
     }
 
-    // Split dval and oval into 32-bit upper and lower halves.
-    // Shift the upper halves right 32 bits to align them into the lower 32 bits,
-    // so that multiplication can stay within 64 bits.
-    var (
-        ud = (dval & upperHalfMask) >> 32
-        ld = dval & lowerHalfMask
-
-        uo = (dval & upperHalfMask) >> 32
-        lo = dval & lowerHalfMask
-    )
-
-    // Perform multiplications of all combinations
-    var (
-        ldlo = ld * lo
-        lduo = ld * uo
-        udlo = ud * lo
-        uduo = ud * uo
-    )
-
-    // The above terms line up into four 32-bit sections as follows:
-    //   Upper 64 bits     Lower 64 bits
-    // Section1 Section2 Section3 Section4
-    //                     ldlo     ldlo
-    //            lduo     lduo
-    //            udlo     udlo
-    //   uduo     uduo
-
-    // Create a pair of 64 bit ints to store above sections into
-    var upper64, lower64, temp int64
-    lower64 = ldlo
-    temp = lower64 + ((lduo & lowerHalfMask) << 32)
-    if temp < lower64 {
-        // overlow, add 1 to upper64
-        upper64++
-    }
-    lower64 = temp
-
-    temp = lower64 + ((udlo & lowerHalfMask) << 32)
-    if temp < lower64 {
-        // overlow, add 1 to upper64
-        upper64++
-    }
-    lower64 = temp
-
-    // Multiplying two 64 bit terms cannot exceed 128 bits
-    upper64 += (lduo >> 32) + (udlo >> 32) + uduo
+//     upper, lower := mul128(uint64(oval), uint64(dval))
 
     // Round off digits until one of two results:
     // - A value small enough to fit into 64 bits, which we can return
-    // - There are no more decimal places to round, leaving only an integer > 64 bits in size
+    // - There are no more decimal places to round, leaving only an integer > 64 bits in size, that is an over/underflow
+    //
+    // Division by 10 across two 64-bit ints can be performed using a bit shifting algorithm. The idea is as follows:
+    // - 121 / 10
+    // - Start with 10, 1
+    // - Repeatedly shift left (20, 2), (40, 4), ...
+    // - Stop when the power of 2 multiple of 10 is the largest multiple <= 121 which is (80, 8)
+    // - The multiple 8 is the initial quotient, and 121 - 80 = 41 is the remainder
+    // - Now switch to a loop of shift right and subtracts, subtracting only when the multiple of 10 <= remainder
+    // - For each subtraction, add multiple of 10 to current quotient
+    // - Once the current remainder < 10, we have final result
+    // - m, q, r = 80, 8, 41
+    // - Shift (80, 8) right = (40, 4)
+    // - 40 <= 41, so q, r = (8 + 4, 41 = 40) = (12, 1)
+    // - Since r < 10, final result is 121 = 12 * 10 + 1
+    //
+    // We can optimmize this algorithm by our knowledge that we only need to use this algorithm because we have more
+    // 64 bits. So instead of starting at and shifting left, start at the power of 10 in the upper 64 bits where the
+    // highest bit is in the middle:
+    //
+    // (upper m, q) = (0000_0000_1010_0000, 16)
+    //
+    // To get starting point of bit shifting division:
+    // If upper m < upper 64, shift (upper m, q) left until upper m >= upper64. If > upper64, shift (m, q) right once.
+    // If upper m > upper 64, shift (upper m, q) right until upper m <= upper64.
+    //
+    // When shifting right, if the upper m <= 101, then:
+    // - The lower m bits have to be shifted right
+    // - The highest lower m bit is set to lowest upper m bit
+    // - upper m shifted right
+    // - eg, when upper m  = 101:
+    //   - shift lower m (currently 0) right = 0
+    //   - set upper m bit = 1
+    //   - shift upper m right = 10
+    //   - end result is 0000_0000_0000_0010 1000_0000_000_0000
+    //
+    // Once the starting point is found
+//     var (
+//         upperQuo := middlePower10
+//         lowerQuo  uint64
+//         upperRmdr uint64
+//         lowerRmdr uint64
+//     )
+//     for (upperQuo > 0) && (rscale > 0) {
+//         temp = upper64 / 10
+//         rmdr = upper64 % 10
+//         if rmdr >= 5 {
+//             temp++
+//         }
+//     }
 
     // Perform common final operations, regardless of which technique was used to get the result
-    :end
+    end:
     if !rpos {
         rval = -rval
     }
 
-    r = Decimal{value: rval, scale: rscale, denormalized: d.denormalized}
+    r := Decimal{value: rval, scale: rscale, denormalized: d.denormalized}
     r.applyNormalization()
 
 	return r, nil
