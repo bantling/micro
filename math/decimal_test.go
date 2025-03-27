@@ -426,8 +426,19 @@ func TestDecimalSub_(t *testing.T) {
 	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 - 9999999999999999.99 underflowed")), tuple.Of2(d1.Sub(d2)))
 }
 
-func Testmul128_(t *testing.T) {
+func TestMul128_(t *testing.T) {
+    // Multiplying highest bit by 2 should result in upper = 1 and lower = 0
+    upper, lower := mul128(0x8000_0000_0000_0000, 2)
+    assert.Equal(t, uint64(1), upper)
+    assert.Equal(t, uint64(0), lower)
 
+    // Squaring n F chars results in a 2n sequence of (n/2 - 1) F, E, (n/2 - 1) 0, 1
+    // Eg, FFFF   ^ 2 =  (3) F, E,  (3) 0, 1 = FFFE_0001
+    //     FFFFFF ^ 2 =  (5) F, E,  (5) 0, 1 = FFFFFE_000001
+    // So (16) F  ^ 2 = (15) F, E, (15) 0, 1 = FFFF_FFFF_FFFF_FFFE_0000_0000_0000_0001
+    upper, lower = mul128(0xFFFF_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF)
+    assert.Equal(t, uint64(0XFFFF_FFFF_FFFF_FFFE), upper)
+    assert.Equal(t, uint64(1), lower)
 }
 
 func TestDecimalMul_(t *testing.T) {

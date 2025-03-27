@@ -642,7 +642,7 @@ func mul128(a, b uint64) (upper, lower uint64) {
     }
     lower = temp
 
-    // Add top 32 bits of laub and ualb shited into lower 32 bits to line up with Section2.
+    // Add top 32 bits of laub and ualb shifted into lower 32 bits to line up with Section2.
     // Add 64 bits of uaub as is, already aligned with Section1 and Section2.
     // Even though adding 64-bit values can generally overflow, we know the additions result from multiplying two 64 bit
     // values, the result of which cannot exceed 128 bits.
