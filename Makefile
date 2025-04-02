@@ -152,12 +152,18 @@ format:
 test:
 	testOpt="-count=$${count:-1}"; \
 	[ -z "$(run)" ] || testOpt="$$testOpt -run $(run)"; \
-	go test -coverprofile=.coverage.html -v $$testOpt $(pkg)
+	go test -coverprofile=.coverage.txt -v $$testOpt $(pkg)
 
 # Generate coverage information and display it in user's default browser (host)
 .PHONY: coverage
 coverage:
-	go tool cover -html=.coverage.html
+	go tool cover -html=.coverage.txt
+
+# Fail if coverage is not 100%
+.PHONY: coverage-check
+coverage-check:
+	percentage="`go tool cover -func=.coverage.txt | grep total: | sed -r 's,[^0-9]*(.*)%,\1,'`"; \
+	[ "$${percentage}" = "100.0" ]
 
 # Check that every README and .go file contains the string SPDX-License-Identifier: Apache-2.0 (host, docker, podman)
 .PHONY: spdx

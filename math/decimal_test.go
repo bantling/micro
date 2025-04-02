@@ -427,7 +427,7 @@ func TestDecimalSub_(t *testing.T) {
 }
 
 func TestMul128_(t *testing.T) {
-    // Multiplying highest bit by 2 should result in upper = 1 and lower = 0
+    // Multiplying highest bit by 2 results in upper = 1 and lower = 0
     upper, lower := mul128(0x8000_0000_0000_0000, 2)
     assert.Equal(t, uint64(1), upper)
     assert.Equal(t, uint64(0), lower)
@@ -439,6 +439,34 @@ func TestMul128_(t *testing.T) {
     upper, lower = mul128(0xFFFF_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF)
     assert.Equal(t, uint64(0XFFFF_FFFF_FFFF_FFFE), upper)
     assert.Equal(t, uint64(1), lower)
+
+    // Some cases from Div (most of these do not exceed 64 bits)
+
+    // 1. 200 * 25 = 5000
+    upper, lower = mul128(200, 25)
+    assert.Equal(t, uint64(0), upper)
+    assert.Equal(t, uint64(5000), lower)
+
+    // 2. 2 * 25005 = 50010
+    upper, lower = mul128(2, 25005)
+    assert.Equal(t, uint64(0), upper)
+    assert.Equal(t, uint64(50010), lower)
+
+    // 3. 25 * 4123 = 103075
+    upper, lower = mul128(25, 4123)
+    assert.Equal(t, uint64(0), upper)
+    assert.Equal(t, uint64(103075), lower)
+
+    // 4. 25 * 493_827_156_049_382_712 = 12_345_678_901_234_567_800
+    upper, lower = mul128(25, 493_827_156_049_382_712)
+    assert.Equal(t, uint64(0), upper)
+    assert.Equal(t, uint64(12_345_678_901_234_567_800), lower)
+
+    // 5. 25000 * 493_827_156_049_382_712 = 12_345_678_901_234_567_800_000
+    // = 0x29d__42b6_4e76_7140_e4c0
+    upper, lower = mul128(25_000, 493_827_156_049_382_712)
+    assert.Equal(t, uint64(0x029d), upper)
+    assert.Equal(t, uint64(0x42b6_4e76_7140_e4c0), lower)
 }
 
 func TestDecimalMul_(t *testing.T) {

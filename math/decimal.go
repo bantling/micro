@@ -618,24 +618,29 @@ func mul128(a, b uint64) (upper, lower uint64) {
     //            ualb     ualb
     //   uaub     uaub
 
-    // Create a pair of 64 bit ints to store above sections into
-    var temp uint64
+    // Add lalb and laub bottom 32 bits shifted into upper 32 bits to line up with Section3 (cannot overflow)
+    lower = lalb + ((laub & lowerHalfMask) << 32)
 
-    // Start bottom 64 bits with lalb term
-    lower = lalb
-
-    // Add laub bottom 32 bits shifted into upper 32 bits to line up with Section3 (can overflow)
-    temp = lower + ((laub & lowerHalfMask) << 32)
-
-    // When c = a + b overflows, c < a and c < b
-    if temp < lower {
-        // overlow, add 1 to upper 64 bits
-        upper++
-    }
-    lower = temp
+    // The above calculation cannot overflow:
+    // temp = (la * lb) + (((la * ub) & lowerHalfMask) << 32)
+    //
+    // - 1 * FFFF_FFFF + (((1 * FFFF_FFFF) & lowerHalfMask) << 32)
+    //   = FFFF_FFFF + ((FFFF_FFFF & lowerHalfMask) << 32)
+    //   = FFFF_FFFF + (FFFF_FFFF << 32)
+    //   = FFFF_FFFF + FFFF_FFFF_0000_0000
+    //   = FFFF_FFFE_0000_0001
+    //
+    // The problem is as follows:
+    // - lb and ub can be at most FFFF_FFFF, as they are 32-bit values
+    // - if la = 1, then (((la * ub) & lowerHalfMask) << 32) has max value of FFFF_FFFF_0000_0000
+    // - adding FFFF_FFFF to that yields a 64-bit value, no overflow
+    // if we increase la, that causes (((la * ub) & lowerHalfMask) << 32) to be smaller value:
+    // - when la > 1, la * ub causes shifting so that there are some zero bits on the right side
+    // - when grabbing the bottomm 32 bits, the result is < FFFF_FFFF
+    // - when shifting those bits 32 times to the left, the result is < FFFF_FFFF_0000_0000
 
     // Add ualb bottom 32 bits shifted into upper 32 bits to line up with Section3 (can overflow)
-    temp = lower + ((ualb & lowerHalfMask) << 32)
+    var temp = lower + ((ualb & lowerHalfMask) << 32)
     if temp < lower {
         // overlow, add 1 to upper 64 bits
         upper++
@@ -969,7 +974,7 @@ func (d Decimal) MustDivIntAdd(o uint) []Decimal {
 // 13. 1_234_567_890_123_456.78 / 2.5
 // 123_456_789_012_345_678 / 25 = 4_938_271_560_493_827 r 3
 // Scale 2 - scale 1 = 1 -> 4_938_271_560_493_827 scale 1 = 493_827_156_049_382.7
-// 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 1 r 5 = 0.01  r 5
+// 3 / 25 = 30 (3 * 10^1) / 25 = 1 scale 1 + 1 r 5 = 0.01 r 5
 // 5 / 25 = 50 (5 * 10^1) / 25 = 2 scale 1 + 2 r 0 = 0.002
 // Result is 493_827_156_049_382.7 + 0.012 = 493_827_156_049_382.712
 //
