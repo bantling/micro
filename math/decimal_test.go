@@ -4,12 +4,31 @@ package math
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/bantling/micro/tuple"
 	"github.com/bantling/micro/union"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestPowersOf10For128Bits_(t *testing.T) {
+    toString := func(tu tuple.Two[uint64, uint64]) string {
+        var (
+            b1, b2 big.Int
+        )
+
+        b1.SetUint64(tu.T)
+        b1.Lsh(&b1, 64)
+        b2.SetUint64(tu.U)
+        b1.Or(&b1, &b2)
+        return b1.Text(10)
+    }
+    //               123456789012345678901234567890123456
+    assert.Equal(t, "500000000000000000000000000000000000", toString(powersOf10For128Bits[0][0]))
+    assert.Equal(t, "200000000000000000000000000000000000", toString(powersOf10For128Bits[0][1]))
+    assert.Equal(t, "100000000000000000000000000000000000", toString(powersOf10For128Bits[0][2]))
+}
 
 func TestOfDecimal_(t *testing.T) {
 	assert.Equal(t, tuple.Of2(Decimal{scale: 0, value: 1, denormalized: false}, error(nil)), tuple.Of2(OfDecimal(1_00, 2)))
