@@ -4,38 +4,13 @@ package math
 
 import (
 	"fmt"
-	"math/big"
 	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/bantling/micro/conv"
 	"github.com/bantling/micro/funcs"
-	"github.com/bantling/micro/tuple"
 )
-
-// A function to aid in providing 128-bit constants for powers of ten multipled by 5, 2, and 1.
-// These constants are used to efficiently perform subtractions to convert a 128-bit number into digits.
-// val is used as base 0 input string for big.Int.SetString, which means it can have underscores in it.
-func generate128UpperLower(val string) tuple.Two[uint64,uint64] {
-	var (
-		bi, _  = big.NewInt(0).SetString(val, 0)
-		txt    = bi.Text(16)
-		ulen   = len(txt) - 16 // lower is always 16 hex chars, upper varies from 1 to 14
-		ut, lt = txt[:ulen], txt[ulen:]
-	)
-
-    // Grab upper (leading 1 to 14 hex chars)
-	bi.SetString(ut, 16)
-	upper := bi.Uint64()
-
-    // Grab lower (trailing 16 hex chars)
-	bi.SetString(lt, 16)
-	lower := bi.Uint64()
-
-	//fmt.Printf("123456789012341234567890123456\n%s\n%s%s\n%x%x\n%x %x\n\n", txt, ut, lt, upper, lower, upper, lower)
-	return tuple.Of2(upper, lower)
-}
 
 var (
 	// optional minus sign, zero or more digits, optional dot and zero or more digits.
@@ -63,195 +38,6 @@ var (
 		100_000_000_000_000_000,   // 17
 		1_000_000_000_000_000_000, // 18
 	}
-
-    // powersOf10For128Bits is (5, 2, 1) * powers of ten > 64 bits split into upper and lower 64 bit values
-    // indexes are [upper decimal length (18 .. 1)][5/2/1][upper/lower]
-    // eg, [0][0][0] = 18 upper decimal digits, 5 * 10^(17+18), upper 64 bits
-    //     [1][1][1] = 17 upper decimal digits, 2 * 10^(16+18), lower 64 bits
-    //
-    // Note that 1 upper decimal digit is a special case:
-    // - 5 * 10^(1+18) > 64 bits
-    // - 2 * 10^(1+18) > 64 bits
-    // - 1 * 10^(1+18) = 64 bits, so has no constant declared
-    powersOf10For128Bits = [][]tuple.Two[uint64, uint64]{
-        // 18 upper digits
-        {
-            //                    123456789012345678 123456789012345678
-            generate128UpperLower("500000000000000000_000000000000000000"),
-            //                     123456789012345678 123456789012345678
-            generate128UpperLower("200000000000000000_000000000000000000"),
-            //                     123456789012345678 123456789012345678
-            generate128UpperLower("100000000000000000_000000000000000000"),
-        },
-
-        // 17 upper digits
-        {
-            //                     12345678901234567 123456789012345678
-            generate128UpperLower("50000000000000000_000000000000000000"),
-            //                     12345678901234567 123456789012345678
-            generate128UpperLower("20000000000000000_000000000000000000"),
-            //                     12345678901234567 123456789012345678
-            generate128UpperLower("10000000000000000_000000000000000000"),
-        },
-
-        // 16 upper digits
-        {
-            //                     1234567890123456 123456789012345678
-            generate128UpperLower("5000000000000000_000000000000000000"),
-            //                     1234567890123456 123456789012345678
-            generate128UpperLower("2000000000000000_000000000000000000"),
-            //                     1234567890123456 123456789012345678
-            generate128UpperLower("1000000000000000_000000000000000000"),
-        },
-
-        // 15 upper digits
-        {
-            //                     123456789012345 123456789012345678
-            generate128UpperLower("500000000000000_000000000000000000"),
-            //                     123456789012345 123456789012345678
-            generate128UpperLower("200000000000000_000000000000000000"),
-            //                     123456789012345 123456789012345678
-            generate128UpperLower("100000000000000_000000000000000000"),
-        },
-
-        // 14 upper digits
-        {
-            //                     12345678901234 123456789012345678
-            generate128UpperLower("50000000000000_000000000000000000"),
-            //                     12345678901234 123456789012345678
-            generate128UpperLower("20000000000000_000000000000000000"),
-            //                     12345678901234 123456789012345678
-            generate128UpperLower("10000000000000_000000000000000000"),
-        },
-
-        // 13 upper digits
-        {
-            //                     1234567890123 123456789012345678
-            generate128UpperLower("5000000000000_000000000000000000"),
-            //                     1234567890123 123456789012345678
-            generate128UpperLower("2000000000000_000000000000000000"),
-            //                     1234567890123 123456789012345678
-            generate128UpperLower("1000000000000_000000000000000000"),
-        },
-
-        // 12 upper digits
-        {
-            //                     123456789012 123456789012345678
-            generate128UpperLower("500000000000_000000000000000000"),
-            //                     123456789012 123456789012345678
-            generate128UpperLower("200000000000_000000000000000000"),
-            //                     123456789012 123456789012345678
-            generate128UpperLower("100000000000_000000000000000000"),
-        },
-
-        // 11 upper digits
-        {
-            //                     12345678901 123456789012345678
-            generate128UpperLower("50000000000_000000000000000000"),
-            //                     12345678901 123456789012345678
-            generate128UpperLower("20000000000_000000000000000000"),
-            //                     12345678901 123456789012345678
-            generate128UpperLower("10000000000_000000000000000000"),
-        },
-
-        // 10 upper digits
-        {
-            //                     1234567890 123456789012345678
-            generate128UpperLower("5000000000_000000000000000000"),
-            //                     1234567890 123456789012345678
-            generate128UpperLower("2000000000_000000000000000000"),
-            //                     1234567890 123456789012345678
-            generate128UpperLower("1000000000_000000000000000000"),
-        },
-
-        // 9 upper digits
-        {
-            //                     123456789 123456789012345678
-            generate128UpperLower("500000000_000000000000000000"),
-            //                     123456789 123456789012345678
-            generate128UpperLower("200000000_000000000000000000"),
-            //                     123456789 123456789012345678
-            generate128UpperLower("100000000_000000000000000000"),
-        },
-
-        // 8 upper digits
-        {
-            //                     12345678 123456789012345678
-            generate128UpperLower("50000000_000000000000000000"),
-            //                     12345678 123456789012345678
-            generate128UpperLower("20000000_000000000000000000"),
-            //                     12345678 123456789012345678
-            generate128UpperLower("10000000_000000000000000000"),
-        },
-
-        // 7 upper digits
-        {
-            //                     1234567 123456789012345678
-            generate128UpperLower("5000000_000000000000000000"),
-            //                     1234567 123456789012345678
-            generate128UpperLower("2000000_000000000000000000"),
-            //                     1234567 123456789012345678
-            generate128UpperLower("1000000_000000000000000000"),
-        },
-
-        // 6 upper digits
-        {
-            //                     123456 123456789012345678
-            generate128UpperLower("500000_000000000000000000"),
-            //                     123456 123456789012345678
-            generate128UpperLower("200000_000000000000000000"),
-            //                     123456 123456789012345678
-            generate128UpperLower("100000_000000000000000000"),
-        },
-
-        // 5 upper digits
-        {
-            //                     12345 123456789012345678
-            generate128UpperLower("50000_000000000000000000"),
-            //                     12345 123456789012345678
-            generate128UpperLower("20000_000000000000000000"),
-            //                     12345 123456789012345678
-            generate128UpperLower("10000_000000000000000000"),
-        },
-
-        // 4 upper digits
-        {
-            //                     1234 123456789012345678
-            generate128UpperLower("5000_000000000000000000"),
-            //                     1234 123456789012345678
-            generate128UpperLower("2000_000000000000000000"),
-            //                     1234 123456789012345678
-            generate128UpperLower("1000_000000000000000000"),
-        },
-
-        // 3 upper digits
-        {
-            //                     123 123456789012345678
-            generate128UpperLower("500_000000000000000000"),
-            //                     123 123456789012345678
-            generate128UpperLower("200_000000000000000000"),
-            //                     123 123456789012345678
-            generate128UpperLower("100_000000000000000000"),
-        },
-
-        // 2 upper digits (hex has 2, 1, 1 upper digits)
-        {
-            //                     12 123456789012345678
-            generate128UpperLower("50_000000000000000000"),
-            //                     12 123456789012345678
-            generate128UpperLower("20_000000000000000000"),
-            //                     12 123456789012345678
-            generate128UpperLower("10_000000000000000000"),
-        },
-
-        // 1 upper digit (hex has 1, 1, 0 upper digits)
-        {
-            //                     1 123456789012345678
-            generate128UpperLower("5_000000000000000000"),
-            //                     1 123456789012345678
-            generate128UpperLower("2_000000000000000000"),
-        },
-    }
 )
 
 const (
@@ -799,7 +585,7 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 	return funcs.MustValue(d.Sub(o))
 }
 
-// mul128 uses 128 bits to multiply a pair of 64 bit integers.
+// mul128 uses 128 bits to multiply a pair of 64 bit unsigned integers.
 // The result cannot overflow, so no error is returned.
 func mul128(a, b uint64) (upper, lower uint64) {
 	// Split a and b into 32-bit upper and lower halves.
@@ -867,7 +653,7 @@ func mul128(a, b uint64) (upper, lower uint64) {
 	return
 }
 
-// digits36 converts 128 binary bits into 36 decimal digits.
+// digits36 converts 128 binary bits into 36 decimal digits, represented as a tuple of (uint16, uint64, uint64).
 // Since the 128 binary bits derive from multiplying two decimal values, the maximum result comes from multiplying
 // 18 9's by 18 9's which equals:
 //
@@ -877,61 +663,59 @@ func mul128(a, b uint64) (upper, lower uint64) {
 // For simplicity of accessing the separate digits, each digit is stored in a separate byte
 // The dibble-dabble method is used (see https://en.wikipedia.org/wiki/Double_dabble), which works as follows:
 //
-// - All bytes initialized as zero
-// - Shift left 1 bit position, rippling across all bytes
-// - Scan all digits, and if any digit is >= 5, add 3 to it (this can result in multiple adds for a single shift)
-// - For an input of n bits, then n shifts are required
-// - Normally digits are represented in packed BCD form so that each byte has a pair of 4 bit values from 0-9
-// - Effectively, it is hex without ever using digits A-F
+// - All array digits initialized as zero
+// - Shift array digits left 1 bit position, rippling across all bytes
+// - Shift input left 1 bit, copying highest bit that falls off to lowest bit of of lowest array digit
+// - Scan all array digits, and if any digit is >= 5, add 3 to it (this can result in multiple adds for a single shift)
+// - The number of shifts of the input is always a multiple of four
+// - Once the input is shifted to zero, continue shifting bytes until next multiple of four shifts has been reached,
+//   scanning and adding
 //
 // The algorithm is intended for hardware where accessing each of the 4 bit values and adding 3 can be done in parallel.
 // For this implementation, each digit is stored in a separate byte, for ease of access (no bit masking and shifting
 // back and forth).
-// Example taken for decimal value 65244, a 5 decimal digit 16-bit value:
+// Example taken for decimal value 65244, a 5 decimal digit 16-bit value (because it is 16 bits, we shift 16 times):
 //     Packed BCD               : Input
 //     Dig1 Dig2 Dig3 Dig4 Dig5
 // 00. 0000 0000 0000 0000 0000 : 1111 1110 1101 1100 Initial values
-//
 // 01. 0000 0000 0000 0000 0001 : 1111 1101 1011 1000 Shift
 // 02. 0000 0000 0000 0000 0011 : 1111 1011 0111 0000 Shift
-// 03. 0000 0000 0000 0000 0111 : 1111 0110 1110 0000 Shift and add Dig5
+// 03. 0000 0000 0000 0000 0111 : 1111 0110 1110 0000 Shift and add 3 to Dig5
 //     0000 0000 0000 0000 1010
-// 04. 0000 0000 0000 0001 0101 : 1110 1101 1100 0000 Shift and add Dig5
+// 04. 0000 0000 0000 0001 0101 : 1110 1101 1100 0000 Shift and add 3 to Dig5
 //     0000 0000 0000 0001 1000
 // 05. 0000 0000 0000 0011 0001 : 1101 1011 1000 0000 Shift
-// 06. 0000 0000 0000 0110 0011 : 1011 0111 0000 0000 Shift and add Dig4
+// 06. 0000 0000 0000 0110 0011 : 1011 0111 0000 0000 Shift and add 3 to Dig4
 //     0000 0000 0000 1001 0011
-// 07. 0000 0000 0001 0010 0111 : 0110 1110 0000 0000 Shift and add Dig5
+// 07. 0000 0000 0001 0010 0111 : 0110 1110 0000 0000 Shift and add 3 to Dig5
 //     0000 0000 0001 0010 1010
-// 08. 0000 0000 0010 0101 0100 : 1101 1100 0000 0000 Shift and add Dig4
+// 08. 0000 0000 0010 0101 0100 : 1101 1100 0000 0000 Shift and add 3 to Dig4
 //     0000 0000 0010 1000 0100
-// 09. 0000 0000 0101 0000 1001 : 1011 1000 0000 0000 Shift and add Dig3,Dig5
+// 09. 0000 0000 0101 0000 1001 : 1011 1000 0000 0000 Shift and add 3 to Dig3,Dig5
 //     0000 0000 1000 0000 1100
-// 10. 0000 0001 0000 0001 1001 : 0111 0000 0000 0000 Shift and add Dig5
+// 10. 0000 0001 0000 0001 1001 : 0111 0000 0000 0000 Shift and add 3 to Dig5
 //     0000 0001 0000 0001 1100
-// 11. 0000 0010 0000 0011 1000 : 1110 0000 0000 0000 Shift and add Dig5
+// 11. 0000 0010 0000 0011 1000 : 1110 0000 0000 0000 Shift and add 3 to Dig5
 //     0000 0010 0000 0011 1011
-// 12. 0000 0100 0000 0111 0111 : 1100 0000 0000 0000 Shift and add Dig4,Dig5
+// 12. 0000 0100 0000 0111 0111 : 1100 0000 0000 0000 Shift and add 3 to Dig4,Dig5
 //     0000 0100 0000 1010 1010
-// 13. 0000 1000 0001 0101 0101 : 1000 0000 0000 0000 Shift and add Dig2,Dig4,Dig5
+// 13. 0000 1000 0001 0101 0101 : 1000 0000 0000 0000 Shift and add 3 to Dig2,Dig4,Dig5
 //     0000 1011 0001 1000 1000
-// 14. 0001 0110 0011 0001 0001 : 0000 0000 0000 0000 Shift and add Dig2
+// 14. 0001 0110 0011 0001 0001 : 0000 0000 0000 0000 Shift and add 3 to Dig2
 //     0001 1001 0011 0001 0001
-// 15. 0011 0010 0110 0010 0010 : 0000 0000 0000 0000 Shift and add Dig3
+// 15. 0011 0010 0110 0010 0010 : 0000 0000 0000 0000 Shift and add 3 to Dig3
 //     0011 0010 1001 0010 0010
-// 16. 0110 0101 0010 0100 0100 : 0000 0000 0000 0000 Shift
+// 16. 0110 0101 0010 0100 0100 : 0000 0000 0000 0000 Shift and stop
 // =      6    5    2    4    4
 //
 // Note the final shift does not perform additions on digits >= 5.
-//
 // One detail not explained in the article - what if the number requires fewer bits than allowed?
-// EG, you have 16 bits for 4 digits, but only a 1 to 3 digit number?
+// EG, you have 16 bits for 5 digits, but only a 1 to 3 digit number?
 //
 // Let's see how to turn 652 into packed BCD when we have 5 digits available:
 //     Packed BCD               : Input
 //     Dig1 Dig2 Dig3 Dig4 Dig5
 // 00. 0000 0000 0000 0000 0000 : 0010 1000 1100 Initial values
-//
 // 01. 0000 0000 0000 0000 0000 : 0101 0001 1000 Shift
 // 02. 0000 0000 0000 0000 0000 : 1010 0011 0000 Shift
 // 03. 0000 0000 0000 0000 0001 : 0100 0110 0000 Shift
@@ -949,16 +733,15 @@ func mul128(a, b uint64) (upper, lower uint64) {
 //     0000 0000 0011 0010 1001
 // 12. 0000 0000 0110 0101 0010 : 0000 0000 0000 Shift
 //
-// Our initial number 652 is 10 bits in size.
-// The next multiple of 4 is 12 bits, so we do 12 shifts.
-func digits36(upper, lower uint64) [36]byte {
-    // Internally use a uint16 and two uint64 for a total of 36 packed BCD digits
-    // This allows for less left shift operations
-//     var (
-//         hi uint16
-//         mid, low uint64
-//     )
-    return [36]byte{}
+// Again, the final shift does not perform additions on digits >= 5.
+//
+// Looking at above two examples, we see that:
+// - 65244 shifted 16 times (after 14 shifts, the input was zero)
+// - 652   shifted 12 times (after 10 shifts, the input was zero)
+//
+// So once the input becomes 0, we keep shifting until the next multiple of 4 shifts is reached
+func digits36(upper, lower uint64) (high uint16, mid, low uint64) {
+    return 0, 0, 0
 }
 
 // Mul calculates d * o using one of two methods:
@@ -1013,51 +796,47 @@ func (d Decimal) Mul(o Decimal) (Decimal, error) {
 		// If r / o != d, the result overflowed, and we have to use a different technique
 		// Since we already checked rval != 0, we cannot get division by zero
 		if rval/oval != dval {
-			goto splitHalf
-		}
+		    // If the scale is 0, it is an integer value that must overflow
+            if rscale == 0 {
+                return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+            }
 
-		// The result could be a 19 digit value outside the 18 digit range
-		if rval > decimalMaxValue {
-			// If the scale > 0 then we can round one time to make it 18 digits
-			// Since 19 digit value begins with 92, if we drop a digit and round up,
-			// we cannot wind up at 19 digits again
-			if rscale == 0 {
-				return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
-			}
+			// We need a 128-bit result
+			//rh, rl := mul128(dval, oval)
 
-			rmdr := rval % 10
-			rval /= 10
-			if rmdr >= 5 {
-				rval++
-			}
-			rscale--
-		}
+			// Round 128-bit result
+		} else {
+            // The result could be a 19 digit value outside the 18 digit range
+            if rval > decimalMaxValue {
+                // If the scale > 0 then we can round one time to make it 18 digits
+                // Since 19 digit value begins with 92, if we drop a digit and round up,
+                // we cannot wind up at 19 digits again
+                if rscale == 0 {
+                    return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+                }
 
-		// If scale > 18, we need round until it is 18
-		// EG, scale 12 * scale 10 = scale 22
-		for rscale > decimalMaxScale {
-			rmdr := rval % 10
-			rval /= 10
-			if rmdr >= 5 {
-				rval++
-			}
-			rscale--
-		}
-	}
-	// Skip the splitHalf algorithm
-	goto end
+                rmdr := rval % 10
+                rval /= 10
+                if rmdr >= 5 {
+                    rval++
+                }
+                rscale--
+            }
+        }
 
-	// Split the two numbers into upper and lower 32 bit halves, and perform a series of multiply and adds to get a
-	// 128 bit result. The large result is then rounded down to a 64-bit 18 digit result.
-	// If it cannot be rounded down to 64 bits, it is an over/underflow.
-splitHalf:
-
-	// If the scale is 0, then we have an integer result that overflows, there is no point in using 128 bit math.
-	if rscale == 0 {
-		return Decimal{}, fmt.Errorf(funcs.Ternary(dpos == opos, errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+        // If scale > 18, we need round until it is 18
+        // EG, scale 12 * scale 10 = scale 22
+        for rscale > decimalMaxScale {
+            rmdr := rval % 10
+            rval /= 10
+            if rmdr >= 5 {
+                rval++
+            }
+            rscale--
+        }
 	}
 
-	//     upper, lower := mul128(uint64(oval), uint64(dval))
+	//upper, lower := mul128(uint64(oval), uint64(dval))
 
 	// Round off digits until one of two results:
 	// - A value small enough to fit into 64 bits, which we can return
@@ -1113,7 +892,6 @@ splitHalf:
 	//     }
 
 	// Perform common final operations, regardless of which technique was used to get the result
-end:
 	if !rpos {
 		rval = -rval
 	}
