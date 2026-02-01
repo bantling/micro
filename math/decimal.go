@@ -38,6 +38,8 @@ var (
 		100_000_000_000_000_000,   // 17
 		1_000_000_000_000_000_000, // 18
 	}
+
+    bit63 = 1 << 63
 )
 
 const (
@@ -661,19 +663,17 @@ func mul128(a, b uint64) (upper, lower uint64) {
 // 999999999999999998000000000000000001
 //
 // For simplicity of accessing the separate digits, each digit is stored in a separate byte
-// The dibble-dabble method is used (see https://en.wikipedia.org/wiki/Double_dabble), which works as follows:
+// The double-dabble method is used (see https://en.wikipedia.org/wiki/Double_dabble), which works as follows:
 //
 // - All array digits initialized as zero
 // - Shift array digits left 1 bit position, rippling across all bytes
-// - Shift input left 1 bit, copying highest bit that falls off to lowest bit of of lowest array digit
+// - Shift input left 1 bit, copying highest bit that falls off to lowest bit of lowest array digit
 // - Scan all array digits, and if any digit is >= 5, add 3 to it (this can result in multiple adds for a single shift)
 // - The number of shifts of the input is always a multiple of four
 // - Once the input is shifted to zero, continue shifting bytes until next multiple of four shifts has been reached,
 //   scanning and adding
 //
-// The algorithm is intended for hardware where accessing each of the 4 bit values and adding 3 can be done in parallel.
-// For this implementation, each digit is stored in a separate byte, for ease of access (no bit masking and shifting
-// back and forth).
+// The algorithm is intended for hardware, where accessing each of the 4 bit values and adding 3 can be done in parallel.
 // Example taken for decimal value 65244, a 5 decimal digit 16-bit value (because it is 16 bits, we shift 16 times):
 //     Packed BCD               : Input
 //     Dig1 Dig2 Dig3 Dig4 Dig5
@@ -688,7 +688,7 @@ func mul128(a, b uint64) (upper, lower uint64) {
 // 06. 0000 0000 0000 0110 0011 : 1011 0111 0000 0000 Shift and add 3 to Dig4
 //     0000 0000 0000 1001 0011
 // 07. 0000 0000 0001 0010 0111 : 0110 1110 0000 0000 Shift and add 3 to Dig5
-//     0000 0000 0001 0010 1010
+,//     0000 0000 0001 0010 1010
 // 08. 0000 0000 0010 0101 0100 : 1101 1100 0000 0000 Shift and add 3 to Dig4
 //     0000 0000 0010 1000 0100
 // 09. 0000 0000 0101 0000 1001 : 1011 1000 0000 0000 Shift and add 3 to Dig3,Dig5
@@ -740,8 +740,73 @@ func mul128(a, b uint64) (upper, lower uint64) {
 // - 652   shifted 12 times (after 10 shifts, the input was zero)
 //
 // So once the input becomes 0, we keep shifting until the next multiple of 4 shifts is reached
-func digits36(upper, lower uint64) (high uint16, mid, low uint64) {
-    return 0, 0, 0
+//
+// For this implementation, each digit is stored in one of 3 vars representing:
+// higho - highest 4 digits (16 bits)
+// mido  - next lowest 16 digits (64 bits)
+// lowo  - lowest 16 digits (64 bits)
+// Total of 36 digits
+func digits36(upperi, loweri int64) (higho int16, mido, lowo int64) {
+    // Repeat until numShifts = maxShifts
+    // Start with maxShifts = 99, which is impossibly high
+    // Once input is zero after a shift, reduce maxShifts to next multiple of four of numShifts
+    for maxShifts = 99, numShifts, upperiTop, loweriTop, midoTop, lowoTop int64; numShifts < maxShifts; numShifts++ {
+        // If maxShifts is still 99 and higho, mido, and lowo are all zero, then adjust maxShifts to next multiple of four
+        // If numShifts is already a multiple of four, then this is the last shift
+        if (maxShifts == 99) && (high == 0) && (mido == 0) && (lowo == 0) {
+            // Assume numShifts is a multiple of four
+            maxShifts = numShifts
+            if rmdr := numShifts % 4; rmdr > 0 {
+                // If not, perform 4 - remainder additional shifts
+                maxShifts += 4 - rmdr
+            }
+        }
+
+        // If numShifts reaches maxShifts, then quit loop
+        // Check before shifting, as last shift does not perform any additions
+        if (numShifts == maxShifts) {
+            break
+        }
+
+        // Grab top upperi and loweri input bits that fall off in the following shifts
+        upperiTop, loweriTop = (upperi & bit63) >> 63, (loweri & bit63) >> 63
+
+        // Shift input left 1 bit, copying top bit of loweri into bottom bit of upperi
+        upperi, loweri = (upperi << 1) | loweriTop, loweri << 1
+
+        // Grab top mido and lowo output bits that fall off in the following shifts
+        midoTop, lowoTop = (mido & bit63) > 63, (lowo & bit63) >> 63
+
+        // Shift output left 1 bit
+        // Copy top bit of input into bottom bit of lowo
+        // Copy top bit of lowo  into bottom bit of mido
+        // Copy top bit of mido  into bottom bit of higho
+        // Highest bit of higho is lost (don't need it, always 0)
+        higho, mido, lowo = (higho << 1) | midoTop, (mido << 1) | lowoTop, (lowo << 1) | upperiTop
+
+        // Scan each group of four bits of higho, adding 3 to any group whose value >= 5
+        for shift = 16 - 4, mask = 0xF << shift, digit int16; mask > 0; mask >>= 4, shift -= 4 {
+            if digit = (higho & mask) >> shift; digit >= 5 {
+                higho = ((digit + 3) << shift) | (higho & (^mask))
+            }
+        }
+
+        // Scan each group of four bits of mido, adding 3 to any group whose value >= 5
+        for shift = 64 - 4, mask = 0xF << shift, digit int64; mask > 0; mask >>= 4, shift -= 4 {
+            if digit = (mido & mask) >> shift; digit >= 5 {
+                mido = ((digit + 3) << shift) | (mido & (^mask))
+            }
+        }
+
+        // Scan each group of four bits of lowo, adding 3 to any group whose value >= 5
+        for shift = 64 - 4; mask = 0xF << shift, digit int64; mask > 0; mask >>= 4, shift -= 4 {
+            if digit = (lowo & mask) >> shift; digit >= 5 {
+                lowo = ((digit + 3) << shift) | (lowo & (^mask))
+            }
+        }
+    }
+
+    return
 }
 
 // Mul calculates d * o using one of two methods:
