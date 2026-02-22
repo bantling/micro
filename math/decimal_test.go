@@ -423,53 +423,12 @@ func TestDecimalSub_(t *testing.T) {
 
 	// Underflow
 	d1, d2 = MustDecimal(-9_999_999_999_999_999_99, 2), MustDecimal(9_999_999_999_999_999_99, 2)
-	assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 - 9999999999999999.99 underflowed")), tuple.Of2(d1.Sub(d2)))
-}
-
-func TestMul128_(t *testing.T) {
-	// Multiplying highest bit by 2 results in upper = 1 and lower = 0
-	upper, lower := mul128(0x8000_0000_0000_0000, 2)
-	assert.Equal(t, uint64(1), upper)
-	assert.Equal(t, uint64(0), lower)
-
-	// Squaring n F chars results in a 2n sequence of (n/2 - 1) F, E, (n/2 - 1) 0, 1
-	// Eg, FFFF   ^ 2 =  (3) F, E,  (3) 0, 1 = FFFE_0001
-	//     FFFFFF ^ 2 =  (5) F, E,  (5) 0, 1 = FFFFFE_000001
-	// So (16) F  ^ 2 = (15) F, E, (15) 0, 1 = FFFF_FFFF_FFFF_FFFE_0000_0000_0000_0001
-	upper, lower = mul128(0xFFFF_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF)
-	assert.Equal(t, uint64(0xFFFF_FFFF_FFFF_FFFE), upper)
-	assert.Equal(t, uint64(1), lower)
-
-	// Some cases from Div (most of these do not exceed 64 bits)
-
-	// 1. 200 * 25 = 5000
-	upper, lower = mul128(200, 25)
-	assert.Equal(t, uint64(0), upper)
-	assert.Equal(t, uint64(5000), lower)
-
-	// 2. 2 * 25005 = 50010
-	upper, lower = mul128(2, 25005)
-	assert.Equal(t, uint64(0), upper)
-	assert.Equal(t, uint64(50010), lower)
-
-	// 3. 25 * 4123 = 103075
-	upper, lower = mul128(25, 4123)
-	assert.Equal(t, uint64(0), upper)
-	assert.Equal(t, uint64(103075), lower)
-
-	// 4. 25 * 493_827_156_049_382_712 = 12_345_678_901_234_567_800
-	upper, lower = mul128(25, 493_827_156_049_382_712)
-	assert.Equal(t, uint64(0), upper)
-	assert.Equal(t, uint64(12_345_678_901_234_567_800), lower)
-
-	// 5. 25000 * 493_827_156_049_382_712 = 12_345_678_901_234_567_800_000
-	// = 0x29d__42b6_4e76_7140_e4c0
-	upper, lower = mul128(25_000, 493_827_156_049_382_712)
-	assert.Equal(t, uint64(0x029d), upper)
-	assert.Equal(t, uint64(0x42b6_4e76_7140_e4c0), lower)
+    assert.Equal(t, tuple.Of2(Decimal{}, fmt.Errorf("The decimal calculation -9999999999999999.99 - 9999999999999999.99 underflowed")), tuple.Of2(d1.Sub(d2)))
 }
 
 func TestDecimalMul_(t *testing.T) {
+    // Cases that do not overflow
+
 	// 1.5 * 2.5 = 3.75
 	d1, d2 := MustDecimal(1_5, 1), MustDecimal(2_5, 1)
 	assert.Equal(t, tuple.Of2(MustDecimal(3_75, 2), error(nil)), tuple.Of2(d1.Mul(d2)))
@@ -486,9 +445,31 @@ func TestDecimalMul_(t *testing.T) {
 	d1, d2 = MustDecimal(-1_5, 1), MustDecimal(-2_5, 1)
 	assert.Equal(t, MustDecimal(3_75, 2), d1.MustMul(d2))
 
-	// Over/underflow check does not result in division by zero error
-	d1, d2 = MustDecimal(1, 0), MustDecimal(0, 0)
-	assert.Equal(t, MustDecimal(0, 0), d1.MustMul(d2))
+	// .<15 zeros>123 * 0.1 = .<16 zeros>12
+	d1, d2 = MustDecimal(123, 18), MustDecimal(1, 1)
+	assert.Equal(t, MustDecimal(12, 18), d1.MustMul(d2))
+
+	// .(123 repeated 6 times) * 0.1 = .0(123 repeated 5 times)12
+	d1, d2 = MustDecimal(123_123_123_123_123_123, 18), MustDecimal(1, 1)
+	assert.Equal(t, MustDecimal(123_123_123_123_123_12, 18), d1.MustMul(d2))
+
+	// Integer overflow
+	d1, d2 = MustDecimal(123_456_789_012_345_678, 0), MustDecimal(1200, 0)
+	assert.Equal(t, union.OfResultError(Decimal{}, fmt.Errorf(errDecimalOverflowMsg, d1, "*", d2)), union.OfResultError(d1.Mul(d2)))
+
+	// Insignificant 0s at the end (result is 246,913,578,024,691.35000)
+	d1, d2 = MustDecimal(1_234_567_890_123_45675, 5), MustDecimal(200, 0)
+	assert.Equal(t, MustDecimal(246_913_578_024_691_35, 2), d1.MustMul(d2))
+
+	// Cases that do overflow, causing usage of BigInt
+
+	// .(123 repeated 6 times) * 0.456456 = 0.056200288288288288232088
+	//                                        123456789012345678901234
+	//                                    = 0.0562002882882882882
+	//                                         562002882882882882
+	//                                         562002882882882882
+	d1, d2 = MustDecimal(123_123_123_123_123_123, 18), MustDecimal(456_456, 6)
+	assert.Equal(t, MustDecimal(56_200_288_288_288_288, 18), d1.MustMul(d2))
 
 // 	// Overflow
 // 	// - Within bounds of signed 64 bit int, but beyond bounds of 18 decimals

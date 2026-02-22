@@ -290,6 +290,14 @@ A dependency graph can be generated anytime by running `make depgraph.png`.
     with a return statement (to provide one or more results), or no return (modify inputs) or both (modify inputs and return)
 * reflect complete struct recursion testing
 * conv
+** struct serialization/deserialization ideas
+*** Allow sum types for deserializing (eg, a discriminator field indicates which struct type to use)
+*** Serialize only non-zero value fields
+*** Flattened structure, where child struct fields are considered parent struct fields
+*** Deserialize any unknkown keys into catch all field
+*** Choose encoding for []byte fields (eg base64)
+*** JSON Lines (each line is one object)
+*** Patch documents (see https://datatracker.ietf.org/doc/html/rfc6902)
 ** add handling for json.Value, where json.NullValue is equivalent to a nil pointer or empty Maybe
 ** since encoding/json refers to conv, conv cannot refer to encoding/json
 ** option 1: move encoding/json/init.go to encoding/json/conv/init.go - shd be ok, seems to only use exported functions

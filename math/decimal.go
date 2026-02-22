@@ -4,8 +4,10 @@ package math
 
 import (
 	"fmt"
+    "math/big"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bantling/micro/conv"
@@ -38,8 +40,6 @@ var (
 		100_000_000_000_000_000,   // 17
 		1_000_000_000_000_000_000, // 18
 	}
-
-    bit63 = 1 << 63
 )
 
 const (
@@ -259,9 +259,9 @@ func (d Decimal) Sign() (sgn int) {
 
 // AdjustDecimalScale adjusts the scale of d1 and d2:
 //   - If both numbers have the same scale, no adjustment is made
-//   - Otherwise, the number with the smaller scale is usually adjusted to the same scale as the other number
-//   - Increasing the scale can cause some most significant digits to be lost, in which case the other number is rounded
-//     down to match the scale
+//   - Otherwise, the number with the smaller scale is adjusted to the same scale as the other number
+//   - Increasing the scale can cause some significant digits to be lost, in which case the other number is rounded down
+//     to match the scale
 //
 // Examples:
 //
@@ -275,9 +275,7 @@ func AdjustDecimalScale(d1, d2 *Decimal) error {
 
 	// Swap pointers if necessary so that d1 has larger scale
 	if d1.scale < d2.scale {
-		t := d1
-		d1 = d2
-		d2 = t
+	    d1, d2 = d2, d1
 	}
 
 	// Convert d1 and d2 to strings of digits only, to see how many significant digits they possess
@@ -587,253 +585,22 @@ func (d Decimal) MustSub(o Decimal) Decimal {
 	return funcs.MustValue(d.Sub(o))
 }
 
-// mul128 uses 128 bits to multiply a pair of 64 bit unsigned integers.
-// The result cannot overflow, so no error is returned.
-func mul128(a, b uint64) (upper, lower uint64) {
-	// Split a and b into 32-bit upper and lower halves.
-	// Shift the upper halves right 32 bits to align them into the lower 32 bits,
-	// so that multiplication can stay within 64 bits.
-	var (
-		ua = (a & upperHalfMask) >> 32
-		la = a & lowerHalfMask
-
-		ub = (b & upperHalfMask) >> 32
-		lb = b & lowerHalfMask
-	)
-
-	// Perform multiplications of all combinations (none of these can overflow)
-	var (
-		lalb = la * lb
-		laub = la * ub
-		ualb = ua * lb
-		uaub = ua * ub
-	)
-
-	// The above terms line up into four 32-bit sections as follows:
-	//   Upper 64 bits     Lower 64 bits
-	// Section1 Section2 Section3 Section4
-	//                     lalb     lalb
-	//            laub     laub
-	//            ualb     ualb
-	//   uaub     uaub
-
-	// Add lalb and laub bottom 32 bits shifted into upper 32 bits to line up with Section3 (cannot overflow)
-	lower = lalb + ((laub & lowerHalfMask) << 32)
-
-	// The above calculation cannot overflow:
-	// (la * lb) + (((la * ub) & lowerHalfMask) << 32)
-	//
-	//   1 * FFFF_FFFF + (((1 * FFFF_FFFF) & lowerHalfMask) << 32)
-	// = FFFF_FFFF + ((FFFF_FFFF & lowerHalfMask) << 32)
-	// = FFFF_FFFF + (FFFF_FFFF << 32)
-	// = FFFF_FFFF + FFFF_FFFF_0000_0000
-	// = FFFF_FFFE_0000_0001
-	//
-	// The problem is as follows:
-	// - lb and ub can be at most FFFF_FFFF, as they are 32-bit values
-	// - if la = 1, then (((la * ub) & lowerHalfMask) << 32) has max value of FFFF_FFFF_0000_0000
-	// - adding FFFF_FFFF to that yields a 64-bit value, no overflow
-	// if we increase la, that causes (((la * ub) & lowerHalfMask) << 32) to be a smaller value:
-	// - when la > 1, la * ub causes shifting to the left so that there are some zero bits on the right side
-	// - when grabbing the bottomm 32 bits, the result is < FFFF_FFFF
-	// - when shifting those bits 32 times to the left, the result is < FFFF_FFFF_0000_0000
-
-	// Add ualb bottom 32 bits shifted into upper 32 bits to line up with Section3 (can overflow)
-	var temp = lower + ((ualb & lowerHalfMask) << 32)
-	if temp < lower {
-		// overlow, add 1 to upper 64 bits
-		upper++
-	}
-	lower = temp
-
-	// Add top 32 bits of laub and ualb shifted into lower 32 bits to line up with Section2.
-	// Add 64 bits of uaub as is, already aligned with Section1 and Section2.
-	// Even though adding 64-bit values can generally overflow, we know the additions result from multiplying two 64 bit
-	// values, the result of which cannot exceed 128 bits.
-	upper += (laub >> 32) + (ualb >> 32) + uaub
-
-	return
-}
-
-// digits36 converts 128 binary bits into 36 decimal digits, represented as a tuple of (uint16, uint64, uint64).
-// Since the 128 binary bits derive from multiplying two decimal values, the maximum result comes from multiplying
-// 18 9's by 18 9's which equals:
-//
-// 123456789012345678901234567890123456
-// 999999999999999998000000000000000001
-//
-// For simplicity of accessing the separate digits, each digit is stored in a separate byte
-// The double-dabble method is used (see https://en.wikipedia.org/wiki/Double_dabble), which works as follows:
-//
-// - All array digits initialized as zero
-// - Shift array digits left 1 bit position, rippling across all bytes
-// - Shift input left 1 bit, copying highest bit that falls off to lowest bit of lowest array digit
-// - Scan all array digits, and if any digit is >= 5, add 3 to it (this can result in multiple adds for a single shift)
-// - The number of shifts of the input is always a multiple of four
-// - Once the input is shifted to zero, continue shifting bytes until next multiple of four shifts has been reached,
-//   scanning and adding
-//
-// The algorithm is intended for hardware, where accessing each of the 4 bit values and adding 3 can be done in parallel.
-// Example taken for decimal value 65244, a 5 decimal digit 16-bit value (because it is 16 bits, we shift 16 times):
-//     Packed BCD               : Input
-//     Dig1 Dig2 Dig3 Dig4 Dig5
-// 00. 0000 0000 0000 0000 0000 : 1111 1110 1101 1100 Initial values
-// 01. 0000 0000 0000 0000 0001 : 1111 1101 1011 1000 Shift
-// 02. 0000 0000 0000 0000 0011 : 1111 1011 0111 0000 Shift
-// 03. 0000 0000 0000 0000 0111 : 1111 0110 1110 0000 Shift and add 3 to Dig5
-//     0000 0000 0000 0000 1010
-// 04. 0000 0000 0000 0001 0101 : 1110 1101 1100 0000 Shift and add 3 to Dig5
-//     0000 0000 0000 0001 1000
-// 05. 0000 0000 0000 0011 0001 : 1101 1011 1000 0000 Shift
-// 06. 0000 0000 0000 0110 0011 : 1011 0111 0000 0000 Shift and add 3 to Dig4
-//     0000 0000 0000 1001 0011
-// 07. 0000 0000 0001 0010 0111 : 0110 1110 0000 0000 Shift and add 3 to Dig5
-,//     0000 0000 0001 0010 1010
-// 08. 0000 0000 0010 0101 0100 : 1101 1100 0000 0000 Shift and add 3 to Dig4
-//     0000 0000 0010 1000 0100
-// 09. 0000 0000 0101 0000 1001 : 1011 1000 0000 0000 Shift and add 3 to Dig3,Dig5
-//     0000 0000 1000 0000 1100
-// 10. 0000 0001 0000 0001 1001 : 0111 0000 0000 0000 Shift and add 3 to Dig5
-//     0000 0001 0000 0001 1100
-// 11. 0000 0010 0000 0011 1000 : 1110 0000 0000 0000 Shift and add 3 to Dig5
-//     0000 0010 0000 0011 1011
-// 12. 0000 0100 0000 0111 0111 : 1100 0000 0000 0000 Shift and add 3 to Dig4,Dig5
-//     0000 0100 0000 1010 1010
-// 13. 0000 1000 0001 0101 0101 : 1000 0000 0000 0000 Shift and add 3 to Dig2,Dig4,Dig5
-//     0000 1011 0001 1000 1000
-// 14. 0001 0110 0011 0001 0001 : 0000 0000 0000 0000 Shift and add 3 to Dig2
-//     0001 1001 0011 0001 0001
-// 15. 0011 0010 0110 0010 0010 : 0000 0000 0000 0000 Shift and add 3 to Dig3
-//     0011 0010 1001 0010 0010
-// 16. 0110 0101 0010 0100 0100 : 0000 0000 0000 0000 Shift and stop
-// =      6    5    2    4    4
-//
-// Note the final shift does not perform additions on digits >= 5.
-// One detail not explained in the article - what if the number requires fewer bits than allowed?
-// EG, you have 16 bits for 5 digits, but only a 1 to 3 digit number?
-//
-// Let's see how to turn 652 into packed BCD when we have 5 digits available:
-//     Packed BCD               : Input
-//     Dig1 Dig2 Dig3 Dig4 Dig5
-// 00. 0000 0000 0000 0000 0000 : 0010 1000 1100 Initial values
-// 01. 0000 0000 0000 0000 0000 : 0101 0001 1000 Shift
-// 02. 0000 0000 0000 0000 0000 : 1010 0011 0000 Shift
-// 03. 0000 0000 0000 0000 0001 : 0100 0110 0000 Shift
-// 04. 0000 0000 0000 0000 0010 : 1000 1100 0000 Shift
-// 05. 0000 0000 0000 0000 0101 : 0001 1000 0000 Shift and add Dig5
-//     0000 0000 0000 0000 1000
-// 06. 0000 0000 0000 0001 0000 : 0011 0000 0000 Shift
-// 07. 0000 0000 0000 0010 0000 : 0110 0000 0000 Shift
-// 08. 0000 0000 0000 0100 0000 : 1100 0000 0000 Shift
-// 09. 0000 0000 0000 1000 0001 : 1000 0000 0000 Shift and add Dig4
-//     0000 0000 0000 1011 0001
-// 10. 0000 0000 0001 0110 0011 : 0000 0000 0000 Shift and add Dig4
-//     0000 0000 0001 1001 0011
-// 11. 0000 0000 0011 0010 0110 : 0000 0000 0000 Shift and add Dig4
-//     0000 0000 0011 0010 1001
-// 12. 0000 0000 0110 0101 0010 : 0000 0000 0000 Shift
-//
-// Again, the final shift does not perform additions on digits >= 5.
-//
-// Looking at above two examples, we see that:
-// - 65244 shifted 16 times (after 14 shifts, the input was zero)
-// - 652   shifted 12 times (after 10 shifts, the input was zero)
-//
-// So once the input becomes 0, we keep shifting until the next multiple of 4 shifts is reached
-//
-// For this implementation, each digit is stored in one of 3 vars representing:
-// higho - highest 4 digits (16 bits)
-// mido  - next lowest 16 digits (64 bits)
-// lowo  - lowest 16 digits (64 bits)
-// Total of 36 digits
-func digits36(upperi, loweri int64) (higho int16, mido, lowo int64) {
-    // Repeat until numShifts = maxShifts
-    // Start with maxShifts = 99, which is impossibly high
-    // Once input is zero after a shift, reduce maxShifts to next multiple of four of numShifts
-    for maxShifts = 99, numShifts, upperiTop, loweriTop, midoTop, lowoTop int64; numShifts < maxShifts; numShifts++ {
-        // If maxShifts is still 99 and higho, mido, and lowo are all zero, then adjust maxShifts to next multiple of four
-        // If numShifts is already a multiple of four, then this is the last shift
-        if (maxShifts == 99) && (high == 0) && (mido == 0) && (lowo == 0) {
-            // Assume numShifts is a multiple of four
-            maxShifts = numShifts
-            if rmdr := numShifts % 4; rmdr > 0 {
-                // If not, perform 4 - remainder additional shifts
-                maxShifts += 4 - rmdr
-            }
-        }
-
-        // If numShifts reaches maxShifts, then quit loop
-        // Check before shifting, as last shift does not perform any additions
-        if (numShifts == maxShifts) {
-            break
-        }
-
-        // Grab top upperi and loweri input bits that fall off in the following shifts
-        upperiTop, loweriTop = (upperi & bit63) >> 63, (loweri & bit63) >> 63
-
-        // Shift input left 1 bit, copying top bit of loweri into bottom bit of upperi
-        upperi, loweri = (upperi << 1) | loweriTop, loweri << 1
-
-        // Grab top mido and lowo output bits that fall off in the following shifts
-        midoTop, lowoTop = (mido & bit63) > 63, (lowo & bit63) >> 63
-
-        // Shift output left 1 bit
-        // Copy top bit of input into bottom bit of lowo
-        // Copy top bit of lowo  into bottom bit of mido
-        // Copy top bit of mido  into bottom bit of higho
-        // Highest bit of higho is lost (don't need it, always 0)
-        higho, mido, lowo = (higho << 1) | midoTop, (mido << 1) | lowoTop, (lowo << 1) | upperiTop
-
-        // Scan each group of four bits of higho, adding 3 to any group whose value >= 5
-        for shift = 16 - 4, mask = 0xF << shift, digit int16; mask > 0; mask >>= 4, shift -= 4 {
-            if digit = (higho & mask) >> shift; digit >= 5 {
-                higho = ((digit + 3) << shift) | (higho & (^mask))
-            }
-        }
-
-        // Scan each group of four bits of mido, adding 3 to any group whose value >= 5
-        for shift = 64 - 4, mask = 0xF << shift, digit int64; mask > 0; mask >>= 4, shift -= 4 {
-            if digit = (mido & mask) >> shift; digit >= 5 {
-                mido = ((digit + 3) << shift) | (mido & (^mask))
-            }
-        }
-
-        // Scan each group of four bits of lowo, adding 3 to any group whose value >= 5
-        for shift = 64 - 4; mask = 0xF << shift, digit int64; mask > 0; mask >>= 4, shift -= 4 {
-            if digit = (lowo & mask) >> shift; digit >= 5 {
-                lowo = ((digit + 3) << shift) | (lowo & (^mask))
-            }
-        }
-    }
-
-    return
-}
-
 // Mul calculates d * o using one of two methods:
 //
-// 1. r = d * o is tried first
+// r = d * o is tried first
 // If r = 0, then return 0 scale 0.
 // If r / d = o, then if r > max value or < min value, we have a valid result 19 digits in length.
+//	- Round it to 18 with single divide by 10, and add 1 if remainder >= 5.
+//	- Given max int64 value starts with 92, divide by 10 and add 1 cannot go back up 19 digits.
 //
-//	Round it to 18 with single divide by 10, and add 1 if remainder >= 5.
-//	Given max int64 value starts with 92, divide by 10 cannot be max value.
+// Otherwise If r / d != o, it is a 64-bit overflow, use BigInt to multiply the two numbers, and get the base 10 string.
+// The resulting scale rs is d scale + o scale, and we need to round (length - 18) times:
+//  - Check that resulting scale >= length - 18. If not, the integer portion is too large, it is an overflow.
+//  - Otherwise, round length - 18 times to bring the result down to max of 18 digits.
 //
-// Otherwise, go to method 2 below.
-//
-// The resulting scale rs is d scale + o scale.
-// If rs <= 18, just return r with scale rs.
-// Otherwise, round r (rs - 18) times.
 // If the result is 0, return 0 scale 0, else return r scale rs.
-//
-// 2. If r / d != o, we have a case where d * o exceeds bounds of 64 bit integers.
-// Split d and o into 32-bit upper/lower pairs, and perform a series of shift and adds
-// that generate a 128-bit result.
-//
-// The 128 bit result is first rounded down to 18 digits, reducing rs by up to 18.
-// If rs = 0 and there are more than 18 digitds l
-// The result rs must be <= 18, return as is.
 func (d Decimal) Mul(o Decimal) (Decimal, error) {
-	// Try just multiplying the two 64-bit values together, and see if the result fits in 64 bits
+    // Ensure both values are non-negative
 	var (
 		dval = d.value
 		dpos = dval >= 0
@@ -851,110 +618,102 @@ func (d Decimal) Mul(o Decimal) (Decimal, error) {
 		oval = -oval
 	}
 
+	// Try just multiplying the two 64-bit values together, and see if the result fits in 64 bits
 	var (
 		rval = dval * oval
 		rpos = dpos == opos
 	)
 
-	// If one or both inputs are 0, nothing more to do
-	if (dval != 0) && (oval != 0) {
-		// If r / o != d, the result overflowed, and we have to use a different technique
-		// Since we already checked rval != 0, we cannot get division by zero
-		if rval/oval != dval {
+    // Flag to track if we have a 19 digit number that could possibly round to 18, if scale > 0
+    var round19 bool
+
+	// If result is 0, nothing more to do
+	if dval != 0 {
+		// If rval / dval != oval, the binary result overflowed, and we have to use a different technique
+		// Otherwise, it is possible we have a 19 digit value that we can try and round down to 18
+		// Since we already checked dval != 0, we cannot get division by zero
+		if round19 = rval / dval == oval; !round19 {
 		    // If the scale is 0, it is an integer value that must overflow
             if rscale == 0 {
                 return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
             }
 
-			// We need a 128-bit result
-			//rh, rl := mul128(dval, oval)
+			// We need a 128-bit result, so use BigInt
+            bi := big.NewInt(dval)
+            bi = bi.Mul(bi, big.NewInt(oval))
 
-			// Round 128-bit result
-		} else {
-            // The result could be a 19 digit value outside the 18 digit range
-            if rval > decimalMaxValue {
-                // If the scale > 0 then we can round one time to make it 18 digits
-                // Since 19 digit value begins with 92, if we drop a digit and round up,
-                // we cannot wind up at 19 digits again
-                if rscale == 0 {
-                    return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
-                }
+            // Get result as a decimal string, converted to a slice of ascii bytes
+            base10 := []byte(bi.Text(10))
 
-                rmdr := rval % 10
-                rval /= 10
-                if rmdr >= 5 {
-                    rval++
+            // Normalize by removing insignificant 0s at the end, as long as they are after the decimal
+            for (rscale > 0) && (base10[len(base10)-1] - '0' == 0) {
+                rscale--
+                base10 = base10[:len(base10)-1]
+            }
+
+            // The length of the string - result scale = number of integer digits
+            // It is an overflow if the number of integer digits > 18
+            if (len(base10) - int(rscale) > 18) {
+                return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+            }
+
+            // While the total length > 18, round off decimal digits until it isn't
+            // This may round to an integer, or may still have some decimals
+            var digit, carry byte
+            for ; len(base10) > 18; base10 = base10[:len(base10) - 1] {
+                digit = base10[len(base10) - 1] - '0' + carry
+                carry = 0
+                if digit >= 5 {
+                    carry = 1
                 }
                 rscale--
             }
-        }
 
-        // If scale > 18, we need round until it is 18
-        // EG, scale 12 * scale 10 = scale 22
-        for rscale > decimalMaxScale {
-            rmdr := rval % 10
-            rval /= 10
-            if rmdr >= 5 {
+            // Get final digit
+            digit = base10[len(base10) - 1] - '0'
+
+            // Convert byte slice back to a 64 bit int (cannot fail, as it is <= 18 digits in length)
+            rval, _ = strconv.ParseInt(string(base10), 10, 64)
+
+            // Add 1 if the final carry is 1 and final digit >= 5
+            // Let the binary add ripple the carry as needed
+            if (carry == 1) && (digit >= 5) {
                 rval++
+
+                // It is possible we just added 1 to an 18 digit value that became a 19 digit value
+                round19 = true
             }
-            rscale--
-        }
+		}
 	}
 
-	//upper, lower := mul128(uint64(oval), uint64(dval))
+    if round19 && (rval > decimalMaxValue) {
+        // If we have no decimal digits, we cannot round
+        if rscale == 0 {
+            return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+        }
 
-	// Round off digits until one of two results:
-	// - A value small enough to fit into 64 bits, which we can return
-	// - There are no more decimal places to round, leaving only an integer > 64 bits in size, that is an over/underflow
-	//
-	// Division by 10 across two 64-bit ints can be performed using a bit shifting algorithm. The idea is as follows:
-	// - 121 / 10
-	// - Start with 10, 1
-	// - Repeatedly shift left (20, 2), (40, 4), ...
-	// - Stop when the power of 2 multiple of 10 is the largest multiple <= 121 which is (80, 8)
-	// - The multiple 8 is the initial quotient, and 121 - 80 = 41 is the remainder
-	// - Now switch to a loop of shift right and subtracts, subtracting only when the multiple of 10 <= remainder
-	// - For each subtraction, add multiple of 10 to current quotient
-	// - Once the current remainder < 10, we have final result
-	// - m, q, r = 80, 8, 41
-	// - Shift (80, 8) right = (40, 4)
-	// - 40 <= 41, so q, r = (8 + 4, 41 = 40) = (12, 1)
-	// - Since r < 10, final result is 121 = 12 * 10 + 1
-	//
-	// We can optimmize this algorithm by our knowledge that we only need to use this algorithm because we have more
-	// 64 bits. So instead of starting at and shifting left, start at the power of 10 in the upper 64 bits where the
-	// highest bit is in the middle:
-	//
-	// (upper m, q) = (0000_0000_1010_0000, 16)
-	//
-	// To get starting point of bit shifting division:
-	// If upper m < upper 64, shift (upper m, q) left until upper m >= upper64. If > upper64, shift (m, q) right once.
-	// If upper m > upper 64, shift (upper m, q) right until upper m <= upper64.
-	//
-	// When shifting right, if the upper m <= 101, then:
-	// - The lower m bits have to be shifted right
-	// - The highest lower m bit is set to lowest upper m bit
-	// - upper m shifted right
-	// - eg, when upper m  = 101:
-	//   - shift lower m (currently 0) right = 0
-	//   - set upper m bit = 1
-	//   - shift upper m right = 10
-	//   - end result is 0000_0000_0000_0010 1000_0000_000_0000
-	//
-	// Once the starting point is found
-	//     var (
-	//         upperQuo := middlePower10
-	//         lowerQuo  uint64
-	//         upperRmdr uint64
-	//         lowerRmdr uint64
-	//     )
-	//     for (upperQuo > 0) && (rscale > 0) {
-	//         temp = upper64 / 10
-	//         rmdr = upper64 % 10
-	//         if rmdr >= 5 {
-	//             temp++
-	//         }
-	//     }
+        // Round one digit
+        rmdr := rval % 10
+        rval /= 10
+        if rmdr >= 5 {
+            rval++
+
+            // If we have 18 9's, then adding 1 would make it 19 digits again
+            if (rval > decimalMaxValue) {
+                return Decimal{}, fmt.Errorf(funcs.Ternary(d.Sign() == o.Sign(), errDecimalOverflowMsg, errDecimalUnderflowMsg), d, "*", o)
+            }
+        }
+    }
+
+    // If rscale > 18, then we need to round off digits until it is down to 18
+    for rscale > 18 {
+        rmdr := rval % 10
+        rval /= 10
+        if rmdr >= 5 {
+            rval++
+        }
+        rscale--
+    }
 
 	// Perform common final operations, regardless of which technique was used to get the result
 	if !rpos {

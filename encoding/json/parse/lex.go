@@ -190,9 +190,13 @@ func lexString(it iter.Iter[rune]) (token, error) {
 					// DecodeRune returns 0xFFFD if the pair is not a valid UTF-16 pair.
 					// Note that UTF-16 can be big or little endian, and so can the processor.
 					// Go decodes in the order presented in RFC8259 regardless of processor, where U+1D11E is encoded as \uD834\uDD1E.
-					if hexVal = utf16.DecodeRune(hexVal, hexVal2); hexVal == 0xFFFD {
-						return zv, fmt.Errorf(errSurrogateDecodeEscapeMsg, string(temp)+string(temp2))
+					var hexValCombined rune
+					if hexValCombined = utf16.DecodeRune(hexVal, hexVal2); hexValCombined == 0xFFFD {
+					    if hexValCombined = utf16.DecodeRune(hexVal2, hexVal); hexValCombined == 0xFFFD {
+						    return zv, fmt.Errorf(errSurrogateDecodeEscapeMsg, string(temp)+string(temp2))
+						}
 					}
+                    hexVal = hexValCombined
 				}
 
 				val = hexVal

@@ -25,7 +25,9 @@ func TestLexString_(t *testing.T) {
 	assert.Equal(t, union.OfResult(token{tString, `A`}), union.OfResultError(lexString(iter.OfStringAsRunes(`"\u0041"b`))))
 	assert.Equal(t, union.OfResult(token{tString, `abc`}), union.OfResultError(lexString(iter.OfStringAsRunes(`"a\u0062c"`))))
 	assert.Equal(t, union.OfResult(token{tString, "\U0001D11E"}), union.OfResultError(lexString(iter.OfStringAsRunes(`"\uD834\udd1e"`))))
+	assert.Equal(t, union.OfResult(token{tString, "\U0001D11E"}), union.OfResultError(lexString(iter.OfStringAsRunes(`"\udd1e\uD834"`))))
 	assert.Equal(t, union.OfResult(token{tString, "a\U0001D11Eb"}), union.OfResultError(lexString(iter.OfStringAsRunes(`"a\uD834\udd1eb"`))))
+	assert.Equal(t, union.OfResult(token{tString, "a\U0001D11Eb"}), union.OfResultError(lexString(iter.OfStringAsRunes(`"a\udd1e\uD834b"`))))
 
 	assert.Equal(t, union.OfError[token](fmt.Errorf("The ascii control character 0x05 is not valid in a string")), union.OfResultError(lexString(iter.OfStringAsRunes("\"\x05"))))
 
@@ -50,7 +52,6 @@ func TestLexString_(t *testing.T) {
 	}
 
 	assert.Equal(t, union.OfError[token](fmt.Errorf("The surrogate string escape \\uD834 cannot be followed by the non-surrogate escape \\u0061")), union.OfResultError(lexString(iter.OfStringAsRunes(`"\uD834\u0061`))))
-	assert.Equal(t, union.OfError[token](fmt.Errorf("The surrogate string escape pair \\udd1e\\uD834 is not a valid UTF-16 surrogate pair")), union.OfResultError(lexString(iter.OfStringAsRunes(`"\udd1e\uD834"`))))
 	assert.Equal(t, union.OfError[token](fmt.Errorf("Illegal string escape \\d")), union.OfResultError(lexString(iter.OfStringAsRunes(`"\d"`))))
 	assert.Equal(t, union.OfError[token](fmt.Errorf("Incomplete string \": a string must be terminated by a \"")), union.OfResultError(lexString(iter.OfStringAsRunes(`"`))))
 
